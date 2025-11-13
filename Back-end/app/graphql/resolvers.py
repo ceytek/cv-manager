@@ -32,6 +32,8 @@ from app.graphql.types import (
     CandidateType,
     ApplicationType,
     AnalyzeJobCandidatesInput,
+    GenerateJobWithAIInput,
+    GenerateJobResultType,
     StatsType,
     ComparisonResultType,
 )
@@ -2007,6 +2009,91 @@ class Mutation:
             
         except Exception as e:
             raise Exception(str(e))
+        finally:
+            db.close()
+    
+    @strawberry.mutation
+    async def generate_job_with_ai(
+        self,
+        info: strawberry.Info,
+        input: GenerateJobWithAIInput
+    ) -> GenerateJobResultType:
+        """
+        Generate a job description using AI.
+        Does NOT save to database - returns generated data for preview/edit.
+        """
+        import httpx
+        import json
+        from app.core.config import settings
+        
+        # Get authorization header
+        request = info.context["request"]
+        auth_header = request.headers.get("authorization")
+        
+        if not auth_header:
+            raise Exception("Not authenticated")
+        
+        # Extract token
+        try:
+            scheme, token = auth_header.split()
+        except ValueError:
+            raise Exception("Invalid authorization header")
+        
+        db = get_db_session()
+        try:
+            # Verify user is authenticated
+            current = get_current_user_from_token(token, db)
+            if not current:
+                raise Exception("User not found")
+            
+            # Prepare payload for AI Service
+            payload = {
+                "position": input.position,
+                "department": input.department,
+                "location": input.location,
+                "employment_type": input.employment_type,
+                "experience_level": input.experience_level,
+                "required_skills": input.required_skills or [],
+                "required_languages": [
+                    {"name": lang.name, "level": lang.level}
+                    for lang in (input.required_languages or [])
+                ],
+                "additional_notes": input.additional_notes,
+                "language": input.language or "turkish"
+            }
+            
+            # Call AI Service
+            ai_service_url = f"{settings.AI_SERVICE_URL}/generate-job-description"
+            
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                response = await client.post(
+                    ai_service_url,
+                    json=payload
+                )
+            
+            if response.status_code != 200:
+                raise Exception(f"AI service error: {response.text}")
+            
+            result = response.json()
+            
+            if not result.get("success"):
+                raise Exception(result.get("error", "Unknown error from AI service"))
+            
+            # Return job data as JSON string (for frontend to parse)
+            job_data = result.get("data")
+            
+            return GenerateJobResultType(
+                success=True,
+                job_data=json.dumps(job_data),  # Convert dict to JSON string
+                message="Job description generated successfully"
+            )
+            
+        except Exception as e:
+            return GenerateJobResultType(
+                success=False,
+                job_data=None,
+                message=f"Failed to generate job description: {str(e)}"
+            )
         finally:
             db.close()
 

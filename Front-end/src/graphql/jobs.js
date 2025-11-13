@@ -132,3 +132,16 @@ export const TOGGLE_JOB_ACTIVE_MUTATION = gql`
     }
   }
 `;
+
+/**
+ * Mutation to generate job description with AI
+ */
+export const GENERATE_JOB_WITH_AI_MUTATION = gql`
+  mutation GenerateJobWithAI($input: GenerateJobWithAIInput!) {
+    generateJobWithAi(input: $input) {
+      success
+      jobData
+      message
+    }
+  }
+`;

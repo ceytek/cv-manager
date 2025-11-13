@@ -8,8 +8,9 @@ import React, { useState, useEffect } from 'react';
 import { useMutation } from '@apollo/client/react';
 import { CREATE_JOB_MUTATION, UPDATE_JOB_MUTATION, JOBS_QUERY } from '../graphql/jobs';
 import { useTranslation } from 'react-i18next';
+import JobPreviewModal from './JobForm/JobPreviewModal';
 
-const JobForm = ({ job, departments = [], onSuccess, onCancel }) => {
+const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel }) => {
   const { t } = useTranslation();
   const isEditing = !!job;
   
@@ -30,7 +31,7 @@ const JobForm = ({ job, departments = [], onSuccess, onCancel }) => {
     salaryMax: '',
     salaryCurrency: 'TRY',
     deadline: '',
-    startDate: 'immediate',
+    startDate: '',
     status: 'draft',
   });
 
@@ -40,6 +41,10 @@ const JobForm = ({ job, departments = [], onSuccess, onCancel }) => {
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewData, setPreviewData] = useState(null);
+  const [editingDescription, setEditingDescription] = useState(false);
+  const [editingRequirements, setEditingRequirements] = useState(false);
 
   // Load job data if editing
   useEffect(() => {
@@ -65,7 +70,7 @@ const JobForm = ({ job, departments = [], onSuccess, onCancel }) => {
         salaryMax: job.salaryMax || '',
         salaryCurrency: job.salaryCurrency || 'TRY',
         deadline: job.deadline || '',
-        startDate: job.startDate || 'immediate',
+        startDate: job.startDate || '',
         status: job.status || 'draft',
       });
       
@@ -73,11 +78,43 @@ const JobForm = ({ job, departments = [], onSuccess, onCancel }) => {
     }
   }, [job]);
 
-  const [createJob] = useMutation(CREATE_JOB_MUTATION, {
+  // Load AI-generated data if provided
+  useEffect(() => {
+    if (aiData) {
+      // Parse required_languages if exists
+      const langObj = aiData.required_languages || {};
+      const langArray = Object.entries(langObj).map(([name, level]) => ({ name, level }));
+      
+      setFormData({
+        title: aiData.title || '',
+        departmentId: '', // Will be set by user
+        description: aiData.description || '',
+        requirements: aiData.requirements || '',
+        keywords: (aiData.keywords || []).join(', '),
+        location: aiData.location || '',
+        remotePolicy: 'office', // Default
+        employmentType: aiData.employmentType || 'full-time',
+        experienceLevel: aiData.experienceLevel || 'mid',
+        requiredEducation: '',
+        preferredMajors: aiData.preferred_majors || '',
+        requiredLanguages: JSON.stringify(langObj),
+        salaryMin: '',
+        salaryMax: '',
+        salaryCurrency: 'TRY',
+        deadline: '',
+        startDate: aiData.start_date || '',
+        status: 'draft',
+      });
+      
+      setLanguages(langArray);
+    }
+  }, [aiData]);
+
+  const [createJob, { loading: createLoading }] = useMutation(CREATE_JOB_MUTATION, {
     refetchQueries: [{ query: JOBS_QUERY, variables: { includeInactive: false } }],
   });
 
-  const [updateJob] = useMutation(UPDATE_JOB_MUTATION, {
+  const [updateJob, { loading: updateLoading }] = useMutation(UPDATE_JOB_MUTATION, {
     refetchQueries: [{ query: JOBS_QUERY, variables: { includeInactive: false } }],
   });
 
@@ -140,47 +177,54 @@ const JobForm = ({ job, departments = [], onSuccess, onCancel }) => {
       return;
     }
 
+    // Parse keywords and languages
+    const keywords = formData.keywords
+      ? formData.keywords.split(',').map(k => k.trim()).filter(k => k)
+      : [];
+    
+    // Convert languages array to object: { "English": "business", "German": "basic" }
+    const requiredLanguages = languages.reduce((acc, lang) => {
+      acc[lang.name] = lang.level;
+      return acc;
+    }, {});
+
+    const jobData = {
+      title: formData.title.trim(),
+      departmentId: formData.departmentId,
+      description: formData.description.trim(),
+      requirements: formData.requirements.trim(),
+      keywords,
+      location: formData.location.trim(),
+      remotePolicy: formData.remotePolicy,
+      employmentType: formData.employmentType,
+      experienceLevel: formData.experienceLevel,
+      requiredEducation: formData.requiredEducation || null,
+      preferredMajors: formData.preferredMajors || null,
+      requiredLanguages,
+      salaryMin: formData.salaryMin ? parseInt(formData.salaryMin) : null,
+      salaryMax: formData.salaryMax ? parseInt(formData.salaryMax) : null,
+      salaryCurrency: formData.salaryCurrency,
+      deadline: formData.deadline || null,
+      startDate: formData.startDate || null,
+      status: formData.status,
+    };
+
+    // Show preview modal instead of direct save
+    setPreviewData(jobData);
+    setShowPreview(true);
+  };
+
+  const handlePublish = async () => {
     try {
-      // Parse keywords and languages
-      const keywords = formData.keywords
-        ? formData.keywords.split(',').map(k => k.trim()).filter(k => k)
-        : [];
-      
-      // Convert languages array to object: { "English": "business", "German": "basic" }
-      const requiredLanguages = languages.reduce((acc, lang) => {
-        acc[lang.name] = lang.level;
-        return acc;
-      }, {});
-
-      const jobData = {
-        title: formData.title.trim(),
-        departmentId: formData.departmentId,
-        description: formData.description.trim(),
-        requirements: formData.requirements.trim(),
-        keywords,
-        location: formData.location.trim(),
-        remotePolicy: formData.remotePolicy,
-        employmentType: formData.employmentType,
-        experienceLevel: formData.experienceLevel,
-        requiredEducation: formData.requiredEducation || null,
-        preferredMajors: formData.preferredMajors || null,
-        requiredLanguages,
-        salaryMin: formData.salaryMin ? parseInt(formData.salaryMin) : null,
-        salaryMax: formData.salaryMax ? parseInt(formData.salaryMax) : null,
-        salaryCurrency: formData.salaryCurrency,
-        deadline: formData.deadline || null,
-        startDate: formData.startDate || null,
-        status: formData.status,
-      };
-
       if (isEditing) {
-        await updateJob({ variables: { id: job.id, input: jobData } });
+        await updateJob({ variables: { id: job.id, input: previewData } });
         setSuccess(t('jobForm.successUpdated'));
       } else {
-        await createJob({ variables: { input: jobData } });
+        await createJob({ variables: { input: previewData } });
         setSuccess(t('jobForm.successCreated'));
       }
 
+      setShowPreview(false);
       setTimeout(() => {
         if (onSuccess) onSuccess();
       }, 1000);
@@ -275,27 +319,181 @@ const JobForm = ({ job, departments = [], onSuccess, onCancel }) => {
       {/* İş Tanımı */}
       <div>
         <label style={{ display: 'block', marginBottom: 6, fontSize: 14, fontWeight: 500 }}>{t('jobForm.description')} *</label>
-        <textarea
-          value={formData.description}
-          onChange={(e) => handleChange('description', e.target.value)}
-          placeholder={t('jobForm.descriptionPlaceholder')}
-          className="text-input"
-          rows={4}
-          required
-        />
+        
+        {/* Preview Mode - Only show if AI data exists and not editing */}
+        {aiData && !editingDescription ? (
+          <div>
+            <div style={{
+              border: '2px solid #E5E7EB',
+              borderRadius: 12,
+              padding: 20,
+              background: '#FFFFFF',
+              marginBottom: 12,
+              minHeight: 200
+            }}>
+              <div 
+                dangerouslySetInnerHTML={{ __html: formData.description }}
+                style={{ 
+                  fontSize: 15, 
+                  lineHeight: 1.7, 
+                  color: '#374151',
+                  '& p': { marginBottom: 12 },
+                  '& ul': { marginLeft: 20, marginBottom: 12 },
+                  '& li': { marginBottom: 8 }
+                }}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setEditingDescription(true)}
+              style={{
+                padding: '8px 16px',
+                border: '1px solid #667eea',
+                borderRadius: 8,
+                background: 'white',
+                color: '#667eea',
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = '#667eea';
+                e.target.style.color = 'white';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = 'white';
+                e.target.style.color = '#667eea';
+              }}
+            >
+              ✏️ HTML Kodunu Düzenle
+            </button>
+          </div>
+        ) : (
+          <div>
+            <textarea
+              value={formData.description}
+              onChange={(e) => handleChange('description', e.target.value)}
+              placeholder={t('jobForm.descriptionPlaceholder')}
+              className="text-input"
+              rows={8}
+              required
+              style={{ fontFamily: 'inherit', fontSize: 14 }}
+            />
+            <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4 }}>
+              HTML formatında yazabilirsiniz (örn: &lt;p&gt;, &lt;ul&gt;, &lt;li&gt;, &lt;strong&gt;)
+            </div>
+            {aiData && editingDescription && (
+              <button
+                type="button"
+                onClick={() => setEditingDescription(false)}
+                style={{
+                  padding: '6px 12px',
+                  border: '1px solid #10B981',
+                  borderRadius: 6,
+                  background: 'white',
+                  color: '#10B981',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  marginTop: 8
+                }}
+              >
+                ✓ Önizlemeye Dön
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Aranan Nitelikler */}
       <div>
         <label style={{ display: 'block', marginBottom: 6, fontSize: 14, fontWeight: 500 }}>{t('jobForm.requirements')} *</label>
-        <textarea
-          value={formData.requirements}
-          onChange={(e) => handleChange('requirements', e.target.value)}
-          placeholder={t('jobForm.requirementsPlaceholder')}
-          className="text-input"
-          rows={4}
-          required
-        />
+        
+        {/* Preview Mode - Only show if AI data exists and not editing */}
+        {aiData && !editingRequirements ? (
+          <div>
+            <div style={{
+              border: '2px solid #E5E7EB',
+              borderRadius: 12,
+              padding: 20,
+              background: '#FFFFFF',
+              marginBottom: 12,
+              minHeight: 200
+            }}>
+              <div 
+                dangerouslySetInnerHTML={{ __html: formData.requirements }}
+                style={{ 
+                  fontSize: 15, 
+                  lineHeight: 1.7, 
+                  color: '#374151',
+                  '& p': { marginBottom: 12 },
+                  '& ul': { marginLeft: 20, marginBottom: 12 },
+                  '& li': { marginBottom: 8 }
+                }}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setEditingRequirements(true)}
+              style={{
+                padding: '8px 16px',
+                border: '1px solid #667eea',
+                borderRadius: 8,
+                background: 'white',
+                color: '#667eea',
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = '#667eea';
+                e.target.style.color = 'white';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = 'white';
+                e.target.style.color = '#667eea';
+              }}
+            >
+              ✏️ HTML Kodunu Düzenle
+            </button>
+          </div>
+        ) : (
+          <div>
+            <textarea
+              value={formData.requirements}
+              onChange={(e) => handleChange('requirements', e.target.value)}
+              placeholder={t('jobForm.requirementsPlaceholder')}
+              className="text-input"
+              rows={8}
+              required
+              style={{ fontFamily: 'inherit', fontSize: 14 }}
+            />
+            <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4 }}>
+              HTML formatında yazabilirsiniz. Gereksinimler madde madde &lt;ul&gt;&lt;li&gt; ile listeleyin.
+            </div>
+            {aiData && editingRequirements && (
+              <button
+                type="button"
+                onClick={() => setEditingRequirements(false)}
+                style={{
+                  padding: '6px 12px',
+                  border: '1px solid #10B981',
+                  borderRadius: 6,
+                  background: 'white',
+                  color: '#10B981',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  marginTop: 8
+                }}
+              >
+                ✓ Önizlemeye Dön
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Anahtar Kelimeler */}
@@ -432,7 +630,10 @@ const JobForm = ({ job, departments = [], onSuccess, onCancel }) => {
 
       {/* Maaş Aralığı */}
       <div>
-        <label style={{ display: 'block', marginBottom: 6, fontSize: 14, fontWeight: 500 }}>{t('jobForm.salaryRange')}</label>
+        <label style={{ display: 'block', marginBottom: 6, fontSize: 14, fontWeight: 500 }}>
+          {t('jobForm.salaryRange')} 
+          <span style={{ color: '#9CA3AF', fontSize: 12, marginLeft: 8 }}>(İsteğe bağlı)</span>
+        </label>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 80px', gap: 12 }}>
           <input 
             type="number" 
@@ -487,12 +688,22 @@ const JobForm = ({ job, departments = [], onSuccess, onCancel }) => {
       {/* Buttons */}
       <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
         <button type="submit" className="btn-primary" style={{ flex: 1 }}>
-          {t('jobForm.publish')}
+          👁️ Önizle
         </button>
         <button type="button" onClick={onCancel} className="btn-secondary">
           {t('jobForm.cancel')}
         </button>
       </div>
+
+      {/* Preview Modal */}
+      <JobPreviewModal
+        isOpen={showPreview}
+        onClose={() => setShowPreview(false)}
+        jobData={previewData}
+        departments={departments}
+        onPublish={handlePublish}
+        isLoading={createLoading || updateLoading}
+      />
     </form>
   );
 };

@@ -20,6 +20,7 @@ import {
 import { useQuery, useMutation, useSubscription } from '@apollo/client/react';
 import { USERS_QUERY, DEACTIVATE_USER_MUTATION } from '../graphql/auth';
 import { DEPARTMENTS_QUERY } from '../graphql/departments';
+import { JOBS_QUERY } from '../graphql/jobs';
 import './Dashboard.css';
 import { STATS_QUERY, STATS_SUBSCRIPTION } from '../graphql/stats';
 import AddUserModal from './AddUserModal';
@@ -51,6 +52,38 @@ const Dashboard = ({ currentUser, onLogout }) => {
     variables: { includeInactive: false },
   });
   const departments = departmentsData?.departments || [];
+
+  // Fetch recent jobs (last 3)
+  const { data: jobsData } = useQuery(JOBS_QUERY, {
+    variables: {
+      includeInactive: false,
+      status: 'active',
+      searchTerm: null,
+    },
+    fetchPolicy: 'cache-and-network',
+  });
+  const recentJobs = (jobsData?.jobs || []).slice(0, 3);
+  
+  // Debug: Log job data
+  console.log('Recent Jobs Data:', recentJobs);
+
+  // Get department name by ID
+  const getDepartmentName = (deptId) => {
+    const dept = departments.find(d => d.id === deptId);
+    return dept ? dept.name : t('dashboard.unknownDepartment');
+  };
+  
+  // Extract plain text from HTML description
+  const getDescriptionPreview = (job) => {
+    let text = job.descriptionPlain || job.description || '';
+    // If it's HTML, strip tags
+    if (text.includes('<')) {
+      const div = document.createElement('div');
+      div.innerHTML = text;
+      text = div.textContent || div.innerText || '';
+    }
+    return text.trim().substring(0, 80) || t('dashboard.noDescription');
+  };
 
   // Initial stats fetch once; subscription will keep it fresh
   const { data: statsData, loading: statsInitialLoading, refetch: refetchStats } = useQuery(STATS_QUERY, {
@@ -88,37 +121,6 @@ const Dashboard = ({ currentUser, onLogout }) => {
     { name: 'Kariyer Siteleri', value: 60, color: '#3B82F6' },
     { name: 'Şirket Sitesi', value: 25, color: '#10B981' },
     { name: 'Yönlendirmeler', value: 15, color: '#8B5CF6' }
-  ];
-
-  const recentJobs = [
-    { 
-      title: 'Kıdemli Frontend Geliştirici', 
-      department: 'Mühendislik', 
-      applications: 128, 
-      status: 'Aktif',
-      statusColor: 'green'
-    },
-    { 
-      title: 'UX/UI Tasarımcısı', 
-      department: 'Tasarım', 
-      applications: 72, 
-      status: 'Aktif',
-      statusColor: 'green'
-    },
-    { 
-      title: 'Pazarlama Uzmanı', 
-      department: 'Pazarlama', 
-      applications: 45, 
-      status: 'İnceleniyor',
-      statusColor: 'yellow'
-    },
-    { 
-      title: 'Veri Bilimci', 
-      department: 'Analitik', 
-      applications: 31, 
-      status: 'Kapalı',
-      statusColor: 'red'
-    }
   ];
 
   const menuItems = [
@@ -313,6 +315,93 @@ const Dashboard = ({ currentUser, onLogout }) => {
               <div className="action-title">{t('actions.jobList')}</div>
               <div className="action-subtitle">{t('actions.jobListDesc')}</div>
             </button>
+          </div>
+        )}
+
+        {/* Recent Jobs Section */}
+        {!(activeMenu === 'settings' && settingsMenu) && activeMenu === 'dashboard' && recentJobs.length > 0 && (
+          <div style={{ marginTop: 32 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 600, color: '#1F2937', margin: 0 }}>
+                {t('dashboard.recentJobs')}
+              </h2>
+              <button
+                onClick={() => setActiveMenu('jobs')}
+                style={{
+                  padding: '6px 12px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#3B82F6',
+                  fontSize: 14,
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  textDecoration: 'none'
+                }}
+              >
+                {t('dashboard.viewAll')} →
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+              {recentJobs.map(job => (
+                <div
+                  key={job.id}
+                  onClick={() => { setActiveMenu('jobs'); }}
+                  style={{
+                    background: 'white',
+                    borderRadius: 12,
+                    padding: 20,
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    border: '1px solid #E5E7EB'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  <h3 style={{ fontSize: 16, fontWeight: 600, color: '#1F2937', marginBottom: 8 }}>
+                    {job.title}
+                  </h3>
+                  <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 12 }}>
+                    {t('dashboard.publishDate')}: {new Date(job.createdAt).toLocaleDateString(t('dashboard.locale'))}
+                  </p>
+                  <p style={{ 
+                    fontSize: 14, 
+                    color: '#374151', 
+                    marginBottom: 0, 
+                    lineHeight: '1.5',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                    wordBreak: 'break-word',
+                    maxWidth: '40ch'
+                  }}>
+                    {getDescriptionPreview(job)}...
+                  </p>
+                  <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #E5E7EB' }}>
+                    <a
+                      onClick={(e) => { e.stopPropagation(); setActiveMenu('jobs'); }}
+                      style={{
+                        color: '#3B82F6',
+                        fontSize: 13,
+                        fontWeight: 500,
+                        textDecoration: 'none',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {t('dashboard.viewDetails')} →
+                    </a>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

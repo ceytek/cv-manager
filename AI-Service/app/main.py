@@ -12,6 +12,7 @@ from app.config import settings
 from app.services.cv_parser import cv_parser_service
 from app.services.job_matcher_service import get_job_matcher_service
 from app.services.compare_service import get_compare_service
+from app.services.job_generator_service import get_job_generator_service
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -69,6 +70,32 @@ class CompareCVsRequest(BaseModel):
 
 
 class CompareCVsResponse(BaseModel):
+    success: bool
+    data: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
+
+
+class LanguageRequirement(BaseModel):
+    """Language requirement model"""
+    name: str
+    level: str
+
+
+class GenerateJobRequest(BaseModel):
+    """Request model for AI job description generation"""
+    position: str
+    department: Optional[str] = None
+    location: str
+    employment_type: str = "full-time"
+    experience_level: Optional[str] = None
+    required_skills: List[str] = []
+    required_languages: List[LanguageRequirement] = []
+    additional_notes: Optional[str] = None
+    language: str = "turkish"
+
+
+class GenerateJobResponse(BaseModel):
+    """Response model for AI job description generation"""
     success: bool
     data: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
@@ -248,6 +275,67 @@ async def compare_cvs(request: CompareCVsRequest):
         raise
     except Exception as e:
         return CompareCVsResponse(success=False, error=str(e))
+
+
+# ============================================
+# Job Description Generator Endpoint
+# ============================================
+
+@app.post("/generate-job-description", response_model=GenerateJobResponse)
+async def generate_job_description(request: GenerateJobRequest):
+    """
+    Generate a professional job description using AI based on basic parameters.
+    
+    Args:
+        request: Contains position, department, location, employment_type, 
+                 experience_level, required_skills, additional_notes, language
+        
+    Returns:
+        Generated job data matching database schema with:
+        - title, description (HTML), description_plain
+        - requirements (HTML), requirements_plain
+        - keywords, preferred_majors, required_languages, start_date
+    """
+    try:
+        # Validate required fields
+        if not request.position or not request.position.strip():
+            raise HTTPException(status_code=400, detail="position is required")
+        
+        if not request.location or not request.location.strip():
+            raise HTTPException(status_code=400, detail="location is required")
+        
+        # Get job generator service
+        generator_service = get_job_generator_service()
+        
+        # Generate job description
+        job_data = await generator_service.generate_job_description(
+            position=request.position,
+            department=request.department,
+            location=request.location,
+            employment_type=request.employment_type,
+            experience_level=request.experience_level,
+            required_skills=request.required_skills,
+            required_languages=[
+                {"name": lang.name, "level": lang.level}
+                for lang in request.required_languages
+            ],
+            additional_notes=request.additional_notes,
+            language=request.language
+        )
+        
+        return GenerateJobResponse(
+            success=True,
+            data=job_data
+        )
+        
+    except HTTPException:
+        raise
+    
+    except Exception as e:
+        return GenerateJobResponse(
+            success=False,
+            error=str(e)
+        )
 
 
 # ============================================

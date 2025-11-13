@@ -305,6 +305,35 @@ class AnalyzeJobCandidatesInput:
     candidate_ids: List[str] = strawberry.field(name="candidateIds")
 
 
+@strawberry.input
+class LanguageInputType:
+    """Language input for job requirements"""
+    name: str
+    level: str
+
+
+@strawberry.input
+class GenerateJobWithAIInput:
+    """Input for AI-powered job description generation"""
+    position: str
+    department: Optional[str] = None
+    location: str
+    employment_type: str = strawberry.field(name="employmentType", default="full-time")
+    experience_level: Optional[str] = strawberry.field(name="experienceLevel", default=None)
+    required_skills: List[str] = strawberry.field(name="requiredSkills", default_factory=list)
+    required_languages: List[LanguageInputType] = strawberry.field(name="requiredLanguages", default_factory=list)
+    additional_notes: Optional[str] = strawberry.field(name="additionalNotes", default=None)
+    language: Optional[str] = "turkish"
+
+
+@strawberry.type
+class GenerateJobResultType:
+    """Result of AI job generation"""
+    success: bool
+    job_data: Optional[str] = strawberry.field(name="jobData", default=None)  # JSON string
+    message: Optional[str] = None
+
+
 # ============================================
 # Two-CV Comparison Types (New Structure)
 # ============================================
