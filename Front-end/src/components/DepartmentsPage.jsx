@@ -178,6 +178,7 @@ const DepartmentsPage = () => {
           <button
             type="submit"
             className="btn-primary"
+            style={{ width: '120px', flex: '0 0 auto', display: 'inline-flex', justifyContent: 'center' }}
           >
             {editingId ? t('departments.update') : t('departments.save')}
           </button>
@@ -186,6 +187,7 @@ const DepartmentsPage = () => {
               type="button"
               onClick={handleCancelEdit}
               className="btn-secondary"
+              style={{ width: '120px', flex: '0 0 auto', display: 'inline-flex', justifyContent: 'center' }}
             >
               {t('departments.cancel')}
             </button>

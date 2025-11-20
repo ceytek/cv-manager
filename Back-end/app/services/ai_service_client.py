@@ -89,6 +89,43 @@ class AIServiceClient:
             raise Exception(f"AI-Service HTTP error: {str(e)}")
         except Exception as e:
             raise Exception(f"AI-Service call failed: {str(e)}")
+    
+    async def match_cv_to_job(self, job_data: Dict[str, Any], candidate_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Match candidate CV to job requirements using AI-Service
+        
+        Args:
+            job_data: Job information (title, description, requirements, etc.)
+            candidate_data: Parsed candidate CV data
+            
+        Returns:
+            Matching analysis with score and details
+        """
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.post(
+                    f"{self.base_url}/match-cv-to-job",
+                    json={
+                        "job_data": job_data,
+                        "candidate_data": candidate_data
+                    }
+                )
+                
+                response.raise_for_status()
+                result = response.json()
+                
+                if not result.get('success'):
+                    error = result.get('error', 'Unknown error')
+                    raise Exception(f"AI matching failed: {error}")
+                
+                return result.get('data')
+                
+        except httpx.TimeoutException:
+            raise Exception("AI-Service timeout - matching took too long")
+        except httpx.HTTPError as e:
+            raise Exception(f"AI-Service HTTP error: {str(e)}")
+        except Exception as e:
+            raise Exception(f"AI-Service call failed: {str(e)}")
 
 
 # Global client instance

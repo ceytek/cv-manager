@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from strawberry.fastapi import GraphQLRouter
 
 from app.api.routes import auth
+from app.api.routes import public
 from app.core.database import engine, Base, SessionLocal
 from sqlalchemy import inspect, text
 from app.models.role import Role
@@ -167,6 +168,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(auth.router, prefix="/api", tags=["auth"])
+app.include_router(public.router, tags=["public"])  # Public routes (no prefix, already has /api/public)
 
 # GraphQL endpoint with multipart upload support
 graphql_app = GraphQLRouter(

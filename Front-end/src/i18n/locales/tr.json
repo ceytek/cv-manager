@@ -14,7 +14,11 @@
     "next": "İleri",
     "error": "Hata",
     "success": "Başarılı",
-    "present": "Günümüz"
+    "present": "Günümüz",
+    "retry": "Tekrar Dene",
+    "showMore": "Daha Fazla",
+    "showLess": "Daha Az",
+    "submitting": "Gönderiliyor..."
   },
   "header": {
     "welcome": "Hoş Geldiniz, {{name}}!",
@@ -288,6 +292,34 @@
     "selectDepartmentAlert": "Lütfen bir departman seçin",
     "uploadFailed": "Yükleme başarısız"
   },
+  "cvUploadProgress": {
+    "title": "İşleniyor...",
+    "description": "AI CV'leri tek tek inceleyip bilgileri çıkartıyor. Lütfen bekleyin.",
+    "totalCV": "Toplam CV",
+    "processing": "İşleniyor",
+    "aiProcessing": "AI, CV'lerdeki bilgileri analiz ediyor ve yapılandırıyor...",
+    "completed": "✅ Tüm CV'ler başarıyla işlendi!",
+    "error": "⚠️ Bazı dosyalarda hata oluştu",
+    "pleaseWait": "Bu işlem CV sayısına göre birkaç dakika sürebilir."
+  },
+  "cvAnalysisProgress": {
+    "title": "Yapay Zeka Analizi",
+    "description": "AI adayları pozisyonla eşleştiriyor ve detaylı değerlendirme yapıyor.",
+    "analyzing": "Analiz Ediliyor...",
+    "aiProcessing": "AI, her bir adayı iş tanımıyla karşılaştırıp uygunluk skorları hesaplıyor...",
+    "completed": "✅ Tüm adaylar başarıyla analiz edildi!",
+    "error": "⚠️ Analiz sırasında bir hata oluştu",
+    "pleaseWait": "Bu işlem aday sayısına göre 1-2 dakika sürebilir."
+  },
+  "jobCreation": {
+    "title": "Yapay Zeka Destekli İş İlanı Oluşturucu",
+    "description": "İlan bilgilerini girerek yapay zekanın sizin için profesyonel bir iş ilanı taslağı oluşturmasını sağlayın.",
+    "creating": "İlan Oluşturuluyor...",
+    "aiProcessing": "AI iş ilanınızı analiz ediyor ve optimize ediyor...",
+    "success": "✅ İş ilanı başarıyla oluşturuldu!",
+    "error": "⚠️ İlan oluşturulurken bir hata oluştu",
+    "pleaseWait": "Bu işlem birkaç saniye sürebilir."
+  },
   "candidateList": {
     "candidateName": "Aday Adı",
     "contact": "İletişim",
@@ -458,5 +490,60 @@
     "errorPosition": "Lütfen pozisyon adı girin",
     "errorLocation": "Lütfen lokasyon seçin",
     "errorGeneral": "Bir hata oluştu"
+  },
+  "publicCareers": {
+    "title": "Kariyer Fırsatları",
+    "subtitle": "Ekibimize katılın! Açık pozisyonlarımızı keşfedin",
+    "footerText": "Tüm hakları saklıdır.",
+    "searchPlaceholder": "İş ilanlarında ara...",
+    "allLocations": "Tüm Lokasyonlar",
+    "allEmploymentTypes": "Tüm Çalışma Türleri",
+    "allExperienceLevels": "Tüm Seviyeler",
+    "remote": "Uzaktan",
+    "jobsFound": "ilan bulundu",
+    "noJobsFound": "İlan bulunamadı",
+    "errorLoading": "İlanlar yüklenirken hata oluştu",
+    "requirements": "Aranan Nitelikler",
+    "languages": "Dil Gereksinimleri",
+    "deadline": "Son Başvuru Tarihi",
+    "postedOn": "Yayınlanma:",
+    "applyNow": "Başvur",
+    "applyFor": "Başvuru Yap:",
+    "fullName": "Ad Soyad",
+    "email": "E-posta",
+    "phone": "Telefon",
+    "cvFile": "CV Dosyası",
+    "cvFileHelp": "PDF veya DOCX formatında, maksimum 5MB",
+    "submit": "Başvuruyu Gönder",
+    "applicationSuccess": "Başvurunuz başarıyla gönderildi! En kısa sürede size dönüş yapacağız.",
+    "errors": {
+      "nameRequired": "Ad soyad gereklidir",
+      "emailRequired": "E-posta gereklidir",
+      "emailInvalid": "Geçerli bir e-posta adresi girin",
+      "phoneRequired": "Telefon numarası gereklidir",
+      "cvRequired": "CV dosyası yüklemeniz gerekiyor",
+      "cvInvalidType": "Sadece PDF veya DOCX formatında dosya yükleyebilirsiniz",
+      "cvTooLarge": "Dosya boyutu 5MB'dan küçük olmalıdır",
+      "submitFailed": "Başvuru gönderilemedi, lütfen tekrar deneyin"
+    }
+  },
+  "job": {
+    "fullTime": "Tam Zamanlı",
+    "partTime": "Yarı Zamanlı",
+    "contract": "Sözleşmeli",
+    "internship": "Stajyer",
+    "entry": "Giriş",
+    "junior": "Junior",
+    "mid": "Orta",
+    "senior": "Kıdemli",
+    "lead": "Lider",
+    "office": "Ofiste",
+    "hybrid": "Hibrit",
+    "remote": "Uzaktan",
+    "basic": "Temel",
+    "intermediate": "Orta",
+    "advanced": "İleri",
+    "business": "İş",
+    "native": "Anadil"
   }
 }

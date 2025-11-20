@@ -6,6 +6,7 @@ import authService from './services/authService';
 import './App.css';
 import LoginPage from './components/LoginPage';
 import Dashboard from './components/Dashboard';
+import PublicCareers from './pages/PublicCareers';
 import ErrorBoundary from './components/ErrorBoundary';
 import './i18n'; // i18n konfigürasyonunu yükle
 
@@ -16,9 +17,21 @@ function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showPublicCareers, setShowPublicCareers] = useState(false);
+
+  // Check if URL is for public careers page
+  useEffect(() => {
+    if (window.location.pathname === '/careers' || window.location.pathname === '/kariyer') {
+      setShowPublicCareers(true);
+      setLoading(false);
+      return;
+    }
+  }, []);
 
   // Sayfa yüklendiğinde oturum kontrolü
   useEffect(() => {
+    if (showPublicCareers) return; // Skip auth check for public page
+    
     const checkAuth = async () => {
       if (authService.isAuthenticated()) {
         try {
@@ -34,7 +47,7 @@ function App() {
     };
 
     checkAuth();
-  }, []);
+  }, [showPublicCareers]);
 
   const handleLogin = (user) => {
     setCurrentUser(user);
@@ -53,6 +66,11 @@ function App() {
         <div>{t('common.loading')}</div>
       </div>
     );
+  }
+
+  // Show public careers page without authentication
+  if (showPublicCareers) {
+    return <PublicCareers />;
   }
 
   return (

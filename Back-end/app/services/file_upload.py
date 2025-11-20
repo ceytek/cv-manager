@@ -113,3 +113,32 @@ class FileUploadService:
     def get_file_size(file_content: bytes) -> int:
         """Get file size in bytes"""
         return len(file_content)
+
+    async def upload_cv_to_storage(self, cv_file) -> Tuple[str, str]:
+        """
+        Upload CV file to storage and return file path and URL.
+        
+        Args:
+            cv_file: UploadFile object from FastAPI
+            
+        Returns:
+            Tuple of (file_path, file_url)
+        """
+        # Read file content
+        file_content = await cv_file.read()
+        await cv_file.seek(0)  # Reset file pointer
+        
+        # Validate file
+        file_size = self.get_file_size(file_content)
+        is_valid, error_msg = self.validate_file(cv_file.filename, file_size)
+        
+        if not is_valid:
+            raise ValueError(error_msg)
+        
+        # Save file to disk
+        file_path, unique_filename = await self.save_file(file_content, cv_file.filename)
+        
+        # Generate file URL (relative path for now, can be full URL with domain in production)
+        file_url = f"/uploads/cvs/{unique_filename}"
+        
+        return file_path, file_url

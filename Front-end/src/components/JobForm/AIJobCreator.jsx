@@ -8,6 +8,7 @@ import { useMutation, useQuery } from '@apollo/client/react';
 import { X, Sparkles, Briefcase, MapPin, Clock, GraduationCap, Languages, Tag, Plus, Globe } from 'lucide-react';
 import { GENERATE_JOB_WITH_AI_MUTATION } from '../../graphql/jobs';
 import { DEPARTMENTS_QUERY } from '../../graphql/departments';
+import JobCreationProgressModal from '../JobCreationProgressModal';
 
 const AIJobCreator = ({ isOpen, onClose, onGenerate }) => {
   const { t, i18n } = useTranslation();
@@ -35,6 +36,10 @@ const AIJobCreator = ({ isOpen, onClose, onGenerate }) => {
   const [currentLanguage, setCurrentLanguage] = useState({ name: '', level: '' });
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState(null);
+  
+  // Progress modal state
+  const [showProgressModal, setShowProgressModal] = useState(false);
+  const [progressStatus, setProgressStatus] = useState('creating');
 
   // Predefined options
   const locations = [
@@ -136,6 +141,10 @@ const AIJobCreator = ({ isOpen, onClose, onGenerate }) => {
     setIsGenerating(true);
     setError(null);
     
+    // Show progress modal
+    setShowProgressModal(true);
+    setProgressStatus('creating');
+    
     try {
       // Call GraphQL mutation
       const { data } = await generateJobMutation({
@@ -158,25 +167,45 @@ const AIJobCreator = ({ isOpen, onClose, onGenerate }) => {
       });
 
       if (data?.generateJobWithAi?.success) {
+        // Show success status
+        setProgressStatus('success');
+        
         // Parse job data from JSON string
         const jobData = JSON.parse(data.generateJobWithAi.jobData);
         
-        // Pass to parent component
-        onGenerate({
-          ...jobData,
-          location: formData.location,
-          employmentType: formData.employmentType,
-          experienceLevel: formData.experienceLevel,
-          department: formData.department
-        });
-        
-        handleClose();
+        // Wait 2 seconds before closing
+        setTimeout(() => {
+          setShowProgressModal(false);
+          
+          // Pass to parent component
+          onGenerate({
+            ...jobData,
+            location: formData.location,
+            employmentType: formData.employmentType,
+            experienceLevel: formData.experienceLevel,
+            department: formData.department
+          });
+          
+          handleClose();
+        }, 2000);
       } else {
+        setProgressStatus('error');
         setError(data?.generateJobWithAi?.message || t('aiJobCreator.errorGeneral'));
+        
+        // Close modal after 3 seconds
+        setTimeout(() => {
+          setShowProgressModal(false);
+        }, 3000);
       }
     } catch (err) {
       console.error('AI generation error:', err);
+      setProgressStatus('error');
       setError(err.message || t('aiJobCreator.errorGeneral'));
+      
+      // Close modal after 3 seconds
+      setTimeout(() => {
+        setShowProgressModal(false);
+      }, 3000);
     } finally {
       setIsGenerating(false);
     }
@@ -829,6 +858,14 @@ const AIJobCreator = ({ isOpen, onClose, onGenerate }) => {
           to { transform: rotate(360deg); }
         }
       `}</style>
+      
+      {/* Progress Modal */}
+      <JobCreationProgressModal
+        isOpen={showProgressModal}
+        status={progressStatus}
+        jobTitle={formData.position}
+        onClose={() => setShowProgressModal(false)}
+      />
     </div>
   );
 };

@@ -57,6 +57,22 @@ class Application(Base):
         comment="Overall match score (0-100)"
     )
     
+    # Public application fields (new)
+    match_score = Column(
+        Integer,
+        nullable=True,
+        comment="AI-generated match score for public applications (0-100)"
+    )
+    match_details = Column(JSONB, nullable=True, comment="Detailed AI matching breakdown")
+    source = Column(
+        String(50),
+        nullable=False,
+        default="internal",
+        comment="Application source: internal, public_application, referral"
+    )
+    applicant_email = Column(String(255), nullable=True, comment="Applicant email (backup)")
+    applicant_phone = Column(String(50), nullable=True, comment="Applicant phone (backup)")
+    
     # Status
     status = Column(
         SQLEnum(ApplicationStatus, name="application_status"),

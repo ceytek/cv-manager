@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { useDropzone } from 'react-dropzone';
 import { UPLOAD_CVS_MUTATION } from '../graphql/cvs';
 import { Upload, FileText, X, CheckCircle, AlertCircle } from 'lucide-react';
+import CVUploadProgressModal from './CVUploadProgressModal';
 
 const CVUploader = ({ onUploadComplete, departments }) => {
   const { t } = useTranslation();
@@ -14,6 +15,16 @@ const CVUploader = ({ onUploadComplete, departments }) => {
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const [uploadResult, setUploadResult] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
+  
+  // Progress modal state
+  const [showProgressModal, setShowProgressModal] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({
+    currentFile: 0,
+    totalFiles: 0,
+    processedFiles: 0,
+    currentFileName: '',
+    status: 'processing' // 'processing', 'success', 'error'
+  });
 
   // Dropzone configuration
   const onDrop = useCallback((acceptedFiles) => {
@@ -49,78 +60,141 @@ const CVUploader = ({ onUploadComplete, departments }) => {
 
     setIsUploading(true);
     setUploadResult(null);
+    
+    // Show progress modal
+    setShowProgressModal(true);
+    setUploadProgress({
+      currentFile: 0,
+      totalFiles: selectedFiles.length,
+      processedFiles: 0,
+      currentFileName: '',
+      status: 'processing'
+    });
 
     try {
-      // Create FormData for multipart upload
-      const formData = new FormData();
-      
-      // GraphQL multipart request format
-      const operations = {
-        query: `
-          mutation UploadCVs($files: [Upload!]!, $departmentId: String!) {
-            uploadCvs(files: $files, departmentId: $departmentId) {
-              successful {
-                fileName
-                filePath
-                fileSize
-              }
-              failed {
-                fileName
-                reason
-              }
-              totalUploaded
-              totalFailed
-            }
-          }
-        `,
-        variables: {
-          files: selectedFiles.map((_, index) => null),
-          departmentId: selectedDepartment
-        }
+      // Simulate processing each file individually for progress tracking
+      const results = {
+        successful: [],
+        failed: [],
+        totalUploaded: 0,
+        totalFailed: 0
       };
 
-      const map = {};
-      selectedFiles.forEach((file, index) => {
-        map[index] = [`variables.files.${index}`];
-      });
+      // Process files one by one to show real progress
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const file = selectedFiles[i];
+        
+        // Update progress
+        setUploadProgress(prev => ({
+          ...prev,
+          currentFile: i + 1,
+          processedFiles: i,
+          currentFileName: file.name
+        }));
 
-      formData.append('operations', JSON.stringify(operations));
-      formData.append('map', JSON.stringify(map));
-      
-      selectedFiles.forEach((file, index) => {
-        formData.append(index.toString(), file);
-      });
+        try {
+          // Create FormData for single file
+          const formData = new FormData();
+          
+          const operations = {
+            query: `
+              mutation UploadCVs($files: [Upload!]!, $departmentId: String!) {
+                uploadCvs(files: $files, departmentId: $departmentId) {
+                  successful {
+                    fileName
+                    filePath
+                    fileSize
+                  }
+                  failed {
+                    fileName
+                    reason
+                  }
+                  totalUploaded
+                  totalFailed
+                }
+              }
+            `,
+            variables: {
+              files: [null],
+              departmentId: selectedDepartment
+            }
+          };
 
-      // Get token from localStorage
-      const token = localStorage.getItem('accessToken');
+          const map = {
+            0: ['variables.files.0']
+          };
 
-      const response = await fetch('http://localhost:8000/graphql', {
-        method: 'POST',
-        headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
-        },
-        body: formData,
-      });
+          formData.append('operations', JSON.stringify(operations));
+          formData.append('map', JSON.stringify(map));
+          formData.append('0', file);
 
-      const result = await response.json();
+          const token = localStorage.getItem('accessToken');
 
-      if (result.errors) {
-        throw new Error(result.errors[0].message);
+          const response = await fetch('http://localhost:8000/graphql', {
+            method: 'POST',
+            headers: {
+              'Authorization': token ? `Bearer ${token}` : '',
+            },
+            body: formData,
+          });
+
+          const result = await response.json();
+
+          if (result.errors) {
+            results.failed.push({
+              fileName: file.name,
+              reason: result.errors[0].message
+            });
+            results.totalFailed++;
+          } else {
+            const data = result.data.uploadCvs;
+            results.successful.push(...data.successful);
+            results.failed.push(...data.failed);
+            results.totalUploaded += data.totalUploaded;
+            results.totalFailed += data.totalFailed;
+          }
+        } catch (error) {
+          results.failed.push({
+            fileName: file.name,
+            reason: error.message || t('cvUploader.uploadFailed')
+          });
+          results.totalFailed++;
+        }
+
+        // Small delay for better UX (simulate AI processing time)
+        await new Promise(resolve => setTimeout(resolve, 300));
       }
 
-      const data = result.data.uploadCvs;
-      setUploadResult(data);
+      // Update final progress
+      setUploadProgress(prev => ({
+        ...prev,
+        processedFiles: selectedFiles.length,
+        currentFileName: '',
+        status: results.totalFailed === 0 ? 'success' : 'error'
+      }));
+
+      setUploadResult(results);
       
       // Clear selected files if all successful
-      if (data.totalFailed === 0) {
+      if (results.totalFailed === 0) {
         setSelectedFiles([]);
       }
 
+      // Close modal after 2 seconds
+      setTimeout(() => {
+        setShowProgressModal(false);
+      }, 2000);
+
       // Callback for parent component
       if (onUploadComplete) {
-        onUploadComplete(data);
+        onUploadComplete(results);
       }
     } catch (error) {
+      setUploadProgress(prev => ({
+        ...prev,
+        status: 'error'
+      }));
+      
       setUploadResult({
         successful: [],
         failed: selectedFiles.map(f => ({
@@ -130,6 +204,10 @@ const CVUploader = ({ onUploadComplete, departments }) => {
         totalUploaded: 0,
         totalFailed: selectedFiles.length,
       });
+
+      setTimeout(() => {
+        setShowProgressModal(false);
+      }, 2000);
     } finally {
       setIsUploading(false);
     }
@@ -144,6 +222,16 @@ const CVUploader = ({ onUploadComplete, departments }) => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* Progress Modal */}
+      <CVUploadProgressModal
+        isOpen={showProgressModal}
+        currentFile={uploadProgress.currentFile}
+        totalFiles={uploadProgress.totalFiles}
+        processedFiles={uploadProgress.processedFiles}
+        currentFileName={uploadProgress.currentFileName}
+        status={uploadProgress.status}
+      />
+
       {/* Upload Result */}
       {uploadResult && (
         <div

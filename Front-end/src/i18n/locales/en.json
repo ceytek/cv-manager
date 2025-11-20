@@ -14,7 +14,11 @@
     "next": "Next",
     "error": "Error",
     "success": "Success",
-    "present": "Present"
+    "present": "Present",
+    "retry": "Retry",
+    "showMore": "Show More",
+    "showLess": "Show Less",
+    "submitting": "Submitting..."
   },
   "header": {
     "welcome": "Welcome, {{name}}!",
@@ -288,6 +292,34 @@
     "selectDepartmentAlert": "Please select a department",
     "uploadFailed": "Upload failed"
   },
+  "cvUploadProgress": {
+    "title": "Processing...",
+    "description": "AI is reviewing each CV and extracting information. Please wait.",
+    "totalCV": "Total CVs",
+    "processing": "Processing",
+    "aiProcessing": "AI is analyzing and structuring information from CVs...",
+    "completed": "✅ All CVs processed successfully!",
+    "error": "⚠️ Some files encountered errors",
+    "pleaseWait": "This process may take a few minutes depending on the number of CVs."
+  },
+  "cvAnalysisProgress": {
+    "title": "AI-Powered Analysis",
+    "description": "AI is matching candidates with the position and performing detailed evaluation.",
+    "analyzing": "Analyzing...",
+    "aiProcessing": "AI is comparing each candidate with the job description and calculating match scores...",
+    "completed": "✅ All candidates analyzed successfully!",
+    "error": "⚠️ An error occurred during analysis",
+    "pleaseWait": "This process may take 1-2 minutes depending on the number of candidates."
+  },
+  "jobCreation": {
+    "title": "AI-Powered Job Posting Creator",
+    "description": "Enter job details and let AI create a professional job posting draft for you.",
+    "creating": "Creating Job Posting...",
+    "aiProcessing": "AI is analyzing and optimizing your job posting...",
+    "success": "✅ Job posting created successfully!",
+    "error": "⚠️ An error occurred while creating the job posting",
+    "pleaseWait": "This may take a few seconds."
+  },
   "candidateList": {
     "candidateName": "Candidate Name",
     "contact": "Contact",
@@ -458,5 +490,60 @@
     "errorPosition": "Please enter position name",
     "errorLocation": "Please select location",
     "errorGeneral": "An error occurred"
+  },
+  "publicCareers": {
+    "title": "Career Opportunities",
+    "subtitle": "Join our team! Discover our open positions",
+    "footerText": "All rights reserved.",
+    "searchPlaceholder": "Search job listings...",
+    "allLocations": "All Locations",
+    "allEmploymentTypes": "All Employment Types",
+    "allExperienceLevels": "All Levels",
+    "remote": "Remote",
+    "jobsFound": "jobs found",
+    "noJobsFound": "No jobs found",
+    "errorLoading": "Error loading jobs",
+    "requirements": "Requirements",
+    "languages": "Language Requirements",
+    "deadline": "Application Deadline",
+    "postedOn": "Posted:",
+    "applyNow": "Apply Now",
+    "applyFor": "Apply for:",
+    "fullName": "Full Name",
+    "email": "Email",
+    "phone": "Phone",
+    "cvFile": "CV File",
+    "cvFileHelp": "PDF or DOCX format, maximum 5MB",
+    "submit": "Submit Application",
+    "applicationSuccess": "Your application has been successfully submitted! We will get back to you as soon as possible.",
+    "errors": {
+      "nameRequired": "Full name is required",
+      "emailRequired": "Email is required",
+      "emailInvalid": "Please enter a valid email address",
+      "phoneRequired": "Phone number is required",
+      "cvRequired": "You need to upload a CV file",
+      "cvInvalidType": "Only PDF or DOCX format files can be uploaded",
+      "cvTooLarge": "File size must be less than 5MB",
+      "submitFailed": "Application could not be submitted, please try again"
+    }
+  },
+  "job": {
+    "fullTime": "Full Time",
+    "partTime": "Part Time",
+    "contract": "Contract",
+    "internship": "Internship",
+    "entry": "Entry",
+    "junior": "Junior",
+    "mid": "Mid-Level",
+    "senior": "Senior",
+    "lead": "Lead",
+    "office": "Office",
+    "hybrid": "Hybrid",
+    "remote": "Remote",
+    "basic": "Basic",
+    "intermediate": "Intermediate",
+    "advanced": "Advanced",
+    "business": "Business",
+    "native": "Native"
   }
 }

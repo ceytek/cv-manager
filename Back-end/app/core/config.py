@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     # JWT
     SECRET_KEY: str
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 480
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     
     # File Uploads
@@ -29,6 +29,22 @@ class Settings(BaseSettings):
     MAIL_PORT: int = 587
     MAIL_SERVER: str
     MAIL_FROM_NAME: str
+    # Optional dual sender overrides
+    MAIL_SENDER_APPLICANT: Optional[str] = None
+    MAIL_SENDER_APPLICANT_NAME: Optional[str] = None
+    MAIL_SENDER_APPLICANT_USER: Optional[str] = None
+    MAIL_SENDER_APPLICANT_PASS: Optional[str] = None
+    MAIL_SENDER_HR: Optional[str] = None
+    MAIL_SENDER_HR_NAME: Optional[str] = None
+    MAIL_SENDER_HR_USER: Optional[str] = None
+    MAIL_SENDER_HR_PASS: Optional[str] = None
+    HR_EMAIL: Optional[str] = None
+    FRONTEND_URL: Optional[str] = None
+    EMAIL_MAX_PER_SEC: int = 2
+    EMAIL_RETRY_ATTEMPTS: int = 3
+    EMAIL_RETRY_BASE_DELAY_MS: int = 400
+    EMAIL_DISABLE_RETRY_ON_550: bool = False
+    EMAIL_INTER_SEND_DELAY_SECONDS: int = 5
     # Mailtrap API
     MAILTRAP_API_TOKEN: Optional[str] = None
     

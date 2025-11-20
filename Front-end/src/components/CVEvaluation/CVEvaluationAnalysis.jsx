@@ -12,6 +12,7 @@ import { CANDIDATES_QUERY } from '../../graphql/cvs';
 import { DEPARTMENTS_QUERY } from '../../graphql/departments';
 import { ANALYZE_JOB_CANDIDATES_MUTATION, APPLICATIONS_QUERY } from '../../graphql/applications';
 import CVAnalysisResults from './CVAnalysisResults';
+import CVAnalysisProgressModal from '../CVAnalysisProgressModal';
 
 const CVEvaluationAnalysis = ({ onBack }) => {
   const { t, i18n } = useTranslation();
@@ -25,6 +26,16 @@ const CVEvaluationAnalysis = ({ onBack }) => {
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const [showResults, setShowResults] = useState(false);
   const [analysisError, setAnalysisError] = useState(null);
+  
+  // Progress modal state
+  const [showProgressModal, setShowProgressModal] = useState(false);
+  const [progressState, setProgressState] = useState({
+    currentCandidate: 0,
+    totalCandidates: 0,
+    processedCandidates: 0,
+    currentCandidateName: '',
+    status: 'analyzing'
+  });
 
   // GraphQL Mutation for analysis
   const [analyzeJobCandidates] = useMutation(ANALYZE_JOB_CANDIDATES_MUTATION, {
@@ -90,19 +101,18 @@ const CVEvaluationAnalysis = ({ onBack }) => {
     setIsAnalyzing(true);
     setAnalysisProgress(0);
     setAnalysisError(null);
+    
+    // Show progress modal
+    setShowProgressModal(true);
+    setProgressState({
+      currentCandidate: 0,
+      totalCandidates: selectedCandidates.length,
+      processedCandidates: 0,
+      currentCandidateName: '',
+      status: 'analyzing'
+    });
 
     try {
-      // Simulate progress animation
-      const progressInterval = setInterval(() => {
-        setAnalysisProgress(prev => {
-          if (prev >= 90) {
-            clearInterval(progressInterval);
-            return 90;
-          }
-          return prev + 10;
-        });
-      }, 300);
-
       // Call the mutation
       const { data } = await analyzeJobCandidates({
         variables: {
@@ -114,15 +124,19 @@ const CVEvaluationAnalysis = ({ onBack }) => {
         }
       });
 
-      clearInterval(progressInterval);
-      setAnalysisProgress(100);
-
       if (data?.analyzeJobCandidates?.success) {
-        // Success - show results after a brief delay
+        // Show success
+        setProgressState(prev => ({
+          ...prev,
+          status: 'success'
+        }));
+        
+        // Close modal and show results after delay
         setTimeout(() => {
+          setShowProgressModal(false);
           setIsAnalyzing(false);
           setShowResults(true);
-        }, 500);
+        }, 2000);
       } else {
         throw new Error(data?.analyzeJobCandidates?.message || 'Analysis failed');
       }
@@ -130,8 +144,16 @@ const CVEvaluationAnalysis = ({ onBack }) => {
     } catch (error) {
       console.error('Analysis error:', error);
       setAnalysisError(error.message || 'Failed to analyze candidates');
-      setIsAnalyzing(false);
-      setAnalysisProgress(0);
+      setProgressState(prev => ({
+        ...prev,
+        status: 'error'
+      }));
+      
+      // Close modal after showing error
+      setTimeout(() => {
+        setShowProgressModal(false);
+        setIsAnalyzing(false);
+      }, 3000);
     }
   };
 
@@ -219,6 +241,16 @@ const CVEvaluationAnalysis = ({ onBack }) => {
           onStartAnalysis={handleStartAnalysis}
         />
       </div>
+
+      {/* Progress Modal */}
+      <CVAnalysisProgressModal
+        isOpen={showProgressModal}
+        currentCandidate={progressState.currentCandidate}
+        totalCandidates={progressState.totalCandidates}
+        processedCandidates={progressState.processedCandidates}
+        currentCandidateName={progressState.currentCandidateName}
+        status={progressState.status}
+      />
     </div>
   );
 };

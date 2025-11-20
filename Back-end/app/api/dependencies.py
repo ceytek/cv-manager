@@ -1,12 +1,17 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.utils.security import decode_token
 from app.services.auth import AuthService
 from app.models.user import User
+from collections import defaultdict
+from datetime import datetime, timedelta
 
 security = HTTPBearer()
+
+# Simple in-memory rate limiter (for production, use Redis)
+_rate_limit_storage = defaultdict(list)
 
 
 async def get_current_user(
@@ -101,3 +106,42 @@ def get_current_user_from_token(token: str, db: Session) -> User:
         )
 
     return user
+
+
+def rate_limit_public(request: Request, max_requests: int = 5, window_minutes: int = 60):
+    """
+    Rate limiting for public endpoints.
+    
+    Limits requests per IP address.
+    Default: 5 requests per 60 minutes (1 hour)
+    
+    Args:
+        request: FastAPI request object
+        max_requests: Maximum number of requests allowed
+        window_minutes: Time window in minutes
+    
+    Raises:
+        HTTPException: If rate limit is exceeded
+    """
+    # Get client IP
+    client_ip = request.client.host
+    
+    # Get current time
+    now = datetime.now()
+    cutoff_time = now - timedelta(minutes=window_minutes)
+    
+    # Clean old entries
+    _rate_limit_storage[client_ip] = [
+        timestamp for timestamp in _rate_limit_storage[client_ip]
+        if timestamp > cutoff_time
+    ]
+    
+    # Check if limit exceeded
+    if len(_rate_limit_storage[client_ip]) >= max_requests:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Rate limit exceeded. Please try again in {window_minutes} minutes."
+        )
+    
+    # Add current request
+    _rate_limit_storage[client_ip].append(now)
