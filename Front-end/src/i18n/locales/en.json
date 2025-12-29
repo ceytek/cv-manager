@@ -39,9 +39,15 @@
     "cvManagement": "CV Management",
     "cvEvaluation": "CV Evaluation",
     "usageHistory": "Usage History",
+    "templates": "Templates",
     "settings": "Settings",
     "newJobButton": "Create New Job Posting",
     "userRole": "HR Specialist"
+  },
+  "templates": {
+    "interviewTemplates": "Interview Templates",
+    "likertTemplates": "Likert Test Templates",
+    "agreementTemplates": "Agreement Templates"
   },
   "stats": {
     "cvCount": "CVs in System",

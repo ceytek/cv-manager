@@ -39,9 +39,15 @@
     "cvManagement": "CV Yönetimi",
     "cvEvaluation": "CV Değerlendirme",
     "usageHistory": "Kullanım Geçmişi",
+    "templates": "Şablonlar",
     "settings": "Ayarlar",
     "newJobButton": "Yeni İş İlanı Oluştur",
     "userRole": "İK Uzmanı"
+  },
+  "templates": {
+    "interviewTemplates": "Mülakat Şablonları",
+    "likertTemplates": "Likert Test Şablonları",
+    "agreementTemplates": "Sözleşme Şablonları"
   },
   "stats": {
     "cvCount": "Sistemdeki CV Sayısı",
