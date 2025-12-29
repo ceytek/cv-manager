@@ -1,0 +1,38 @@
+.language-switcher {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  background: #F3F4F6;
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.lang-btn {
+  background: transparent;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: #6B7280;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.lang-btn:hover {
+  background: #E5E7EB;
+  color: #374151;
+}
+
+.lang-btn.active {
+  background: white;
+  color: #1F2937;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.lang-btn:focus {
+  outline: none;
+}

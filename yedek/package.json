@@ -1,0 +1,17 @@
+{
+  "name": "cv-manager-monorepo",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "Front-end" ,
+    "Back-end"
+  ],
+  "scripts": {
+    "dev:admin": "npm --workspace admin-portal run dev",
+    "build:admin": "npm --workspace admin-portal run build",
+    "dev:user": "npm --workspace front-end run dev",
+    "lint": "echo 'add lint aggregations here'",
+    "typecheck": "echo 'no types yet'"
+  }
+}
