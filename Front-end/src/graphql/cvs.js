@@ -14,9 +14,11 @@ export const CANDIDATES_QUERY = gql`
       name
       email
       phone
-  location
-  birthYear
-  experienceMonths
+      linkedin
+      github
+      location
+      birthYear
+      experienceMonths
       cvFileName
       cvFilePath
       cvFileSize
@@ -50,6 +52,18 @@ export const UPLOAD_CVS_MUTATION = gql`
       }
       totalUploaded
       totalFailed
+    }
+  }
+`;
+
+/**
+ * Mutation to reject an application
+ */
+export const REJECT_APPLICATION = gql`
+  mutation RejectApplication($applicationId: String!, $rejectionNote: String, $templateId: String) {
+    rejectApplication(applicationId: $applicationId, rejectionNote: $rejectionNote, templateId: $templateId) {
+      success
+      message
     }
   }
 `;

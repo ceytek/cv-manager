@@ -22,7 +22,9 @@
     "active": "Active",
     "inactive": "Inactive",
     "minutes": "min",
-    "deleting": "Deleting..."
+    "deleting": "Deleting...",
+    "show": "Show",
+    "hide": "Hide"
   },
   "header": {
     "welcome": "Welcome, {{name}}!",
@@ -47,7 +49,8 @@
   "templates": {
     "interviewTemplates": "Interview Templates",
     "likertTemplates": "Likert Test Templates",
-    "agreementTemplates": "Agreement Templates"
+    "agreementTemplates": "Agreement Templates",
+    "rejectionTemplates": "Rejection Messages"
   },
   "stats": {
     "cvCount": "CVs in System",
@@ -306,10 +309,12 @@
     "locationScore": "Location Score",
     "unknown": "Unknown",
     "languageLevel": "Language Level",
-    "language": "Language"
+    "language": "Language",
+    "sendRejection": "Send Rejection"
   },
   "jobDetails": {
     "backToJobs": "Back to Job Listings",
+    "viewDetail": "View Detail",
     "location": "Location",
     "employmentType": "Employment Type",
     "department": "Department",
@@ -340,7 +345,8 @@
       "likertSent": "Likert Sent",
       "interviewExpired": "Interview Expired",
       "likertExpired": "Likert Expired",
-      "cvAnalyzed": "CV Analyzed"
+      "cvAnalyzed": "CV Analyzed",
+      "rejected": "Rejected"
     },
     "viewHistory": "View History",
     "downloadCV": "Download CV"
@@ -358,7 +364,69 @@
     "likertStarted": "Likert Test Started",
     "likertCompleted": "Likert Test Completed",
     "likertExpired": "Likert Test Expired",
+    "rejected": "Application Rejected",
     "noHistory": "No history records found yet"
+  },
+  "rejection": {
+    "title": "Send Rejection Message",
+    "selectTemplate": "Select Template",
+    "preview": "Message Preview",
+    "internalNote": "Internal Note",
+    "sendButton": "Send Rejection Message",
+    "sent": "Rejection Message Sent",
+    "info": "This message will be sent to the candidate's email address. After sending, the candidate's status will be marked as \"Rejected\" and recorded in history."
+  },
+  "rejectionModal": {
+    "pleaseSelectTemplate": "Please select a template",
+    "warningMessage": "A rejection message will be sent to this candidate and the application status will be updated to \"Rejected\".",
+    "noTemplatesFound": "No rejection template found",
+    "createTemplateHint": "Please first create a template from Templates → Rejection Messages menu.",
+    "selectTemplatePlaceholder": "-- Select a template --",
+    "onlyYouWillSee": "Only you will see this",
+    "notePlaceholder": "You can add notes for rejection reason, interview notes, or future reference...",
+    "sending": "Sending...",
+    "emailTo": "To",
+    "emailSubject": "Subject"
+  },
+  "rejectionTemplates": {
+    "title": "Rejection Message Templates",
+    "subtitle": "Create and manage templates for candidate rejection emails",
+    "newTemplate": "New Template",
+    "noTemplates": "No templates yet",
+    "createFirst": "Create your first rejection message template",
+    "availableVariables": "Available Variables",
+    "subject": "Subject",
+    "contentPreview": "Content Preview",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirmTitle": "Delete Template",
+    "deleteConfirmMessage": "Are you sure you want to delete this template? This action cannot be undone.",
+    "cancel": "Cancel",
+    "variables": {
+      "name": "First Name",
+      "surname": "Last Name",
+      "phone": "Phone",
+      "jobTitle": "Job Title"
+    },
+    "modal": {
+      "createTitle": "New Rejection Message Template",
+      "editTitle": "Edit Template",
+      "templateName": "Template Name",
+      "templateNamePlaceholder": "E.g.: Standard Rejection Message",
+      "language": "Language",
+      "active": "Active",
+      "default": "Default",
+      "emailSubject": "Email Subject",
+      "emailSubjectPlaceholder": "E.g.: Regarding Your {ilan_adi} Application",
+      "emailBody": "Email Content",
+      "preview": "Preview (With Sample Data)",
+      "dragDropVariables": "Variables",
+      "dragDropHint": "Drag and drop or click to add",
+      "quickAdd": "Quick Add (Content):",
+      "saving": "Saving...",
+      "save": "Save",
+      "update": "Update"
+    }
   },
   "interviewResults": {
     "title": "Interview Results",
@@ -428,7 +496,10 @@
       "title": "CV Upload",
       "description": "Upload CVs in bulk or individually; system processes automatically.",
       "button": "Go to CV Upload"
-    }
+    },
+    "uploadedInSession": "Uploaded This Session",
+    "clearList": "Clear List",
+    "download": "Download"
   },
   "cvUploader": {
     "uploadComplete": "Upload Complete!",
@@ -496,7 +567,16 @@
     "error": "Error: {{message}}",
     "noCV": "No CVs uploaded yet",
     "uploadToStart": "Start by uploading CVs from above",
-    "compare": "Compare"
+    "compare": "Compare",
+    "contactCard": {
+      "title": "Contact Card",
+      "email": "Email",
+      "phone": "Phone",
+      "linkedin": "LinkedIn",
+      "github": "GitHub",
+      "noContact": "No contact information found",
+      "unnamedCandidate": "Unnamed Candidate"
+    }
   },
   "jobsPage": {
     "title": "Job Management",

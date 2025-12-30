@@ -2,10 +2,10 @@
  * Candidate History Modal
  * Shows timeline of all candidate activities
  */
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@apollo/client/react';
-import { X, FileText, BarChart2, Video, ListChecks, CheckCircle2, Clock, Send, Download } from 'lucide-react';
+import { X, FileText, BarChart2, Video, ListChecks, CheckCircle2, Clock, Send, Download, XCircle, FileSearch } from 'lucide-react';
 import { GET_LIKERT_SESSION_BY_APPLICATION } from '../../graphql/likert';
 import { GET_INTERVIEW_SESSION_BY_APPLICATION } from '../../graphql/interview';
 
@@ -21,6 +21,7 @@ const CandidateHistoryModal = ({
 }) => {
   const { t, i18n } = useTranslation();
   const isEnglish = i18n.language === 'en';
+  const [showRejectionNoteModal, setShowRejectionNoteModal] = useState(false);
 
   // Fetch Likert session
   const { data: likertData } = useQuery(GET_LIKERT_SESSION_BY_APPLICATION, {
@@ -151,6 +152,29 @@ const CandidateHistoryModal = ({
         label: isEnglish ? 'View Results' : 'Sonuçları Gör',
         onClick: () => onViewLikertResults?.(),
       },
+    });
+  }
+
+  // Rejection event
+  const isRejected = application?.status?.toUpperCase() === 'REJECTED' || application?.rejectedAt;
+  if (isRejected) {
+    events.push({
+      type: 'rejected',
+      title: t('candidateHistory.rejected', 'Başvuru Reddedildi'),
+      description: isEnglish
+        ? 'Application has been rejected and rejection email was sent to the candidate.'
+        : 'Başvuru reddedildi ve adaya red e-postası gönderildi.',
+      date: application?.rejectedAt ? new Date(application.rejectedAt) : new Date(),
+      icon: XCircle,
+      color: '#DC2626',
+      badge: {
+        text: isEnglish ? 'Rejected' : 'Reddedildi',
+        color: '#DC2626',
+      },
+      action: application?.rejectionNote ? {
+        label: isEnglish ? 'View Note' : 'Notu Görüntüle',
+        onClick: () => setShowRejectionNoteModal(true),
+      } : null,
     });
   }
 
@@ -398,6 +422,110 @@ const CandidateHistoryModal = ({
           </div>
         </div>
       </div>
+      
+      {/* Rejection Note Modal */}
+      {showRejectionNoteModal && application?.rejectionNote && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.6)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1200,
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: 12,
+            width: '90%',
+            maxWidth: 500,
+            overflow: 'hidden',
+          }}>
+            {/* Header */}
+            <div style={{
+              background: 'linear-gradient(135deg, #DC2626 0%, #991B1B 100%)',
+              padding: '16px 20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'white' }}>
+                <FileSearch size={20} />
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>
+                  {isEnglish ? 'Rejection Note' : 'Red Notu'}
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowRejectionNoteModal(false)}
+                style={{
+                  background: 'rgba(255,255,255,0.2)',
+                  border: 'none',
+                  borderRadius: 6,
+                  padding: 6,
+                  cursor: 'pointer',
+                  display: 'flex',
+                }}
+              >
+                <X size={18} color="white" />
+              </button>
+            </div>
+            
+            {/* Content */}
+            <div style={{ padding: 20 }}>
+              <div style={{
+                background: '#FEF2F2',
+                border: '1px solid #FECACA',
+                borderRadius: 8,
+                padding: 16,
+              }}>
+                <p style={{
+                  margin: 0,
+                  fontSize: 14,
+                  color: '#7F1D1D',
+                  lineHeight: 1.6,
+                  whiteSpace: 'pre-wrap',
+                }}>
+                  {application.rejectionNote}
+                </p>
+              </div>
+              <p style={{ 
+                marginTop: 12, 
+                fontSize: 12, 
+                color: '#9CA3AF',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+              }}>
+                🔒 {isEnglish ? 'This note is only visible to HR personnel.' : 'Bu not sadece İK personeli tarafından görüntülenebilir.'}
+              </p>
+            </div>
+            
+            {/* Footer */}
+            <div style={{
+              padding: '12px 20px',
+              borderTop: '1px solid #E5E7EB',
+              display: 'flex',
+              justifyContent: 'flex-end',
+            }}>
+              <button
+                onClick={() => setShowRejectionNoteModal(false)}
+                style={{
+                  padding: '8px 16px',
+                  background: '#1F2937',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 6,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                {t('common.close', 'Kapat')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

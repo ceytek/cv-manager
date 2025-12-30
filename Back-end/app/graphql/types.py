@@ -273,10 +273,16 @@ class JobUpdateInput:
 
 @strawberry.type
 class UploadedFileType:
-    """Single uploaded file response"""
+    """Single uploaded file response with parsed candidate info"""
     file_name: str = strawberry.field(name="fileName")
     file_path: str = strawberry.field(name="filePath")
     file_size: int = strawberry.field(name="fileSize")
+    # Parsed candidate info
+    candidate_name: Optional[str] = strawberry.field(name="candidateName", default=None)
+    candidate_email: Optional[str] = strawberry.field(name="candidateEmail", default=None)
+    candidate_phone: Optional[str] = strawberry.field(name="candidatePhone", default=None)
+    candidate_linkedin: Optional[str] = strawberry.field(name="candidateLinkedin", default=None)
+    candidate_github: Optional[str] = strawberry.field(name="candidateGithub", default=None)
 
 
 @strawberry.type
@@ -306,6 +312,8 @@ class CandidateType:
     name: Optional[str]
     email: Optional[str]
     phone: Optional[str]
+    linkedin: Optional[str] = None  # LinkedIn profile URL
+    github: Optional[str] = None    # GitHub profile URL
     cv_file_name: str = strawberry.field(name="cvFileName")
     cv_file_path: str = strawberry.field(name="cvFilePath")
     cv_file_size: int = strawberry.field(name="cvFileSize")
@@ -346,6 +354,11 @@ class ApplicationType:
     has_likert_session: bool = strawberry.field(name="hasLikertSession", default=False)
     interview_session_status: Optional[str] = strawberry.field(name="interviewSessionStatus", default=None)
     likert_session_status: Optional[str] = strawberry.field(name="likertSessionStatus", default=None)
+    
+    # Rejection fields
+    rejection_note: Optional[str] = strawberry.field(name="rejectionNote", default=None)
+    rejected_at: Optional[str] = strawberry.field(name="rejectedAt", default=None)
+    rejection_template_id: Optional[str] = strawberry.field(name="rejectionTemplateId", default=None)
     
     # Nested data
     job: Optional['JobType'] = None
@@ -1107,5 +1120,42 @@ class InterviewSessionWithAnswersType:
     job: Optional["InterviewJobType"] = None
     candidate: Optional["InterviewCandidateType"] = None
     answers: List[InterviewAnswerWithQuestionType] = strawberry.field(default_factory=list)
+
+
+# ============================================
+# Rejection Template Types
+# ============================================
+
+@strawberry.type
+class RejectionTemplateType:
+    """GraphQL type for rejection email templates"""
+    id: str
+    name: str
+    subject: str
+    body: str
+    language: str
+    is_active: bool = strawberry.field(name="isActive")
+    is_default: bool = strawberry.field(name="isDefault")
+    created_at: Optional[str] = strawberry.field(name="createdAt", default=None)
+    updated_at: Optional[str] = strawberry.field(name="updatedAt", default=None)
+
+
+@strawberry.input
+class RejectionTemplateInput:
+    """Input for creating/updating rejection templates"""
+    name: str
+    subject: str
+    body: str
+    language: Optional[str] = "TR"
+    is_active: Optional[bool] = strawberry.field(name="isActive", default=True)
+    is_default: Optional[bool] = strawberry.field(name="isDefault", default=False)
+
+
+@strawberry.type
+class RejectionTemplateResponse:
+    """Response for rejection template mutations"""
+    success: bool
+    message: str
+    template: Optional[RejectionTemplateType] = None
 
 

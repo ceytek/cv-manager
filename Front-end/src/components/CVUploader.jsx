@@ -90,6 +90,11 @@ const CVUploader = ({ onUploadComplete, departments }) => {
                 fileName
                 filePath
                 fileSize
+                candidateName
+                candidateEmail
+                candidatePhone
+                candidateLinkedin
+                candidateGithub
               }
               failed {
                 fileName

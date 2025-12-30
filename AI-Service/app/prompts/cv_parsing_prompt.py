@@ -1,20 +1,24 @@
 """
 CV Parsing Prompts for OpenAI
 System and user prompts for structured CV extraction
+Enhanced with CV validation and LinkedIn detection
 """
 
-SYSTEM_PROMPT = """Sen bir CV (özgeçmiş) analiz uzmanısın. Türkçe ve İngilizce CV'leri okuyup yapılandırılmış JSON formatında veri çıkarıyorsun.
+SYSTEM_PROMPT = """You are an expert CV/Resume parser and validator. You analyze CVs in any language (Turkish, English, German, etc.) and extract structured data in JSON format.
 
-Görevin:
-- CV metninden kişisel bilgileri, eğitim geçmişini, iş deneyimini, becerileri çıkarmak
-- Eksik veya belirsiz bilgiler için null döndürmek
-- Tutarlı ve temiz veri üretmek
+Your responsibilities:
+1. FIRST: Validate if the document is actually a CV/Resume
+2. Extract personal information, education, work experience, and skills
+3. Return null for missing or unclear information
+4. Produce consistent, clean, and normalized data
 
-Önemli:
-- Her zaman geçerli JSON döndür
-- Tarihleri YYYY-MM formatında ver
-- Toplam deneyimi yıl cinsinden hesapla
-- Becerileri kategorize et (teknik/soft/dil/araç)"""
+Critical rules:
+- Always return valid JSON
+- Use YYYY-MM format for dates
+- Calculate total experience in years
+- Categorize skills properly (technical/soft/language/tools)
+- Detect and extract LinkedIn URLs in any format
+- Preserve special characters (Turkish: ı, ş, ğ, ü, ö, ç, İ)"""
 
 
 def get_user_prompt(cv_text: str) -> str:
@@ -27,71 +31,104 @@ def get_user_prompt(cv_text: str) -> str:
     Returns:
         Formatted user prompt
     """
-    return f"""Aşağıdaki CV metnini analiz et ve JSON formatında döndür:
+    return f"""Analyze the following document and return JSON:
 
-CV METNİ:
+DOCUMENT TEXT:
 {cv_text}
 
-JSON ŞEMASI:
+JSON SCHEMA:
 {{
-  "language": "string (CV'nin dili: 'TR' Türkçe, 'EN' İngilizce, 'DE' Almanca, vb. ISO 639-1 kodları)",
-  "personal": {{
-    "name": "string veya null",
-    "email": "string veya null",
-    "phone": "string veya null (XXX XXX XXXX formatında normalize et)",
-    "location": "string veya null (şehir/ülke)",
-    "linkedin": "string veya null"
+  "is_valid_cv": {{
+    "valid": "boolean (true if this is a CV/Resume, false otherwise)",
+    "confidence": "float (0.0-1.0, how confident you are)",
+    "reason": "string or null (if invalid, explain why: 'not_a_cv', 'empty_content', 'unreadable', 'insufficient_info')"
   }},
-  "summary": "string veya null (özet/hakkımda/profil bölümü)",
+  "language": "string (document language: 'TR', 'EN', 'DE', 'FR', etc. ISO 639-1 codes)",
+  "personal": {{
+    "name": "string or null (full name)",
+    "email": "string or null (valid email address)",
+    "phone": "string or null (normalized: +90 5XX XXX XXXX for TR, or international format)",
+    "location": "string or null (city, country or both)",
+    "linkedin": "string or null (full LinkedIn URL like https://linkedin.com/in/username)",
+    "github": "string or null (full GitHub URL if found)",
+    "portfolio": "string or null (personal website/portfolio URL if found)",
+    "birth_year": "int or null (4-digit year if found)"
+  }},
+  "summary": "string or null (profile summary/about me/objective section)",
   "education": [
     {{
-      "degree": "string (Lisans/Yüksek Lisans/Doktora/Ön Lisans)",
-      "field": "string (bölüm/alan)",
-      "institution": "string (üniversite/okul adı)",
-      "graduation_year": "int veya null",
-      "gpa": "float veya null"
+      "degree": "string (Bachelor/Master/PhD/Associate/High School)",
+      "field": "string (major/field of study)",
+      "institution": "string (university/school name)",
+      "graduation_year": "int or null",
+      "gpa": "float or null (normalize to 4.0 scale if possible)"
     }}
   ],
   "experience": [
     {{
-      "title": "string (pozisyon/ünvan)",
-      "company": "string (şirket adı)",
-      "start_date": "string (YYYY-MM formatında veya null)",
-      "end_date": "string (YYYY-MM formatında veya 'present' veya null)",
-      "description": "string (görev ve sorumluluklar)",
-      "duration_months": "int (ay cinsinden veya null)"
+      "title": "string (job title/position)",
+      "company": "string (company name)",
+      "start_date": "string (YYYY-MM format or null)",
+      "end_date": "string (YYYY-MM format, 'present' if current, or null)",
+      "description": "string (responsibilities and achievements)",
+      "duration_months": "int (calculated months, or null)"
     }}
   ],
   "skills": {{
-    "technical": ["string (programlama dilleri, teknolojiler)"],
-    "soft": ["string (liderlik, iletişim, vb)"],
+    "technical": ["string (programming languages, frameworks, technologies)"],
+    "soft": ["string (leadership, communication, problem-solving, etc)"],
     "languages": [
       {{
-        "language": "string",
+        "language": "string (language name)",
         "level": "string (Native/Fluent/Advanced/Intermediate/Basic)"
       }}
     ],
-    "tools": ["string (yazılımlar, platformlar)"]
+    "tools": ["string (software, platforms, IDEs)"]
   }},
-  "certifications": ["string (sertifika adları ve tarihleri)"],
+  "certifications": [
+    {{
+      "name": "string (certification name)",
+      "issuer": "string or null (issuing organization)",
+      "date": "string or null (YYYY-MM or YYYY)",
+      "credential_id": "string or null"
+    }}
+  ],
   "projects": [
     {{
       "name": "string",
       "description": "string",
-      "technologies": ["string"]
+      "technologies": ["string"],
+      "url": "string or null"
     }}
   ],
-  "total_experience_years": "float (toplam iş deneyimi yıl cinsinden)"
+  "total_experience_years": "float (total work experience in years, calculated from all positions)"
 }}
 
-KURALLAR:
-1. CV'nin dilini tespit et ve language field'ına yaz (TR, EN, DE, FR, vb.)
-2. Telefon numarasını XXX XXX XXXX formatına normalize et (örn: "5321234567" → "532 123 4567")
-3. Bulunamayan alanlar için null döndür, boş string değil
-4. Tarihleri YYYY-MM formatına çevir (örn: "Ocak 2020" → "2020-01")
-5. Hala çalışıyorsa end_date: "present" yaz
-6. duration_months'u start_date ve end_date'den hesapla
-7. total_experience_years'ı tüm deneyimlerin toplamından hesapla
-8. Becerileri doğru kategorilere yerleştir
-9. Sadece JSON döndür, başka açıklama ekleme
-10. Türkçe karakterleri koru (ı, ş, ğ, ü, ö, ç, İ)"""
+VALIDATION RULES:
+1. A valid CV typically contains: name, contact info (email/phone), AND either education OR work experience
+2. If the document lacks these basic elements, set is_valid_cv.valid = false
+3. Examples of INVALID documents: invoices, letters, articles, random text, contracts, forms
+
+EXTRACTION RULES:
+1. Detect document language and set the 'language' field (TR, EN, DE, FR, etc.)
+2. Phone number normalization:
+   - Turkish: +90 5XX XXX XXXX (e.g., "05321234567" → "+90 532 123 4567")
+   - International: keep country code, format as +XX XXX XXX XXXX
+3. LinkedIn URL detection - look for:
+   - linkedin.com/in/username
+   - linkedin.com/pub/username
+   - Just "linkedin.com/username"
+   - Text like "LinkedIn: username" → convert to full URL
+4. Return null for missing fields, never empty strings
+5. Convert dates to YYYY-MM format:
+   - "January 2020" or "Ocak 2020" → "2020-01"
+   - "2020" alone → "2020-01" (assume January)
+6. For current positions: end_date = "present"
+7. Calculate duration_months from start_date to end_date (or current date if present)
+8. Calculate total_experience_years by summing all experience durations
+9. Categorize skills accurately:
+   - technical: Python, JavaScript, SQL, AWS, Docker, etc.
+   - soft: Leadership, Communication, Team Management, etc.
+   - tools: VS Code, Jira, Figma, Excel, SAP, etc.
+   - languages: Turkish, English, German with proficiency levels
+10. Return ONLY the JSON object, no explanations or markdown"""

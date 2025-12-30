@@ -82,6 +82,10 @@ from app.graphql.types import (
     LikertSessionWithAnswersType,
     InterviewAnswerWithQuestionType,
     InterviewSessionWithAnswersType,
+    # Rejection template types
+    RejectionTemplateType,
+    RejectionTemplateInput,
+    RejectionTemplateResponse,
     # Generic response
     GenericResponse,
 )
@@ -697,6 +701,8 @@ class Query:
                     name=c.name,
                     email=c.email,
                     phone=c.phone,
+                    linkedin=c.linkedin,
+                    github=c.github,
                     location=c.location,
                     birth_year=c.birth_year,
                     experience_months=c.experience_months,
@@ -888,6 +894,9 @@ class Query:
                     has_likert_session=likert_session is not None,
                     interview_session_status=interview_session.status if interview_session else None,
                     likert_session_status=likert_session.status if likert_session else None,
+                    rejection_note=app.rejection_note,
+                    rejected_at=app.rejected_at.isoformat() if app.rejected_at else None,
+                    rejection_template_id=app.rejection_template_id,
                     job=job_type,
                     candidate=candidate_type
                 ))
@@ -1640,6 +1649,74 @@ class Query:
         finally:
             db.close()
 
+    # ============ Rejection Template Queries ============
+    @strawberry.field
+    def rejection_templates(self, info: Info) -> List["RejectionTemplateType"]:
+        """Get all rejection templates for the current company"""
+        from app.models.rejection_template import RejectionTemplate
+        
+        request = info.context["request"]
+        auth_header = request.headers.get("authorization")
+        if not auth_header:
+            raise Exception("Not authenticated")
+        try:
+            _, token = auth_header.split()
+        except ValueError:
+            raise Exception("Invalid authorization header")
+        
+        db = get_db_session()
+        try:
+            company_id = get_company_id_from_token(token)
+            templates = db.query(RejectionTemplate).filter(
+                RejectionTemplate.company_id == company_id
+            ).order_by(RejectionTemplate.created_at.desc()).all()
+            
+            return [
+                RejectionTemplateType(
+                    id=str(t.id),
+                    name=t.name,
+                    subject=t.subject,
+                    body=t.body,
+                    language=t.language or "TR",
+                    is_active=t.is_active,
+                    is_default=t.is_default or False,
+                    created_at=t.created_at.isoformat() if t.created_at else None,
+                    updated_at=t.updated_at.isoformat() if t.updated_at else None,
+                ) for t in templates
+            ]
+        finally:
+            db.close()
+
+    @strawberry.field
+    def rejection_template(self, info: Info, id: str) -> Optional["RejectionTemplateType"]:
+        """Get a single rejection template by ID"""
+        from app.models.rejection_template import RejectionTemplate
+        
+        request = info.context["request"]
+        auth_header = request.headers.get("authorization")
+        if not auth_header:
+            raise Exception("Not authenticated")
+        
+        db = get_db_session()
+        try:
+            template = db.query(RejectionTemplate).filter(RejectionTemplate.id == id).first()
+            if not template:
+                return None
+            
+            return RejectionTemplateType(
+                id=str(template.id),
+                name=template.name,
+                subject=template.subject,
+                body=template.body,
+                language=template.language or "TR",
+                is_active=template.is_active,
+                is_default=template.is_default or False,
+                created_at=template.created_at.isoformat() if template.created_at else None,
+                updated_at=template.updated_at.isoformat() if template.updated_at else None,
+            )
+        finally:
+            db.close()
+
     @strawberry.field
     def interview_session(self, info: Info, token: str) -> Optional["InterviewSessionFullType"]:
         """Get interview session by token (public - for candidates)"""
@@ -2174,6 +2251,9 @@ class Subscription:
                     notes=app.notes,
                     created_at=app.created_at.isoformat(),
                     updated_at=app.updated_at.isoformat() if app.updated_at else None,
+                    rejection_note=app.rejection_note,
+                    rejected_at=app.rejected_at.isoformat() if app.rejected_at else None,
+                    rejection_template_id=app.rejection_template_id,
                     job=job_type,
                     candidate=candidate_type,
                 )
@@ -2985,6 +3065,29 @@ class Mutation(CompanyMutation):
                             filename=file.filename
                         )
                         
+                        # Check if this is a valid CV
+                        is_valid_cv = parsed_data.get('is_valid_cv', {})
+                        if isinstance(is_valid_cv, dict) and is_valid_cv.get('valid') == False:
+                            reason = is_valid_cv.get('reason', 'not_a_cv')
+                            confidence = is_valid_cv.get('confidence', 0)
+                            error_msg = f"Yüklenen dosya geçerli bir CV değil. Sebep: {reason}"
+                            if reason == 'not_a_cv':
+                                error_msg = "Yüklenen dosya CV/özgeçmiş formatında değil."
+                            elif reason == 'empty_content':
+                                error_msg = "Dosya boş veya okunamıyor."
+                            elif reason == 'insufficient_info':
+                                error_msg = "Dosyada yeterli kişisel/profesyonel bilgi bulunamadı."
+                            
+                            failed.append(FailedFileType(
+                                file_name=file.filename,
+                                reason=error_msg
+                            ))
+                            # Delete the uploaded file since it's not a valid CV
+                            import os
+                            if os.path.exists(file_path):
+                                os.remove(file_path)
+                            continue
+                        
                         # Extract CV language
                         cv_language = parsed_data.get('language')
 
@@ -2994,6 +3097,8 @@ class Mutation(CompanyMutation):
                         email = personal.get('email')
                         phone = personal.get('phone')
                         candidate_location = personal.get('location') or personal.get('address')
+                        linkedin = personal.get('linkedin')
+                        github = personal.get('github')
 
                         # Extract full CV text from metadata (for birth year regex)
                         metadata = parsed_data.get('_metadata', {})
@@ -3080,6 +3185,8 @@ class Mutation(CompanyMutation):
                         cv_text = None
                         cv_language = None
                         candidate_location = None
+                        linkedin = None
+                        github = None
                     
                     # Create candidate record in database
                     # Final sanity for birth_year bounds
@@ -3095,6 +3202,8 @@ class Mutation(CompanyMutation):
                         name=name,
                         email=email,
                         phone=phone,
+                        linkedin=linkedin,
+                        github=github,
                         cv_file_name=file.filename,
                         cv_file_path=file_path,
                         cv_file_size=file_size,
@@ -3118,7 +3227,12 @@ class Mutation(CompanyMutation):
                     successful.append(UploadedFileType(
                         file_name=file.filename,
                         file_path=file_path,
-                        file_size=file_size
+                        file_size=file_size,
+                        candidate_name=name,
+                        candidate_email=email,
+                        candidate_phone=phone,
+                        candidate_linkedin=linkedin,
+                        candidate_github=github
                     ))
                     
                 except Exception as e:
@@ -4125,6 +4239,183 @@ class Mutation(CompanyMutation):
         except Exception as e:
             db.rollback()
             return LikertTemplateResponse(success=False, message=str(e), template=None)
+        finally:
+            db.close()
+
+    # ============ Rejection Template Mutations ============
+    @strawberry.mutation
+    async def create_rejection_template(self, info: Info, input: "RejectionTemplateInput") -> "RejectionTemplateResponse":
+        """Create a new rejection email template"""
+        from app.models.rejection_template import RejectionTemplate
+        
+        request = info.context["request"]
+        auth_header = request.headers.get("authorization")
+        if not auth_header:
+            raise Exception("Not authenticated")
+        try:
+            _, token = auth_header.split()
+        except ValueError:
+            raise Exception("Invalid authorization header")
+        
+        db = get_db_session()
+        try:
+            company_id = get_company_id_from_token(token)
+            current = get_current_user_from_token(token, db)
+            
+            template = RejectionTemplate(
+                company_id=company_id,
+                created_by=str(current.id),
+                name=input.name,
+                subject=input.subject,
+                body=input.body,
+                language=input.language or "TR",
+                is_active=input.is_active if input.is_active is not None else True,
+                is_default=input.is_default if input.is_default is not None else False,
+            )
+            db.add(template)
+            db.commit()
+            db.refresh(template)
+            
+            return RejectionTemplateResponse(
+                success=True,
+                message="Rejection template created",
+                template=RejectionTemplateType(
+                    id=str(template.id),
+                    name=template.name,
+                    subject=template.subject,
+                    body=template.body,
+                    language=template.language,
+                    is_active=template.is_active,
+                    is_default=template.is_default,
+                    created_at=template.created_at.isoformat() if template.created_at else None,
+                    updated_at=None,
+                ),
+            )
+        except Exception as e:
+            db.rollback()
+            return RejectionTemplateResponse(success=False, message=str(e), template=None)
+        finally:
+            db.close()
+
+    @strawberry.mutation
+    async def update_rejection_template(self, info: Info, id: str, input: "RejectionTemplateInput") -> "RejectionTemplateResponse":
+        """Update a rejection email template"""
+        from app.models.rejection_template import RejectionTemplate
+        
+        request = info.context["request"]
+        auth_header = request.headers.get("authorization")
+        if not auth_header:
+            raise Exception("Not authenticated")
+        
+        db = get_db_session()
+        try:
+            template = db.query(RejectionTemplate).filter(RejectionTemplate.id == id).first()
+            if not template:
+                return RejectionTemplateResponse(success=False, message="Template not found", template=None)
+            
+            template.name = input.name
+            template.subject = input.subject
+            template.body = input.body
+            template.language = input.language or template.language
+            if input.is_active is not None:
+                template.is_active = input.is_active
+            if input.is_default is not None:
+                template.is_default = input.is_default
+            
+            db.commit()
+            db.refresh(template)
+            
+            return RejectionTemplateResponse(
+                success=True,
+                message="Template updated",
+                template=RejectionTemplateType(
+                    id=str(template.id),
+                    name=template.name,
+                    subject=template.subject,
+                    body=template.body,
+                    language=template.language,
+                    is_active=template.is_active,
+                    is_default=template.is_default,
+                    created_at=template.created_at.isoformat() if template.created_at else None,
+                    updated_at=template.updated_at.isoformat() if template.updated_at else None,
+                ),
+            )
+        except Exception as e:
+            db.rollback()
+            return RejectionTemplateResponse(success=False, message=str(e), template=None)
+        finally:
+            db.close()
+
+    @strawberry.mutation
+    async def delete_rejection_template(self, info: Info, id: str) -> MessageType:
+        """Delete a rejection template"""
+        from app.models.rejection_template import RejectionTemplate
+        
+        request = info.context["request"]
+        auth_header = request.headers.get("authorization")
+        if not auth_header:
+            raise Exception("Not authenticated")
+        
+        db = get_db_session()
+        try:
+            template = db.query(RejectionTemplate).filter(RejectionTemplate.id == id).first()
+            if not template:
+                return MessageType(success=False, message="Template not found")
+            
+            db.delete(template)
+            db.commit()
+            return MessageType(success=True, message="Template deleted")
+        except Exception as e:
+            db.rollback()
+            return MessageType(success=False, message=str(e))
+        finally:
+            db.close()
+
+    # ============ Application Rejection Mutations ============
+    @strawberry.mutation
+    async def reject_application(
+        self, 
+        info: Info, 
+        application_id: str, 
+        rejection_note: Optional[str] = None,
+        template_id: Optional[str] = None
+    ) -> MessageType:
+        """Reject an application and mark it with a rejection note"""
+        from app.models.application import Application, ApplicationStatus
+        
+        request = info.context["request"]
+        auth_header = request.headers.get("authorization")
+        if not auth_header:
+            raise Exception("Not authenticated")
+        try:
+            _, token = auth_header.split()
+        except ValueError:
+            raise Exception("Invalid authorization header")
+        
+        db = get_db_session()
+        try:
+            company_id = get_company_id_from_token(token)
+            
+            application = db.query(Application).filter(
+                Application.id == application_id,
+                Application.company_id == company_id
+            ).first()
+            
+            if not application:
+                return MessageType(success=False, message="Application not found")
+            
+            # Update application status and rejection data
+            application.status = ApplicationStatus.REJECTED
+            application.rejection_note = rejection_note
+            application.rejected_at = datetime.utcnow()
+            application.rejection_template_id = template_id
+            
+            db.commit()
+            
+            return MessageType(success=True, message="Application rejected successfully")
+        except Exception as e:
+            db.rollback()
+            return MessageType(success=False, message=str(e))
         finally:
             db.close()
 

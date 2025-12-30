@@ -94,6 +94,11 @@ class Application(Base):
     reviewed_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     notes = Column(Text, nullable=True, comment="Reviewer notes")
     
+    # Rejection data
+    rejection_note = Column(Text, nullable=True, comment="Internal note for rejection reason")
+    rejected_at = Column(DateTime, nullable=True, comment="When application was rejected")
+    rejection_template_id = Column(String(36), nullable=True, comment="Template used for rejection email")
+    
     # Batch tracking
     batch_number = Column(String(20), nullable=True, index=True)
     

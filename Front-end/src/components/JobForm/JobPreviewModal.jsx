@@ -6,7 +6,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Eye, Briefcase, MapPin, Clock, GraduationCap, DollarSign, Calendar, Building2 } from 'lucide-react';
 
-const JobPreviewModal = ({ isOpen, onClose, jobData, departments, onPublish, isLoading }) => {
+const JobPreviewModal = ({ isOpen, onClose, jobData, departments, onPublish, isLoading, viewOnly = false }) => {
   const { t } = useTranslation();
 
   if (!isOpen || !jobData) return null;
@@ -409,9 +409,9 @@ const JobPreviewModal = ({ isOpen, onClose, jobData, departments, onPublish, isL
               transition: 'all 0.2s'
             }}
           >
-            Geri Dön
+            {viewOnly ? 'Kapat' : 'Geri Dön'}
           </button>
-          <button
+          {!viewOnly && <button
             onClick={onPublish}
             disabled={isLoading}
             style={{
@@ -460,7 +460,7 @@ const JobPreviewModal = ({ isOpen, onClose, jobData, departments, onPublish, isL
                 İlanı Kaydet
               </>
             )}
-          </button>
+          </button>}
         </div>
       </div>
 

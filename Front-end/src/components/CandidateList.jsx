@@ -5,8 +5,306 @@
 import React from 'react';
 import { useQuery } from '@apollo/client/react';
 import { CANDIDATES_QUERY } from '../graphql/cvs';
-import { User, Mail, Phone, Calendar, FileText } from 'lucide-react';
+import { User, Mail, Phone, Calendar, FileText, Contact, Linkedin, Github, X, ExternalLink, Copy, Check, Download } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+
+// Contact Card Component
+const ContactCard = ({ candidate, onClose, position }) => {
+  const cardRef = React.useRef(null);
+  const [copiedField, setCopiedField] = React.useState(null);
+  
+  // Close on click outside
+  React.useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (cardRef.current && !cardRef.current.contains(e.target)) {
+        onClose();
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [onClose]);
+
+  // Copy to clipboard function
+  const copyToClipboard = async (text, fieldName) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedField(fieldName);
+      setTimeout(() => setCopiedField(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
+  // Get initials from name
+  const getInitials = (name) => {
+    if (!name) return '?';
+    const parts = name.trim().split(' ');
+    if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+  };
+
+  // Get avatar background color based on name
+  const getAvatarColor = (name) => {
+    const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4'];
+    if (!name) return colors[0];
+    const index = name.charCodeAt(0) % colors.length;
+    return colors[index];
+  };
+
+  return (
+    <div
+      ref={cardRef}
+      style={{
+        position: 'fixed',
+        top: position.top,
+        left: position.left,
+        zIndex: 9999,
+        background: 'white',
+        borderRadius: 16,
+        boxShadow: '0 20px 40px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05)',
+        width: 320,
+        overflow: 'hidden',
+        animation: 'fadeIn 0.2s ease-out',
+      }}
+    >
+      {/* Header with gradient */}
+      <div style={{
+        background: 'linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%)',
+        padding: '24px 20px 40px',
+        position: 'relative',
+      }}>
+        <button
+          onClick={onClose}
+          style={{
+            position: 'absolute',
+            top: 12,
+            right: 12,
+            background: 'rgba(255,255,255,0.2)',
+            border: 'none',
+            borderRadius: 8,
+            padding: 6,
+            cursor: 'pointer',
+            color: 'white',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <X size={16} />
+        </button>
+      </div>
+      
+      {/* Avatar - positioned to overlap header and content */}
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        marginTop: -36,
+        position: 'relative',
+        zIndex: 1,
+      }}>
+        <div style={{
+          width: 72,
+          height: 72,
+          borderRadius: '50%',
+          background: getAvatarColor(candidate.name),
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 24,
+          fontWeight: 700,
+          color: 'white',
+          border: '4px solid white',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+        }}>
+          {getInitials(candidate.name)}
+        </div>
+        <h3 style={{
+          margin: '12px 0 4px',
+          fontSize: 18,
+          fontWeight: 600,
+          color: '#1F2937',
+        }}>
+          {candidate.name || 'İsimsiz Aday'}
+        </h3>
+        {candidate.location && (
+          <p style={{ fontSize: 13, color: '#6B7280', margin: 0 }}>
+            📍 {candidate.location}
+          </p>
+        )}
+      </div>
+
+      {/* Contact Info */}
+      <div style={{ padding: '20px' }}>
+        {/* Email */}
+        <div 
+          onClick={() => candidate.email && copyToClipboard(candidate.email, 'email')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            padding: '10px 12px',
+            marginBottom: 8,
+            borderRadius: 10,
+            background: '#F3F4F6',
+            cursor: candidate.email ? 'pointer' : 'default',
+            transition: 'all 0.2s',
+            opacity: candidate.email ? 1 : 0.5,
+          }}
+          onMouseEnter={(e) => candidate.email && (e.currentTarget.style.background = '#E5E7EB')}
+          onMouseLeave={(e) => e.currentTarget.style.background = '#F3F4F6'}
+        >
+          <div style={{
+            width: 36,
+            height: 36,
+            borderRadius: 8,
+            background: '#DBEAFE',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            <Mail size={18} color="#2563EB" />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 2 }}>E-posta</div>
+            <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {candidate.email || '—'}
+            </div>
+          </div>
+          {candidate.email && (
+            copiedField === 'email' ? <Check size={14} color="#10B981" /> : <Copy size={14} color="#9CA3AF" />
+          )}
+        </div>
+
+        {/* Phone */}
+        <div 
+          onClick={() => candidate.phone && copyToClipboard(candidate.phone, 'phone')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            padding: '10px 12px',
+            marginBottom: 8,
+            borderRadius: 10,
+            background: '#F3F4F6',
+            cursor: candidate.phone ? 'pointer' : 'default',
+            transition: 'all 0.2s',
+            opacity: candidate.phone ? 1 : 0.5,
+          }}
+          onMouseEnter={(e) => candidate.phone && (e.currentTarget.style.background = '#E5E7EB')}
+          onMouseLeave={(e) => e.currentTarget.style.background = '#F3F4F6'}
+        >
+          <div style={{
+            width: 36,
+            height: 36,
+            borderRadius: 8,
+            background: '#D1FAE5',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            <Phone size={18} color="#059669" />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 2 }}>Telefon</div>
+            <div style={{ fontSize: 13, fontWeight: 500 }}>{candidate.phone || '—'}</div>
+          </div>
+          {candidate.phone && (
+            copiedField === 'phone' ? <Check size={14} color="#10B981" /> : <Copy size={14} color="#9CA3AF" />
+          )}
+        </div>
+
+        {/* LinkedIn */}
+        <div 
+          onClick={() => candidate.linkedin && copyToClipboard(candidate.linkedin, 'linkedin')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            padding: '10px 12px',
+            marginBottom: 8,
+            borderRadius: 10,
+            background: '#F3F4F6',
+            cursor: candidate.linkedin ? 'pointer' : 'default',
+            transition: 'all 0.2s',
+            opacity: candidate.linkedin ? 1 : 0.5,
+          }}
+          onMouseEnter={(e) => candidate.linkedin && (e.currentTarget.style.background = '#E5E7EB')}
+          onMouseLeave={(e) => e.currentTarget.style.background = '#F3F4F6'}
+        >
+          <div style={{
+            width: 36,
+            height: 36,
+            borderRadius: 8,
+            background: '#DBEAFE',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            <Linkedin size={18} color="#0A66C2" />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 2 }}>LinkedIn</div>
+            <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {candidate.linkedin ? candidate.linkedin.replace(/https?:\/\/(www\.)?linkedin\.com\/in\//i, '') : '—'}
+            </div>
+          </div>
+          {candidate.linkedin && (
+            copiedField === 'linkedin' ? <Check size={14} color="#10B981" /> : <Copy size={14} color="#9CA3AF" />
+          )}
+        </div>
+
+        {/* GitHub */}
+        <div 
+          onClick={() => candidate.github && copyToClipboard(candidate.github, 'github')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            padding: '10px 12px',
+            marginBottom: 8,
+            borderRadius: 10,
+            background: '#F3F4F6',
+            cursor: candidate.github ? 'pointer' : 'default',
+            transition: 'all 0.2s',
+            opacity: candidate.github ? 1 : 0.5,
+          }}
+          onMouseEnter={(e) => candidate.github && (e.currentTarget.style.background = '#E5E7EB')}
+          onMouseLeave={(e) => e.currentTarget.style.background = '#F3F4F6'}
+        >
+          <div style={{
+            width: 36,
+            height: 36,
+            borderRadius: 8,
+            background: '#F3E8FF',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            <Github size={18} color="#24292F" />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 2 }}>GitHub</div>
+            <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {candidate.github ? candidate.github.replace(/https?:\/\/(www\.)?github\.com\//i, '') : '—'}
+            </div>
+          </div>
+          {candidate.github && (
+            copiedField === 'github' ? <Check size={14} color="#10B981" /> : <Copy size={14} color="#9CA3AF" />
+          )}
+        </div>
+      </div>
+
+      {/* CSS Animation */}
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(-10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+    </div>
+  );
+};
 
 const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchTerm, onRefresh, onCompare }) => {
   const { t } = useTranslation();
@@ -20,6 +318,9 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
 
   // Selection state MUST be declared before any conditional returns to keep hook order stable
   const [selected, setSelected] = React.useState([]);
+  
+  // Contact card state
+  const [contactCard, setContactCard] = React.useState({ open: false, candidate: null, position: { top: 0, left: 0 } });
 
   // Refetch when onRefresh changes
   React.useEffect(() => {
@@ -242,23 +543,43 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
 
               {/* İletişim */}
               <td style={{ padding: 12 }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  {candidate.email && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <Mail size={14} color="#6B7280" />
-                      <span style={{ fontSize: 13, color: '#4B5563' }}>{candidate.email}</span>
-                    </div>
-                  )}
-                  {candidate.phone && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <Phone size={14} color="#6B7280" />
-                      <span style={{ fontSize: 13, color: '#4B5563' }}>{candidate.phone}</span>
-                    </div>
-                  )}
-                  {!candidate.email && !candidate.phone && (
-                    <span style={{ fontSize: 13, color: '#9CA3AF' }}>—</span>
-                  )}
-                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setContactCard({
+                      open: true,
+                      candidate,
+                      position: {
+                        top: Math.min(rect.bottom + 8, window.innerHeight - 450),
+                        left: Math.min(rect.left, window.innerWidth - 340),
+                      }
+                    });
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 36,
+                    height: 36,
+                    borderRadius: 10,
+                    border: '1px solid #E5E7EB',
+                    background: 'white',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#EFF6FF';
+                    e.currentTarget.style.borderColor = '#3B82F6';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'white';
+                    e.currentTarget.style.borderColor = '#E5E7EB';
+                  }}
+                  title="İletişim Kartı"
+                >
+                  <Contact size={18} color="#3B82F6" />
+                </button>
               </td>
 
               {/* Departman */}
@@ -275,14 +596,52 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
 
               {/* CV Dosyası */}
               <td style={{ padding: 12 }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <span style={{ fontSize: 13, color: '#1F2937', fontWeight: 500 }}>
-                    {candidate.cvFileName}
-                  </span>
-                  <span style={{ fontSize: 12, color: '#9CA3AF' }}>
-                    {formatFileSize(candidate.cvFileSize)}
-                  </span>
-                </div>
+                <a
+                  href={`http://localhost:8000${candidate.cvFilePath}`}
+                  download={candidate.cvFileName}
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    background: candidate.cvFileName?.toLowerCase().endsWith('.pdf') ? '#FEE2E2' : '#DBEAFE',
+                    textDecoration: 'none',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    width: 'fit-content',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'scale(1.05)';
+                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'scale(1)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                  title={candidate.cvFileName}
+                >
+                  {candidate.cvFileName?.toLowerCase().endsWith('.pdf') ? (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                      <path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2Z" fill="#DC2626"/>
+                      <path d="M14 2V8H20" fill="#FCA5A5"/>
+                      <text x="12" y="17" textAnchor="middle" fill="white" fontSize="6" fontWeight="bold">PDF</text>
+                    </svg>
+                  ) : (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                      <path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2Z" fill="#2563EB"/>
+                      <path d="M14 2V8H20" fill="#93C5FD"/>
+                      <text x="12" y="17" textAnchor="middle" fill="white" fontSize="5" fontWeight="bold">DOC</text>
+                    </svg>
+                  )}
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontSize: 11, color: '#6B7280' }}>
+                      {formatFileSize(candidate.cvFileSize)}
+                    </span>
+                  </div>
+                  <Download size={14} color="#6B7280" />
+                </a>
               </td>
 
               {/* Yüklenme Tarihi */}
@@ -318,6 +677,15 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
           {t('candidateList.compare')}
         </button>
       </div>
+      
+      {/* Contact Card Popup */}
+      {contactCard.open && contactCard.candidate && (
+        <ContactCard
+          candidate={contactCard.candidate}
+          position={contactCard.position}
+          onClose={() => setContactCard({ open: false, candidate: null, position: { top: 0, left: 0 } })}
+        />
+      )}
     </div>
   );
 };

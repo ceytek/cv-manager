@@ -13,6 +13,7 @@ from app.models.transaction import Transaction, TransactionStatus, PaymentMethod
 from app.models.interview import InterviewTemplate, InterviewQuestion, InterviewSession, InterviewAnswer, InterviewSessionStatus
 from app.models.agreement_template import AgreementTemplate
 from app.models.likert import LikertTemplate, LikertQuestion, LikertSession, LikertAnswer
+from app.models.rejection_template import RejectionTemplate
 
 __all__ = [
     'User', 
@@ -40,5 +41,6 @@ __all__ = [
     'LikertTemplate',
     'LikertQuestion',
     'LikertSession',
-    'LikertAnswer'
+    'LikertAnswer',
+    'RejectionTemplate'
 ]
