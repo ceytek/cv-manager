@@ -22,7 +22,9 @@ import {
   ScrollText,
   Layers,
   ChevronDown,
-  MailX
+  MailX,
+  Activity,
+  Clock
 } from 'lucide-react';
 import { useQuery, useMutation, useSubscription } from '@apollo/client/react';
 import { USERS_QUERY, DEACTIVATE_USER_MUTATION } from '../graphql/auth';
@@ -30,6 +32,7 @@ import { DEPARTMENTS_QUERY } from '../graphql/departments';
 import { JOBS_QUERY } from '../graphql/jobs';
 import './Dashboard.css';
 import { STATS_QUERY, STATS_SUBSCRIPTION } from '../graphql/stats';
+import { GET_RECENT_ACTIVITIES } from '../graphql/history';
 import AddUserModal from './AddUserModal';
 import DepartmentsPage from './DepartmentsPage';
 import JobsPage from './JobsPage';
@@ -52,9 +55,13 @@ const Dashboard = ({ currentUser, onLogout }) => {
   const [settingsMenu, setSettingsMenu] = useState(null);
   const [templatesMenu, setTemplatesMenu] = useState(null);
   const [cvEvalInitialView, setCvEvalInitialView] = useState('welcome');
+  const [cvEvalInitialJob, setCvEvalInitialJob] = useState(null);
+  const [cvEvalInitialApplication, setCvEvalInitialApplication] = useState(null);
   const [cvInitialView, setCvInitialView] = useState('welcome');
   const [jobsInitialCreate, setJobsInitialCreate] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [jobsListPage, setJobsListPage] = useState(0); // Pagination for jobs widget
+  const [activitiesPage, setActivitiesPage] = useState(0); // Pagination for activities widget
 
   // Derive a safe display name
   const displayName = (currentUser?.fullName?.trim()) 
@@ -81,7 +88,7 @@ const Dashboard = ({ currentUser, onLogout }) => {
   });
   const departments = departmentsData?.departments || [];
 
-  // Fetch recent jobs (last 3)
+  // Fetch recent jobs (auto-refresh every 10 seconds)
   const { data: jobsData } = useQuery(JOBS_QUERY, {
     variables: {
       includeInactive: false,
@@ -89,11 +96,20 @@ const Dashboard = ({ currentUser, onLogout }) => {
       searchTerm: null,
     },
     fetchPolicy: 'cache-and-network',
+    pollInterval: 10000, // Refresh every 10 seconds
   });
   const recentJobs = (jobsData?.jobs || []).slice(0, 3);
   
   // Debug: Log job data
   console.log('Recent Jobs Data:', recentJobs);
+
+  // Fetch recent activities (auto-refresh every 5 seconds)
+  const { data: activitiesData, loading: activitiesLoading } = useQuery(GET_RECENT_ACTIVITIES, {
+    variables: { limit: 50 },
+    fetchPolicy: 'cache-and-network',
+    pollInterval: 5000, // Refresh every 5 seconds
+  });
+  const allActivities = activitiesData?.recentActivities?.activities || [];
 
   // Get department name by ID
   const getDepartmentName = (deptId) => {
@@ -347,7 +363,7 @@ const Dashboard = ({ currentUser, onLogout }) => {
 
         {/* CV Evaluation */}
         {activeMenu === 'cv-evaluation' && (
-          <CVEvaluationPage initialView={cvEvalInitialView} />
+          <CVEvaluationPage initialView={cvEvalInitialView} initialJob={cvEvalInitialJob} />
         )}
 
         {/* Usage History */}
@@ -400,6 +416,478 @@ const Dashboard = ({ currentUser, onLogout }) => {
           </div>
         )}
 
+        {/* Jobs Widget Row - Left: Jobs Table, Right: Reserved for future widget */}
+        {!(activeMenu === 'settings' && settingsMenu) && activeMenu === 'dashboard' && (
+          <div style={{ 
+            marginTop: 32,
+            marginBottom: 32,
+            display: 'grid', 
+            gridTemplateColumns: '1fr 1fr', 
+            gap: 24 
+          }}>
+            {/* Left Side: Jobs Table Widget */}
+            <div style={{
+              background: 'white',
+              borderRadius: 16,
+              boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+              border: '1px solid #E5E7EB',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+            }}>
+              {/* Header */}
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center', 
+                padding: '16px 20px',
+                borderBottom: '1px solid #E5E7EB',
+              }}>
+                <h3 style={{ 
+                  margin: 0, 
+                  fontSize: 16, 
+                  fontWeight: 600, 
+                  color: '#1F2937' 
+                }}>
+                  {t('dashboard.jobsWidget', 'Akışlar')}
+                </h3>
+                <button
+                  onClick={() => setActiveMenu('jobs')}
+                  style={{
+                    padding: '4px 12px',
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#3B82F6',
+                    fontSize: 13,
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {t('dashboard.viewAll')} →
+                </button>
+              </div>
+
+              {/* Table */}
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                {/* Table Header */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr auto',
+                  padding: '12px 20px',
+                  background: '#F9FAFB',
+                  borderBottom: '1px solid #E5E7EB',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: '#6B7280',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                }}>
+                  <span>{t('dashboard.jobTitle', 'İş İlanı')}</span>
+                  <span style={{ textAlign: 'right' }}>{t('dashboard.applicants', 'Başvuran')}</span>
+                </div>
+
+                {/* Table Body - Fixed height for 5 rows */}
+                <div style={{ 
+                  minHeight: 350, // Match activities widget height
+                  maxHeight: 350,
+                  overflowY: 'auto',
+                }}>
+                  {(jobsData?.jobs || [])
+                    .slice(jobsListPage * 5, (jobsListPage + 1) * 5)
+                    .map((job, idx, arr) => (
+                      <div
+                        key={job.id}
+                        onClick={() => {
+                          setCvEvalInitialJob(job);
+                          setCvEvalInitialView('job-details');
+                          setActiveMenu('cv-evaluation');
+                        }}
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: '1fr auto',
+                          alignItems: 'center',
+                          padding: '14px 20px',
+                          borderBottom: idx < arr.length - 1 ? '1px solid #F3F4F6' : 'none',
+                          cursor: 'pointer',
+                          transition: 'background 0.15s',
+                          minHeight: 50,
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = '#F9FAFB'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <span style={{ 
+                          color: '#3B82F6', 
+                          fontWeight: 500, 
+                          fontSize: 14,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          paddingRight: 16,
+                        }}>
+                          {job.title}
+                        </span>
+                        <div style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: 6,
+                          color: '#F59E0B',
+                          fontSize: 14,
+                        }}>
+                          <Users size={16} />
+                          <span style={{ fontWeight: 500 }}>
+                            {job.analysisCount || 0} {t('dashboard.candidates', 'aday')}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+
+                  {/* Empty state */}
+                  {(!jobsData?.jobs || jobsData.jobs.length === 0) && (
+                    <div style={{ 
+                      padding: 48, 
+                      textAlign: 'center', 
+                      color: '#9CA3AF',
+                      fontSize: 14,
+                    }}>
+                      {t('dashboard.noJobs', 'Henüz iş ilanı yok')}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Pagination Footer */}
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '12px 20px',
+                borderTop: '1px solid #E5E7EB',
+                background: '#FAFAFA',
+                fontSize: 13,
+                color: '#6B7280',
+              }}>
+                <span>
+                  {t('dashboard.showing', 'Gösterilen')}: {Math.min((jobsListPage + 1) * 5, jobsData?.jobs?.length || 0)} / {jobsData?.jobs?.length || 0}
+                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <button
+                    onClick={() => setJobsListPage(p => Math.max(0, p - 1))}
+                    disabled={jobsListPage === 0}
+                    style={{
+                      padding: '6px 10px',
+                      background: 'white',
+                      border: '1px solid #E5E7EB',
+                      borderRadius: 6,
+                      color: jobsListPage === 0 ? '#D1D5DB' : '#374151',
+                      fontSize: 13,
+                      cursor: jobsListPage === 0 ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    ‹
+                  </button>
+                  <span style={{ minWidth: 60, textAlign: 'center' }}>
+                    {jobsListPage + 1} / {Math.max(1, Math.ceil((jobsData?.jobs?.length || 0) / 5))}
+                  </span>
+                  <button
+                    onClick={() => setJobsListPage(p => Math.min(Math.ceil((jobsData?.jobs?.length || 0) / 5) - 1, p + 1))}
+                    disabled={jobsListPage >= Math.ceil((jobsData?.jobs?.length || 0) / 5) - 1}
+                    style={{
+                      padding: '6px 10px',
+                      background: 'white',
+                      border: '1px solid #E5E7EB',
+                      borderRadius: 6,
+                      color: jobsListPage >= Math.ceil((jobsData?.jobs?.length || 0) / 5) - 1 ? '#D1D5DB' : '#374151',
+                      fontSize: 13,
+                      cursor: jobsListPage >= Math.ceil((jobsData?.jobs?.length || 0) / 5) - 1 ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    ›
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Side: Recent Activities Widget */}
+            <div style={{
+              background: 'white',
+              borderRadius: 16,
+              boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+              border: '1px solid #E5E7EB',
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: 380,
+            }}>
+              {/* Header */}
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center', 
+                padding: '16px 20px',
+                borderBottom: '1px solid #E5E7EB',
+              }}>
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: 8,
+                  fontWeight: 600, 
+                  fontSize: 16,
+                  color: '#111827',
+                }}>
+                  <Activity size={20} color="#3B82F6" />
+                  {t('dashboard.recentActivities', 'Son İşlemler')}
+                </div>
+              </div>
+
+              {/* Table Header */}
+              <div style={{ 
+                display: 'grid',
+                gridTemplateColumns: '1fr auto',
+                padding: '10px 20px',
+                background: '#F9FAFB',
+                borderBottom: '1px solid #E5E7EB',
+                fontWeight: 600,
+                fontSize: 12,
+                color: '#6B7280',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+              }}>
+                <span>{t('dashboard.activity', 'İşlem')}</span>
+                <span>{t('dashboard.time', 'Zaman')}</span>
+              </div>
+
+              {/* Activities List */}
+              <div style={{ 
+                flex: 1,
+                height: 350, 
+                overflowY: 'auto',
+              }}>
+                {allActivities
+                  .slice(activitiesPage * 5, (activitiesPage + 1) * 5)
+                  .map((activity, idx, arr) => {
+                    // Format time as relative
+                    const date = new Date(activity.createdAt);
+                    const now = new Date();
+                    const diffMs = now - date;
+                    const diffMins = Math.floor(diffMs / 60000);
+                    const diffHours = Math.floor(diffMs / 3600000);
+                    const diffDays = Math.floor(diffMs / 86400000);
+                    let timeAgo;
+                    if (diffMins < 60) {
+                      timeAgo = `${diffMins} ${t('dashboard.minutesAgo', 'dk önce')}`;
+                    } else if (diffHours < 24) {
+                      timeAgo = `${diffHours} ${t('dashboard.hoursAgo', 'saat önce')}`;
+                    } else {
+                      timeAgo = `${diffDays} ${t('dashboard.daysAgo', 'gün önce')}`;
+                    }
+
+                    // Get action name based on language
+                    const actionName = localStorage.getItem('i18nextLng')?.startsWith('en') 
+                      ? activity.actionNameEn 
+                      : activity.actionNameTr;
+
+                    // Get color for the action
+                    const colorMap = {
+                      blue: '#3B82F6',
+                      green: '#10B981',
+                      red: '#EF4444',
+                      orange: '#F59E0B',
+                      purple: '#8B5CF6',
+                      gray: '#6B7280',
+                    };
+                    const color = colorMap[activity.color] || '#6B7280';
+
+                    // Generate avatar color from candidate name (consistent per person)
+                    const avatarColors = [
+                      '#3B82F6', // Blue
+                      '#10B981', // Green
+                      '#F59E0B', // Orange
+                      '#8B5CF6', // Purple
+                      '#EF4444', // Red
+                      '#EC4899', // Pink
+                      '#14B8A6', // Teal
+                      '#F97316', // Deep Orange
+                      '#6366F1', // Indigo
+                      '#84CC16', // Lime
+                    ];
+                    const nameHash = activity.candidateName
+                      .split('')
+                      .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+                    const avatarColor = avatarColors[nameHash % avatarColors.length];
+
+                    return (
+                      <div
+                        key={activity.id}
+                        onClick={() => {
+                          // Find job from jobsData
+                          const job = jobsData?.jobs?.find(j => j.id === activity.jobId);
+                          if (job) {
+                            setCvEvalInitialJob(job);
+                            setCvEvalInitialView('job-details');
+                            setActiveMenu('cv-evaluation');
+                          } else {
+                            // Fallback: just go to analysis page
+                            setCvEvalInitialView('analysis');
+                            setActiveMenu('cv-evaluation');
+                          }
+                        }}
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: '1fr auto',
+                          alignItems: 'center',
+                          padding: '14px 20px',
+                          borderBottom: idx < arr.length - 1 ? '1px solid #F3F4F6' : 'none',
+                          cursor: 'pointer',
+                          transition: 'background 0.15s',
+                          minHeight: 70,
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = '#F9FAFB'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <div style={{ 
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 12,
+                          overflow: 'hidden',
+                        }}>
+                          {/* Avatar */}
+                          <div style={{
+                            width: 40,
+                            height: 40,
+                            borderRadius: '50%',
+                            background: avatarColor,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'white',
+                            fontWeight: 600,
+                            fontSize: 14,
+                            flexShrink: 0,
+                          }}>
+                            {activity.candidateName
+                              .split(' ')
+                              .map(n => n[0])
+                              .join('')
+                              .toUpperCase()
+                              .slice(0, 2)}
+                          </div>
+                          {/* Name & Email & Action */}
+                          <div style={{ 
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 2,
+                            overflow: 'hidden',
+                            flex: 1,
+                          }}>
+                            <span style={{ 
+                              fontWeight: 600, 
+                              fontSize: 14,
+                              color: '#111827',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}>
+                              {activity.candidateName}
+                            </span>
+                            <span style={{ 
+                              fontSize: 12,
+                              color: '#6B7280',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}>
+                              {activity.candidateEmail || '-'}
+                            </span>
+                            <span style={{ 
+                              fontSize: 11,
+                              color: color,
+                              fontWeight: 500,
+                            }}>
+                              {actionName}
+                            </span>
+                          </div>
+                        </div>
+                        <div style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: 4,
+                          color: '#9CA3AF',
+                          fontSize: 12,
+                          flexShrink: 0,
+                        }}>
+                          <Clock size={12} />
+                          <span>{timeAgo}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                {/* Empty state */}
+                {allActivities.length === 0 && (
+                  <div style={{ 
+                    padding: 48, 
+                    textAlign: 'center', 
+                    color: '#9CA3AF',
+                    fontSize: 14,
+                  }}>
+                    {t('dashboard.noActivities', 'Henüz işlem yok')}
+                  </div>
+                )}
+              </div>
+
+              {/* Pagination Footer */}
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '12px 20px',
+                borderTop: '1px solid #E5E7EB',
+                background: '#FAFAFA',
+                fontSize: 13,
+                color: '#6B7280',
+              }}>
+                <span>
+                  {t('dashboard.showing', 'Gösterilen')}: {Math.min((activitiesPage + 1) * 5, allActivities.length)} / {allActivities.length}
+                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <button
+                    onClick={() => setActivitiesPage(p => Math.max(0, p - 1))}
+                    disabled={activitiesPage === 0}
+                    style={{
+                      padding: '6px 10px',
+                      background: 'white',
+                      border: '1px solid #E5E7EB',
+                      borderRadius: 6,
+                      color: activitiesPage === 0 ? '#D1D5DB' : '#374151',
+                      fontSize: 13,
+                      cursor: activitiesPage === 0 ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    ‹
+                  </button>
+                  <span style={{ minWidth: 60, textAlign: 'center' }}>
+                    {activitiesPage + 1} / {Math.max(1, Math.ceil(allActivities.length / 5))}
+                  </span>
+                  <button
+                    onClick={() => setActivitiesPage(p => Math.min(Math.ceil(allActivities.length / 5) - 1, p + 1))}
+                    disabled={activitiesPage >= Math.ceil(allActivities.length / 5) - 1}
+                    style={{
+                      padding: '6px 10px',
+                      background: 'white',
+                      border: '1px solid #E5E7EB',
+                      borderRadius: 6,
+                      color: activitiesPage >= Math.ceil(allActivities.length / 5) - 1 ? '#D1D5DB' : '#374151',
+                      fontSize: 13,
+                      cursor: activitiesPage >= Math.ceil(allActivities.length / 5) - 1 ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    ›
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Quick actions panel under stats */}
         {!(activeMenu === 'settings' && settingsMenu) && activeMenu === 'dashboard' && (
           <div className="action-panel">
@@ -434,93 +922,6 @@ const Dashboard = ({ currentUser, onLogout }) => {
               <div className="action-title">{t('actions.jobList')}</div>
               <div className="action-subtitle">{t('actions.jobListDesc')}</div>
             </button>
-          </div>
-        )}
-
-        {/* Recent Jobs Section */}
-        {!(activeMenu === 'settings' && settingsMenu) && activeMenu === 'dashboard' && recentJobs.length > 0 && (
-          <div style={{ marginTop: 32 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h2 style={{ fontSize: 18, fontWeight: 600, color: '#1F2937', margin: 0 }}>
-                {t('dashboard.recentJobs')}
-              </h2>
-              <button
-                onClick={() => setActiveMenu('jobs')}
-                style={{
-                  padding: '6px 12px',
-                  background: 'transparent',
-                  border: 'none',
-                  color: '#3B82F6',
-                  fontSize: 14,
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  textDecoration: 'none'
-                }}
-              >
-                {t('dashboard.viewAll')} →
-              </button>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
-              {recentJobs.map(job => (
-                <div
-                  key={job.id}
-                  onClick={() => { setActiveMenu('jobs'); }}
-                  style={{
-                    background: 'white',
-                    borderRadius: 12,
-                    padding: 20,
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    border: '1px solid #E5E7EB'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
-                    e.currentTarget.style.transform = 'translateY(0)';
-                  }}
-                >
-                  <h3 style={{ fontSize: 16, fontWeight: 600, color: '#1F2937', marginBottom: 8 }}>
-                    {job.title}
-                  </h3>
-                  <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 12 }}>
-                    {t('dashboard.publishDate')}: {new Date(job.createdAt).toLocaleDateString(t('dashboard.locale'))}
-                  </p>
-                  <p style={{ 
-                    fontSize: 14, 
-                    color: '#374151', 
-                    marginBottom: 0, 
-                    lineHeight: '1.5',
-                    display: '-webkit-box',
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: 'vertical',
-                    overflow: 'hidden',
-                    wordBreak: 'break-word',
-                    maxWidth: '40ch'
-                  }}>
-                    {getDescriptionPreview(job)}...
-                  </p>
-                  <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #E5E7EB' }}>
-                    <a
-                      onClick={(e) => { e.stopPropagation(); setActiveMenu('jobs'); }}
-                      style={{
-                        color: '#3B82F6',
-                        fontSize: 13,
-                        fontWeight: 500,
-                        textDecoration: 'none',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      {t('dashboard.viewDetails')} →
-                    </a>
-                  </div>
-                </div>
-              ))}
-            </div>
           </div>
         )}
 

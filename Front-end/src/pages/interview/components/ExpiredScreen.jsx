@@ -30,3 +30,4 @@ const ExpiredScreen = ({ language = 'tr' }) => {
 
 export default ExpiredScreen;
 
+

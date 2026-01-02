@@ -260,7 +260,12 @@ const InterviewSettingsModal = ({ isOpen, onClose, job, onSuccess }) => {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
                       <Clock size={14} color="#3B82F6" />
-                      <span>{formatDuration(selectedTemplate.durationPerQuestion)}</span>
+                      <span>
+                        {selectedTemplate.useGlobalTimer 
+                          ? `${t('interviewSettings.totalDuration')}: ${formatDuration(selectedTemplate.totalDuration || 0)}`
+                          : `${t('interviewSettings.totalQuestionsDuration')}: ${formatDuration((selectedTemplate.durationPerQuestion || 120) * selectedTemplate.questionCount)}`
+                        }
+                      </span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
                       <Globe size={14} color="#3B82F6" />

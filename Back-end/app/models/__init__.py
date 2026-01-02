@@ -10,10 +10,15 @@ from app.models.application import Application, ApplicationStatus
 from app.models.company import Company
 from app.models.subscription import SubscriptionPlan, CompanySubscription, UsageTracking, SubscriptionStatus, ResourceType
 from app.models.transaction import Transaction, TransactionStatus, PaymentMethod
-from app.models.interview import InterviewTemplate, InterviewQuestion, InterviewSession, InterviewAnswer, InterviewSessionStatus
-from app.models.agreement_template import AgreementTemplate
-from app.models.likert import LikertTemplate, LikertQuestion, LikertSession, LikertAnswer
-from app.models.rejection_template import RejectionTemplate
+# InterviewTemplate is now in the modules folder
+from app.modules.interview.models import InterviewTemplate, InterviewQuestion, InterviewSession, InterviewAnswer, InterviewSessionStatus
+# AgreementTemplate is now in the modules folder
+from app.modules.agreement.models import AgreementTemplate
+# LikertTemplate is now in the modules folder
+from app.modules.likert.models import LikertTemplate, LikertQuestion, LikertSession, LikertAnswer
+# RejectionTemplate is now in the modules folder
+# Import directly from models file to avoid circular import through resolvers
+from app.modules.rejection.models import RejectionTemplate
 
 __all__ = [
     'User', 

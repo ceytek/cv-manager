@@ -1,0 +1,50 @@
+# ===========================================
+# HRSmart - Caddy Configuration
+# Automatic HTTPS with Let's Encrypt
+# ===========================================
+
+test.hrsmart.co {
+    # Enable compression
+    encode gzip
+
+    # API & GraphQL routes → Backend
+    handle /graphql* {
+        reverse_proxy backend:8000
+    }
+
+    handle /api/* {
+        reverse_proxy backend:8000
+    }
+
+    # Health check endpoint
+    handle /health {
+        reverse_proxy backend:8000
+    }
+
+    # WebSocket support for GraphQL subscriptions
+    @websockets {
+        header Connection *Upgrade*
+        header Upgrade websocket
+    }
+    handle @websockets {
+        reverse_proxy backend:8000
+    }
+
+    # Everything else → Frontend
+    handle {
+        reverse_proxy frontend:80
+    }
+
+    # Logging
+    log {
+        output file /var/log/caddy/access.log
+        format json
+    }
+}
+
+# HTTP to HTTPS redirect (automatic with Caddy)
+# www redirect
+www.test.hrsmart.co {
+    redir https://test.hrsmart.co{uri} permanent
+}
+

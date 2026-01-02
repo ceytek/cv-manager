@@ -12,3 +12,4 @@ COMMENT ON COLUMN applications.rejection_note IS 'Internal note for rejection re
 COMMENT ON COLUMN applications.rejected_at IS 'Timestamp when the application was rejected';
 COMMENT ON COLUMN applications.rejection_template_id IS 'ID of the rejection template used';
 
+

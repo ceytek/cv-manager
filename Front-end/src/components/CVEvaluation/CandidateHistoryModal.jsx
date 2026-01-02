@@ -1,13 +1,30 @@
 /**
  * Candidate History Modal
- * Shows timeline of all candidate activities
+ * Shows timeline of all candidate activities from application_history table
  */
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@apollo/client/react';
-import { X, FileText, BarChart2, Video, ListChecks, CheckCircle2, Clock, Send, Download, XCircle, FileSearch } from 'lucide-react';
-import { GET_LIKERT_SESSION_BY_APPLICATION } from '../../graphql/likert';
-import { GET_INTERVIEW_SESSION_BY_APPLICATION } from '../../graphql/interview';
+import { X, FileText, BarChart2, Video, ListChecks, CheckCircle2, Clock, Send, Download, XCircle, FileSearch, Upload, Play, UserCheck, MessageSquare, Search, Loader2 } from 'lucide-react';
+import { GET_APPLICATION_HISTORY } from '../../graphql/history';
+
+// Icon mapping for action types
+const ICON_MAP = {
+  'upload': Upload,
+  'search': Search,
+  'send': Send,
+  'play': Play,
+  'check-circle': CheckCircle2,
+  'video': Video,
+  'x-circle': XCircle,
+  'user-check': UserCheck,
+  'message-square': MessageSquare,
+  'file-text': FileText,
+  'bar-chart-2': BarChart2,
+};
+
+// Fallback icon
+const getIcon = (iconName) => ICON_MAP[iconName] || FileText;
 
 const CandidateHistoryModal = ({ 
   isOpen, 
@@ -22,164 +39,123 @@ const CandidateHistoryModal = ({
   const { t, i18n } = useTranslation();
   const isEnglish = i18n.language === 'en';
   const [showRejectionNoteModal, setShowRejectionNoteModal] = useState(false);
+  const [selectedNote, setSelectedNote] = useState(null);
 
-  // Fetch Likert session
-  const { data: likertData } = useQuery(GET_LIKERT_SESSION_BY_APPLICATION, {
+  // Fetch history from new API
+  const { data: historyData, loading: historyLoading } = useQuery(GET_APPLICATION_HISTORY, {
     variables: { applicationId },
     skip: !applicationId || !isOpen,
-    fetchPolicy: 'cache-first',
-  });
-
-  // Fetch Interview session
-  const { data: interviewData } = useQuery(GET_INTERVIEW_SESSION_BY_APPLICATION, {
-    variables: { applicationId },
-    skip: !applicationId || !isOpen,
-    fetchPolicy: 'cache-first',
+    fetchPolicy: 'network-only',
   });
 
   if (!isOpen) return null;
 
-  const likertSession = likertData?.likertSessionByApplication;
-  const interviewSession = interviewData?.interviewSessionByApplication;
   const application = applicationData;
+  const historyEntries = historyData?.applicationHistory?.entries || [];
 
-  // Build timeline events
-  const events = [];
+  // Build timeline events from history entries
+  const events = useMemo(() => {
+    return historyEntries.map((entry) => {
+      const actionType = entry.actionType || {};
+      const IconComponent = getIcon(actionType.icon);
+      const actionCode = actionType.code || '';
+      
+      // Determine badge based on action type
+      let badge = null;
+      if (actionCode === 'cv_analyzed' && entry.actionData?.score) {
+        const score = entry.actionData.score;
+        badge = {
+          text: isEnglish ? `${Math.round(score)}% Match` : `%${Math.round(score)} Eşleşme`,
+          color: score >= 70 ? '#10B981' : score >= 50 ? '#F59E0B' : '#EF4444',
+        };
+      } else if (['likert_completed', 'interview_completed'].includes(actionCode)) {
+        badge = {
+          text: isEnglish ? 'Completed' : 'Tamamlandı',
+          color: '#10B981',
+        };
+      } else if (actionCode === 'rejected') {
+        badge = {
+          text: isEnglish ? 'Rejected' : 'Reddedildi',
+          color: '#DC2626',
+        };
+      }
 
-  // CV Upload event
-  if (application?.createdAt) {
-    events.push({
-      type: 'cv_upload',
-      title: t('candidateHistory.cvUploaded'),
-      description: isEnglish 
-        ? 'Submitted via application form.' 
-        : 'Başvuru formu aracılığıyla gönderildi.',
-      date: new Date(application.createdAt),
-      icon: FileText,
-      color: '#6B7280',
-      extra: application?.candidate?.cvFilePath ? {
-        fileName: application.candidate.cvFilePath.split('/').pop(),
-        filePath: application.candidate.cvFilePath,
-      } : null,
+      // Determine action button
+      let action = null;
+      if (actionCode === 'likert_completed' && onViewLikertResults) {
+        action = {
+          label: isEnglish ? 'View Results' : 'Sonuçları Gör',
+          onClick: () => onViewLikertResults(),
+        };
+      } else if (actionCode === 'interview_completed' && onViewInterviewResults) {
+        action = {
+          label: isEnglish ? 'View Results' : 'Sonuçları Gör',
+          onClick: () => onViewInterviewResults(),
+        };
+      } else if (actionCode === 'rejected' && entry.note) {
+        action = {
+          label: isEnglish ? 'View Note' : 'Notu Görüntüle',
+          onClick: () => {
+            setSelectedNote(entry.note);
+            setShowRejectionNoteModal(true);
+          },
+        };
+      }
+
+      // Description based on action type
+      let description = '';
+      if (entry.performedByName) {
+        description = isEnglish 
+          ? `Performed by ${entry.performedByName}`
+          : `${entry.performedByName} tarafından gerçekleştirildi`;
+      } else {
+        // System or candidate action
+        const descriptions = {
+          'cv_uploaded': isEnglish ? 'CV was uploaded to the system.' : 'CV sisteme yüklendi.',
+          'cv_analyzed': isEnglish ? 'CV was analyzed by AI system.' : 'CV yapay zeka tarafından analiz edildi.',
+          'likert_sent': isEnglish ? 'Likert test link was shared with the candidate.' : 'Likert test bağlantısı aday ile paylaşıldı.',
+          'likert_started': isEnglish ? 'Candidate started the Likert test.' : 'Aday Likert testine başladı.',
+          'likert_completed': isEnglish ? 'Candidate completed the Likert test.' : 'Aday Likert testini tamamladı.',
+          'interview_sent': isEnglish ? 'Interview link was shared with the candidate.' : 'Mülakat bağlantısı aday ile paylaşıldı.',
+          'interview_started': isEnglish ? 'Candidate started the interview.' : 'Aday mülakata başladı.',
+          'interview_completed': isEnglish ? 'Candidate completed the interview.' : 'Aday mülakatı tamamladı.',
+          'rejected': isEnglish ? 'Application has been rejected.' : 'Başvuru reddedildi.',
+          'hired': isEnglish ? 'Candidate has been hired!' : 'Aday işe alındı!',
+          'note_added': isEnglish ? 'A note was added.' : 'Not eklendi.',
+        };
+        description = descriptions[actionCode] || '';
+      }
+
+      return {
+        id: entry.id,
+        type: actionCode,
+        title: isEnglish ? actionType.nameEn : actionType.nameTr,
+        description,
+        date: new Date(entry.createdAt),
+        icon: IconComponent,
+        color: actionType.color ? 
+          (actionType.color.startsWith('#') ? actionType.color : getColorHex(actionType.color)) : 
+          '#6B7280',
+        badge,
+        action,
+        note: entry.note,
+        actionData: entry.actionData,
+      };
     });
-  }
+  }, [historyEntries, isEnglish, onViewLikertResults, onViewInterviewResults]);
 
-  // CV Analyzed event
-  if (application?.analysisData || application?.score) {
-    const score = application?.score || application?.analysisData?.overall_score || 0;
-    events.push({
-      type: 'cv_analyzed',
-      title: t('candidateHistory.cvAnalyzed'),
-      description: isEnglish 
-        ? 'Pre-screening performed by automated system. Candidate skills highly match position requirements.'
-        : 'Otomatik sistem tarafından ön eleme yapıldı. Adayın yetkinlikleri pozisyon gereksinimleri ile yüksek oranda örtüşüyor.',
-      date: new Date(application?.updatedAt || application?.createdAt),
-      icon: BarChart2,
-      color: '#3B82F6',
-      badge: {
-        text: isEnglish ? `${Math.round(score)}% Match` : `%${Math.round(score)} Eşleşme`,
-        color: score >= 70 ? '#10B981' : score >= 50 ? '#F59E0B' : '#EF4444',
-      },
-    });
+  // Color name to hex mapping
+  function getColorHex(colorName) {
+    const colors = {
+      'blue': '#3B82F6',
+      'purple': '#8B5CF6',
+      'orange': '#F59E0B',
+      'green': '#10B981',
+      'red': '#DC2626',
+      'gray': '#6B7280',
+    };
+    return colors[colorName] || '#6B7280';
   }
-
-  // Interview invitation sent
-  if (interviewSession?.invitationSentAt || interviewSession?.createdAt) {
-    events.push({
-      type: 'interview_sent',
-      title: t('candidateHistory.interviewSent'),
-      description: isEnglish 
-        ? 'Interview link shared with the candidate.'
-        : 'Mülakat bağlantısı aday ile paylaşıldı.',
-      date: new Date(interviewSession.invitationSentAt || interviewSession.createdAt),
-      icon: Video,
-      color: '#8B5CF6',
-    });
-  }
-
-  // Interview completed
-  if (interviewSession?.status === 'completed' && interviewSession?.completedAt) {
-    events.push({
-      type: 'interview_completed',
-      title: t('candidateHistory.interviewCompleted'),
-      description: isEnglish 
-        ? 'Candidate technical knowledge sufficient, cultural fit positive.'
-        : 'Adayın teknik bilgisi yeterli, kültürel uyum olumlu.',
-      date: new Date(interviewSession.completedAt),
-      icon: CheckCircle2,
-      color: '#10B981',
-      badge: {
-        text: isEnglish ? 'Completed' : 'Tamamlandı',
-        color: '#10B981',
-      },
-      action: {
-        label: isEnglish ? 'View Results' : 'Sonuçları Gör',
-        onClick: () => onViewInterviewResults?.(),
-      },
-    });
-  }
-
-  // Likert test sent
-  if (likertSession?.createdAt) {
-    events.push({
-      type: 'likert_sent',
-      title: t('candidateHistory.likertSent'),
-      description: isEnglish
-        ? 'Likert test link shared with the candidate.'
-        : 'Likert test bağlantısı aday ile paylaşıldı.',
-      date: new Date(likertSession.createdAt),
-      icon: Send,
-      color: '#8B5CF6',
-    });
-  }
-
-  // Likert test completed
-  if (likertSession?.status === 'completed' && likertSession?.completedAt) {
-    events.push({
-      type: 'likert_completed',
-      title: t('candidateHistory.likertCompleted'),
-      description: isEnglish
-        ? 'Candidate successfully completed the Likert test.'
-        : 'Aday Likert testini başarıyla tamamladı.',
-      date: new Date(likertSession.completedAt),
-      icon: CheckCircle2,
-      color: '#10B981',
-      badge: {
-        text: isEnglish ? 'Completed' : 'Tamamlandı',
-        color: '#10B981',
-      },
-      action: {
-        label: isEnglish ? 'View Results' : 'Sonuçları Gör',
-        onClick: () => onViewLikertResults?.(),
-      },
-    });
-  }
-
-  // Rejection event
-  const isRejected = application?.status?.toUpperCase() === 'REJECTED' || application?.rejectedAt;
-  if (isRejected) {
-    events.push({
-      type: 'rejected',
-      title: t('candidateHistory.rejected', 'Başvuru Reddedildi'),
-      description: isEnglish
-        ? 'Application has been rejected and rejection email was sent to the candidate.'
-        : 'Başvuru reddedildi ve adaya red e-postası gönderildi.',
-      date: application?.rejectedAt ? new Date(application.rejectedAt) : new Date(),
-      icon: XCircle,
-      color: '#DC2626',
-      badge: {
-        text: isEnglish ? 'Rejected' : 'Reddedildi',
-        color: '#DC2626',
-      },
-      action: application?.rejectionNote ? {
-        label: isEnglish ? 'View Note' : 'Notu Görüntüle',
-        onClick: () => setShowRejectionNoteModal(true),
-      } : null,
-    });
-  }
-
-  // Sort events by date (newest first)
-  events.sort((a, b) => b.date - a.date);
 
   const formatDate = (date) => {
     return date.toLocaleString(isEnglish ? 'en-US' : 'tr-TR', {
@@ -245,6 +221,12 @@ const CandidateHistoryModal = ({
 
         {/* Timeline Content */}
         <div style={{ flex: 1, overflow: 'auto', padding: '24px' }}>
+          {historyLoading ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 48 }}>
+              <Loader2 size={32} style={{ color: '#3B82F6', animation: 'spin 1s linear infinite' }} />
+              <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+            </div>
+          ) : (
           <div style={{ position: 'relative' }}>
             {/* Timeline Line */}
             <div style={{
@@ -393,6 +375,7 @@ const CandidateHistoryModal = ({
               </div>
             )}
           </div>
+          )}
         </div>
 
         {/* Footer */}
@@ -424,7 +407,7 @@ const CandidateHistoryModal = ({
       </div>
       
       {/* Rejection Note Modal */}
-      {showRejectionNoteModal && application?.rejectionNote && (
+      {showRejectionNoteModal && selectedNote && (
         <div style={{
           position: 'fixed',
           inset: 0,
@@ -456,7 +439,7 @@ const CandidateHistoryModal = ({
                 </h3>
               </div>
               <button
-                onClick={() => setShowRejectionNoteModal(false)}
+                onClick={() => { setShowRejectionNoteModal(false); setSelectedNote(null); }}
                 style={{
                   background: 'rgba(255,255,255,0.2)',
                   border: 'none',
@@ -485,7 +468,7 @@ const CandidateHistoryModal = ({
                   lineHeight: 1.6,
                   whiteSpace: 'pre-wrap',
                 }}>
-                  {application.rejectionNote}
+                  {selectedNote}
                 </p>
               </div>
               <p style={{ 
@@ -508,7 +491,7 @@ const CandidateHistoryModal = ({
               justifyContent: 'flex-end',
             }}>
               <button
-                onClick={() => setShowRejectionNoteModal(false)}
+                onClick={() => { setShowRejectionNoteModal(false); setSelectedNote(null); }}
                 style={{
                   padding: '8px 16px',
                   background: '#1F2937',

@@ -16,36 +16,25 @@ export const GET_INTERVIEW_SESSION = gql`
       expiresAt
       startedAt
       completedAt
-      invitationSentAt
-      invitationEmail
       createdAt
       agreementAcceptedAt
       job {
         id
         title
         description
-        descriptionPlain
-        requirements
-        requirementsPlain
-        location
-        remotePolicy
-        employmentType
-        experienceLevel
         interviewEnabled
         interviewDurationPerQuestion
         interviewTotalQuestions
         interviewDeadlineHours
         interviewIntroText
         interviewLanguage
+        useGlobalTimer
+        totalDuration
         agreementTemplateId
         agreementTemplate {
           id
           name
           content
-        }
-        department {
-          id
-          name
         }
       }
       candidate {
@@ -70,9 +59,6 @@ export const GET_INTERVIEW_SESSION_BY_APPLICATION = gql`
   query InterviewSessionByApplication($applicationId: String!) {
     interviewSessionByApplication(applicationId: $applicationId) {
       id
-      jobId
-      candidateId
-      applicationId
       token
       status
       expiresAt
@@ -80,24 +66,32 @@ export const GET_INTERVIEW_SESSION_BY_APPLICATION = gql`
       completedAt
       invitationSentAt
       createdAt
+      template {
+        id
+        name
+        description
+        language
+        durationPerQuestion
+        useGlobalTimer
+        totalDuration
+        questionCount
+      }
       job {
         id
         title
         interviewLanguage
+        useGlobalTimer
+        totalDuration
       }
       candidate {
         id
         name
       }
-      questions {
-        id
-        questionText
-        questionOrder
-        timeLimit
-      }
       answers {
         id
         questionId
+        questionText
+        questionOrder
         answerText
         createdAt
       }
@@ -150,7 +144,6 @@ export const SAVE_INTERVIEW_ANSWER = gql`
         questionId
         answerText
         createdAt
-        updatedAt
       }
     }
   }

@@ -103,6 +103,25 @@ class ApplicationService:
                     detail="Failed to process CV. Please ensure it's a valid document."
                 )
             
+            # Check if this is a valid CV
+            is_valid_cv = parsed_cv.get('is_valid_cv', {})
+            if isinstance(is_valid_cv, dict) and is_valid_cv.get('valid') == False:
+                reason = is_valid_cv.get('reason', 'not_a_cv')
+                if reason == 'not_a_cv':
+                    error_msg = "The uploaded file does not appear to be a CV/Resume."
+                elif reason == 'empty_content':
+                    error_msg = "The file is empty or unreadable."
+                elif reason == 'insufficient_info':
+                    error_msg = "The file doesn't contain enough personal/professional information to be considered a CV."
+                else:
+                    error_msg = "The uploaded file is not a valid CV."
+                raise HTTPException(status_code=400, detail=error_msg)
+            
+            # Extract LinkedIn and GitHub from parsed CV
+            personal = parsed_cv.get('personal', {})
+            linkedin_url = personal.get('linkedin')
+            github_url = personal.get('github')
+            
             # Step 5: Create or update candidate
             # Multi-tenancy: existing candidate must belong to same company as job
             candidate = self.db.query(Candidate).filter(
@@ -117,6 +136,8 @@ class ApplicationService:
                 candidate.phone = phone
                 candidate.cv_file_path = file_path
                 candidate.parsed_data = parsed_cv
+                candidate.linkedin = linkedin_url
+                candidate.github = github_url
                 candidate.department_id = job.department_id  # Update to job's department
                 candidate.updated_at = datetime.utcnow()
             else:
@@ -129,6 +150,8 @@ class ApplicationService:
                     name=full_name,
                     email=email,
                     phone=phone,
+                    linkedin=linkedin_url,
+                    github=github_url,
                     cv_file_name=cv_file.filename,
                     cv_file_path=file_path,
                     cv_file_size=len(cv_content),

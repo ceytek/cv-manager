@@ -88,6 +88,15 @@ from app.graphql.types import (
     RejectionTemplateResponse,
     # Generic response
     GenericResponse,
+    # History types
+    ActionTypeType,
+    ApplicationHistoryType,
+    LastStatusType,
+    CreateHistoryEntryInput,
+    HistoryResponse,
+    HistoryListResponse,
+    RecentActivityType,
+    RecentActivitiesResponse,
 )
 from app.services.auth import AuthService
 from app.services.department import DepartmentService
@@ -469,7 +478,7 @@ class Query:
             # Get likert template
             likert_template = None
             if job.likert_template_id:
-                from app.models.likert import LikertTemplate
+                from app.modules.likert.models import LikertTemplate
                 lt = db.query(LikertTemplate).filter(LikertTemplate.id == job.likert_template_id).first()
                 if lt:
                     likert_template = LikertTemplateType(
@@ -868,7 +877,7 @@ class Query:
 
                 # Check for interview and likert sessions
                 from app.models.interview import InterviewSession
-                from app.models.likert import LikertSession
+                from app.modules.likert.models import LikertSession
                 
                 interview_session = db.query(InterviewSession).filter(
                     InterviewSession.application_id == app.id
@@ -1450,394 +1459,61 @@ class Query:
     @strawberry.field
     def interview_templates(self, info: Info) -> List[InterviewTemplateType]:
         """Get all interview templates for the current company"""
-        from app.models.interview import InterviewTemplate
-        
-        request = info.context["request"]
-        auth_header = request.headers.get("authorization")
-        if not auth_header:
-            raise Exception("Not authenticated")
-        try:
-            _, token = auth_header.split()
-        except ValueError:
-            raise Exception("Invalid authorization header")
-        
-        db = get_db_session()
-        try:
-            company_id = get_company_id_from_token(token)
-            templates = db.query(InterviewTemplate).filter(
-                InterviewTemplate.company_id == company_id
-            ).order_by(InterviewTemplate.created_at.desc()).all()
-            
-            return [
-                InterviewTemplateType(
-                    id=str(t.id),
-                    name=t.name,
-                    description=t.description,
-                    intro_text=t.intro_text,
-                    language=t.language or "tr",
-                    duration_per_question=t.duration_per_question or 120,
-                    use_global_timer=t.use_global_timer or False,
-                    total_duration=t.total_duration,
-                    is_active=t.is_active,
-                    question_count=len(t.questions),
-                    questions=[],
-                    created_at=t.created_at.isoformat(),
-                    updated_at=t.updated_at.isoformat() if t.updated_at else None,
-                ) for t in templates
-            ]
-        finally:
-            db.close()
+        from app.modules.interview.resolvers import get_interview_templates
+        return get_interview_templates(info)
 
     @strawberry.field
     def interview_template(self, info: Info, id: str) -> Optional[InterviewTemplateType]:
         """Get a single interview template with questions"""
-        from app.models.interview import InterviewTemplate
-        
-        request = info.context["request"]
-        auth_header = request.headers.get("authorization")
-        if not auth_header:
-            raise Exception("Not authenticated")
-        
-        db = get_db_session()
-        try:
-            template = db.query(InterviewTemplate).filter(InterviewTemplate.id == id).first()
-            if not template:
-                return None
-            
-            return InterviewTemplateType(
-                id=str(template.id),
-                name=template.name,
-                description=template.description,
-                intro_text=template.intro_text,
-                language=template.language or "tr",
-                duration_per_question=template.duration_per_question or 120,
-                use_global_timer=template.use_global_timer or False,
-                total_duration=template.total_duration,
-                is_active=template.is_active,
-                question_count=len(template.questions),
-                questions=[
-                    InterviewQuestionType(
-                        id=q.id,
-                        template_id=str(q.template_id) if q.template_id else None,
-                        question_text=q.question_text,
-                        question_order=q.question_order,
-                        time_limit=q.time_limit or 120,
-                        is_ai_generated=q.is_ai_generated or False,
-                        created_at=q.created_at.isoformat(),
-                    ) for q in sorted(template.questions, key=lambda x: x.question_order)
-                ],
-                created_at=template.created_at.isoformat(),
-                updated_at=template.updated_at.isoformat() if template.updated_at else None,
-            )
-        finally:
-            db.close()
+        from app.modules.interview.resolvers import get_interview_template
+        return get_interview_template(info, id)
 
     # ============ Agreement Template Queries ============
     @strawberry.field
     def agreement_templates(self, info: Info) -> List[AgreementTemplateType]:
         """Get all agreement templates for the current company"""
-        from app.models.agreement_template import AgreementTemplate
-        
-        request = info.context["request"]
-        auth_header = request.headers.get("authorization")
-        if not auth_header:
-            raise Exception("Not authenticated")
-        try:
-            _, token = auth_header.split()
-        except ValueError:
-            raise Exception("Invalid authorization header")
-        
-        db = get_db_session()
-        try:
-            company_id = get_company_id_from_token(token)
-            templates = db.query(AgreementTemplate).filter(
-                AgreementTemplate.company_id == company_id
-            ).order_by(AgreementTemplate.created_at.desc()).all()
-            
-            return [
-                AgreementTemplateType(
-                    id=str(t.id),
-                    name=t.name,
-                    content=t.content,
-                    is_active=t.is_active,
-                    creator_name=t.creator.full_name if t.creator else None,
-                    created_at=t.created_at.isoformat(),
-                    updated_at=t.updated_at.isoformat() if t.updated_at else None,
-                ) for t in templates
-            ]
-        finally:
-            db.close()
+        from app.modules.agreement.resolvers import get_agreement_templates
+        return get_agreement_templates(info)
 
     # ============ Likert Template Queries ============
     @strawberry.field
     def likert_templates(self, info: Info) -> List[LikertTemplateType]:
         """Get all likert templates for the current company"""
-        from app.models.likert import LikertTemplate
-        
-        request = info.context["request"]
-        auth_header = request.headers.get("authorization")
-        if not auth_header:
-            raise Exception("Not authenticated")
-        try:
-            _, token = auth_header.split()
-        except ValueError:
-            raise Exception("Invalid authorization header")
-        
-        db = get_db_session()
-        try:
-            company_id = get_company_id_from_token(token)
-            templates = db.query(LikertTemplate).filter(
-                LikertTemplate.company_id == company_id
-            ).order_by(LikertTemplate.created_at.desc()).all()
-            
-            return [
-                LikertTemplateType(
-                    id=str(t.id),
-                    name=t.name,
-                    description=t.description,
-                    scale_type=t.scale_type or 5,
-                    scale_labels=t.scale_labels or [],
-                    language=t.language or "tr",
-                    is_active=t.is_active,
-                    time_limit=t.time_limit,
-                    question_count=len(t.questions),
-                    questions=[],
-                    created_at=t.created_at.isoformat() if t.created_at else None,
-                    updated_at=t.updated_at.isoformat() if t.updated_at else None,
-                ) for t in templates
-            ]
-        finally:
-            db.close()
+        from app.modules.likert.resolvers import get_likert_templates
+        return get_likert_templates(info)
 
     @strawberry.field
     def likert_template(self, info: Info, id: str) -> Optional[LikertTemplateType]:
         """Get a single likert template with questions"""
-        from app.models.likert import LikertTemplate
-        
-        request = info.context["request"]
-        auth_header = request.headers.get("authorization")
-        if not auth_header:
-            raise Exception("Not authenticated")
-        
-        db = get_db_session()
-        try:
-            template = db.query(LikertTemplate).filter(LikertTemplate.id == id).first()
-            if not template:
-                return None
-            
-            return LikertTemplateType(
-                id=str(template.id),
-                name=template.name,
-                description=template.description,
-                scale_type=template.scale_type or 5,
-                scale_labels=template.scale_labels,
-                language=template.language or "tr",
-                is_active=template.is_active,
-                time_limit=template.time_limit,
-                question_count=len(template.questions),
-                questions=[
-                    LikertQuestionType(
-                        id=str(q.id),
-                        question_text=q.question_text,
-                        question_order=q.question_order,
-                        is_reverse_scored=q.is_reverse_scored or False,
-                    ) for q in sorted(template.questions, key=lambda x: x.question_order)
-                ],
-                created_at=template.created_at.isoformat(),
-                updated_at=template.updated_at.isoformat() if template.updated_at else None,
-            )
-        finally:
-            db.close()
+        from app.modules.likert.resolvers import get_likert_template
+        return get_likert_template(info, id)
 
     # ============ Rejection Template Queries ============
     @strawberry.field
     def rejection_templates(self, info: Info) -> List["RejectionTemplateType"]:
         """Get all rejection templates for the current company"""
-        from app.models.rejection_template import RejectionTemplate
-        
-        request = info.context["request"]
-        auth_header = request.headers.get("authorization")
-        if not auth_header:
-            raise Exception("Not authenticated")
-        try:
-            _, token = auth_header.split()
-        except ValueError:
-            raise Exception("Invalid authorization header")
-        
-        db = get_db_session()
-        try:
-            company_id = get_company_id_from_token(token)
-            templates = db.query(RejectionTemplate).filter(
-                RejectionTemplate.company_id == company_id
-            ).order_by(RejectionTemplate.created_at.desc()).all()
-            
-            return [
-                RejectionTemplateType(
-                    id=str(t.id),
-                    name=t.name,
-                    subject=t.subject,
-                    body=t.body,
-                    language=t.language or "TR",
-                    is_active=t.is_active,
-                    is_default=t.is_default or False,
-                    created_at=t.created_at.isoformat() if t.created_at else None,
-                    updated_at=t.updated_at.isoformat() if t.updated_at else None,
-                ) for t in templates
-            ]
-        finally:
-            db.close()
+        from app.modules.rejection.resolvers import get_rejection_templates
+        return get_rejection_templates(info)
 
     @strawberry.field
     def rejection_template(self, info: Info, id: str) -> Optional["RejectionTemplateType"]:
         """Get a single rejection template by ID"""
-        from app.models.rejection_template import RejectionTemplate
-        
-        request = info.context["request"]
-        auth_header = request.headers.get("authorization")
-        if not auth_header:
-            raise Exception("Not authenticated")
-        
-        db = get_db_session()
-        try:
-            template = db.query(RejectionTemplate).filter(RejectionTemplate.id == id).first()
-            if not template:
-                return None
-            
-            return RejectionTemplateType(
-                id=str(template.id),
-                name=template.name,
-                subject=template.subject,
-                body=template.body,
-                language=template.language or "TR",
-                is_active=template.is_active,
-                is_default=template.is_default or False,
-                created_at=template.created_at.isoformat() if template.created_at else None,
-                updated_at=template.updated_at.isoformat() if template.updated_at else None,
-            )
-        finally:
-            db.close()
+        from app.modules.rejection.resolvers import get_rejection_template
+        return get_rejection_template(info, id)
 
     @strawberry.field
     def interview_session(self, info: Info, token: str) -> Optional["InterviewSessionFullType"]:
         """Get interview session by token (public - for candidates)"""
-        from app.models.interview import InterviewSession, InterviewTemplate, InterviewQuestion
-        from app.models.job import Job
-        from app.models.candidate import Candidate
-        from app.models.agreement_template import AgreementTemplate
-        
-        db = get_db_session()
-        try:
-            session = db.query(InterviewSession).filter(InterviewSession.token == token).first()
-            if not session:
-                return None
-            
-            job = db.query(Job).filter(Job.id == session.job_id).first()
-            candidate = db.query(Candidate).filter(Candidate.id == session.candidate_id).first()
-            
-            # Get interview template and questions from job
-            questions = []
-            template = None
-            if job and job.interview_template_id:
-                template = db.query(InterviewTemplate).filter(InterviewTemplate.id == job.interview_template_id).first()
-                if template:
-                    db_questions = db.query(InterviewQuestion).filter(
-                        InterviewQuestion.template_id == template.id
-                    ).order_by(InterviewQuestion.question_order).all()
-                    questions = [
-                        InterviewQuestionType(
-                            id=str(q.id),
-                            question_text=q.question_text,
-                            question_order=q.question_order,
-                            time_limit=q.time_limit or (template.duration_per_question if template else 120),
-                            is_ai_generated=q.is_ai_generated or False,
-                        ) for q in db_questions
-                    ]
-            
-            # Get agreement template if exists
-            agreement_template = None
-            if job and job.agreement_template_id:
-                agreement = db.query(AgreementTemplate).filter(AgreementTemplate.id == job.agreement_template_id).first()
-                if agreement:
-                    agreement_template = AgreementTemplateType(
-                        id=str(agreement.id),
-                        name=agreement.name,
-                        content=agreement.content,
-                        is_active=agreement.is_active,
-                        created_at=agreement.created_at.isoformat(),
-                        updated_at=agreement.updated_at.isoformat() if agreement.updated_at else None,
-                    )
-            
-            job_type = None
-            if job:
-                # Get values from template or defaults
-                duration_per_q = template.duration_per_question if template else 120
-                total_questions = len(questions) if questions else 5
-                intro_text = template.intro_text if template else None
-                language = template.language if template else "tr"
-                use_global_timer = template.use_global_timer if template else False
-                total_duration = template.total_duration if template else None
-                
-                job_type = InterviewJobType(
-                    id=str(job.id),
-                    title=job.title,
-                    description=job.description,
-                    description_plain=job.description_plain,
-                    requirements=job.requirements,
-                    requirements_plain=job.requirements_plain,
-                    location=job.location,
-                    remote_policy=job.remote_policy,
-                    employment_type=job.employment_type,
-                    experience_level=job.experience_level,
-                    interview_enabled=job.interview_enabled or False,
-                    interview_duration_per_question=duration_per_q,
-                    interview_total_questions=total_questions,
-                    interview_deadline_hours=job.interview_deadline_hours or 72,
-                    interview_intro_text=intro_text,
-                    interview_language=language,
-                    use_global_timer=use_global_timer or False,
-                    total_duration=total_duration,
-                    agreement_template_id=str(job.agreement_template_id) if job.agreement_template_id else None,
-                    agreement_template=agreement_template,
-                    department=None,  # Can be extended if needed
-                )
-            
-            candidate_type = None
-            if candidate:
-                candidate_type = InterviewCandidateType(
-                    id=str(candidate.id),
-                    name=candidate.name,
-                    cv_photo_path=candidate.cv_photo_path,
-                    cv_language=candidate.cv_language,
-                )
-            
-            return InterviewSessionFullType(
-                id=str(session.id),
-                job_id=str(session.job_id),
-                candidate_id=str(session.candidate_id),
-                application_id=str(session.application_id) if session.application_id else None,
-                token=session.token,
-                status=session.status,
-                expires_at=session.expires_at.isoformat() if session.expires_at else None,
-                started_at=session.started_at.isoformat() if session.started_at else None,
-                completed_at=session.completed_at.isoformat() if session.completed_at else None,
-                invitation_sent_at=session.invitation_sent_at.isoformat() if session.invitation_sent_at else None,
-                invitation_email=session.invitation_email,
-                created_at=session.created_at.isoformat() if session.created_at else None,
-                agreement_accepted_at=session.agreement_accepted_at.isoformat() if session.agreement_accepted_at else None,
-                job=job_type,
-                candidate=candidate_type,
-                questions=questions,
-            )
-        finally:
-            db.close()
+        from app.modules.interview.resolvers import get_interview_session
+        return get_interview_session(info, token)
 
     @strawberry.field
     def likert_session(self, info: Info, token: str) -> Optional["LikertSessionFullType"]:
         """Get likert session by token (public - for candidates)"""
-        from app.models.likert import LikertSession, LikertTemplate, LikertQuestion
+        from app.modules.likert.models import LikertSession, LikertTemplate, LikertQuestion
         from app.models.job import Job
         from app.models.candidate import Candidate
-        from app.models.agreement_template import AgreementTemplate
+        from app.modules.agreement.models import AgreementTemplate
         
         db = get_db_session()
         try:
@@ -1931,7 +1607,7 @@ class Query:
     @strawberry.field
     def likert_session_by_application(self, info: Info, application_id: str) -> Optional["LikertSessionWithAnswersType"]:
         """Get likert session by application ID (for HR view with answers)"""
-        from app.models.likert import LikertSession, LikertTemplate, LikertQuestion, LikertAnswer
+        from app.modules.likert.models import LikertSession, LikertTemplate, LikertQuestion, LikertAnswer
         from app.models.job import Job
         from app.models.candidate import Candidate
         
@@ -2027,111 +1703,33 @@ class Query:
     @strawberry.field
     def interview_session_by_application(self, info: Info, application_id: str) -> Optional["InterviewSessionWithAnswersType"]:
         """Get interview session by application ID (for HR view with answers)"""
-        from app.models.interview import InterviewSession, InterviewTemplate, InterviewQuestion, InterviewAnswer
-        from app.models.job import Job
-        from app.models.candidate import Candidate
-        
-        print(f"[interview_session_by_application] Called with application_id={application_id}")
-        
-        db = get_db_session()
-        try:
-            session = db.query(InterviewSession).filter(InterviewSession.application_id == application_id).first()
-            if not session:
-                print(f"[interview_session_by_application] No session found")
-                return None
-            
-            print(f"[interview_session_by_application] Found session id={session.id}, status={session.status}")
-            
-            job = db.query(Job).filter(Job.id == session.job_id).first()
-            candidate = db.query(Candidate).filter(Candidate.id == session.candidate_id).first()
-            answers = db.query(InterviewAnswer).filter(InterviewAnswer.session_id == session.id).all()
-            
-            print(f"[interview_session_by_application] Found {len(answers)} answers")
-            
-            # Get template from job
-            template = None
-            questions_list = []
-            if job and job.interview_template_id:
-                template = db.query(InterviewTemplate).filter(InterviewTemplate.id == job.interview_template_id).first()
-                if template:
-                    questions_list = db.query(InterviewQuestion).filter(
-                        InterviewQuestion.template_id == template.id
-                    ).order_by(InterviewQuestion.question_order).all()
-            
-            template_type = None
-            if template:
-                template_type = InterviewTemplateType(
-                    id=str(template.id),
-                    name=template.name,
-                    description=template.description,
-                    language=template.language or "tr",
-                    duration_per_question=template.duration_per_question or 120,
-                    use_global_timer=template.use_global_timer or False,
-                    total_duration=template.total_duration,
-                    intro_text=template.intro_text,
-                    is_active=template.is_active,
-                    question_count=len(questions_list),
-                    questions=[],
-                    created_at=template.created_at.isoformat() if template.created_at else None,
-                    updated_at=template.updated_at.isoformat() if template.updated_at else None,
-                )
-            
-            job_type = None
-            if job:
-                job_type = InterviewJobType(
-                    id=str(job.id),
-                    title=job.title,
-                    description=job.description,
-                    description_plain=job.description_plain,
-                    location=job.location,
-                    interview_enabled=job.interview_enabled or False,
-                    interview_duration_per_question=template.duration_per_question if template else 120,
-                    interview_total_questions=len(questions_list),
-                    interview_deadline_hours=job.interview_deadline_hours or 72,
-                    interview_intro_text=template.intro_text if template else None,
-                    interview_language=template.language if template else "tr",
-                    use_global_timer=template.use_global_timer if template else False,
-                    total_duration=template.total_duration if template else None,
-                )
-            
-            candidate_type = None
-            if candidate:
-                candidate_type = InterviewCandidateType(
-                    id=str(candidate.id),
-                    name=candidate.name,
-                    cv_photo_path=candidate.cv_photo_path,
-                    cv_language=candidate.cv_language,
-                )
-            
-            # Build answers with question text
-            answers_type = []
-            for a in answers:
-                q = next((q for q in questions_list if str(q.id) == str(a.question_id)), None)
-                answers_type.append(InterviewAnswerWithQuestionType(
-                    id=str(a.id),
-                    question_id=str(a.question_id),
-                    question_text=q.question_text if q else "",
-                    question_order=q.question_order if q else 0,
-                    answer_text=a.answer_text,
-                    created_at=a.created_at.isoformat() if a.created_at else None,
-                ))
-            
-            return InterviewSessionWithAnswersType(
-                id=str(session.id),
-                token=session.token,
-                status=session.status,
-                expires_at=session.expires_at.isoformat() if session.expires_at else None,
-                started_at=session.started_at.isoformat() if session.started_at else None,
-                completed_at=session.completed_at.isoformat() if session.completed_at else None,
-                invitation_sent_at=session.invitation_sent_at.isoformat() if session.invitation_sent_at else None,
-                created_at=session.created_at.isoformat() if session.created_at else None,
-                template=template_type,
-                job=job_type,
-                candidate=candidate_type,
-                answers=sorted(answers_type, key=lambda x: x.question_order),
-            )
-        finally:
-            db.close()
+        from app.modules.interview.resolvers import get_interview_session_by_application
+        return get_interview_session_by_application(info, application_id)
+
+    # ============ History Queries ============
+    @strawberry.field
+    def action_types(self, info: Info) -> List["ActionTypeType"]:
+        """Get all action types"""
+        from app.modules.history.resolvers import get_action_types
+        return get_action_types(info)
+
+    @strawberry.field
+    def application_history(self, info: Info, application_id: str) -> "HistoryListResponse":
+        """Get full history for an application"""
+        from app.modules.history.resolvers import get_application_history
+        return get_application_history(info, application_id)
+
+    @strawberry.field
+    def last_status(self, info: Info, application_id: str) -> Optional["LastStatusType"]:
+        """Get last status for an application"""
+        from app.modules.history.resolvers import get_last_status
+        return get_last_status(info, application_id)
+
+    @strawberry.field
+    def recent_activities(self, info: Info, limit: int = 10) -> "RecentActivitiesResponse":
+        """Get recent activities across all applications"""
+        from app.modules.history.resolvers import get_recent_activities
+        return get_recent_activities(info, limit)
 
 
 @strawberry.type
@@ -3457,6 +3055,35 @@ class Mutation(CompanyMutation):
                     
                     db.add(application)
                     db.commit()
+                    db.refresh(application)
+                    
+                    # Add history entries
+                    try:
+                        from app.modules.history.resolvers import create_history_entry
+                        # CV Uploaded entry
+                        create_history_entry(
+                            db=db,
+                            company_id=str(company_id),
+                            application_id=str(application.id),
+                            candidate_id=str(candidate_id),
+                            job_id=str(input.job_id),
+                            action_code="cv_uploaded",
+                            performed_by=current.id if current else None,
+                            action_data={"batch_number": batch_number},
+                        )
+                        # CV Analyzed entry
+                        create_history_entry(
+                            db=db,
+                            company_id=str(company_id),
+                            application_id=str(application.id),
+                            candidate_id=str(candidate_id),
+                            job_id=str(input.job_id),
+                            action_code="cv_analyzed",
+                            performed_by=current.id if current else None,
+                            action_data={"score": analysis_data.get("overall_score"), "batch_number": batch_number},
+                        )
+                    except Exception as hist_err:
+                        print(f"⚠️ History entry creation failed: {hist_err}")
 
                     # Publish subscription event for this job
                     await pubsub.publish(
@@ -3597,779 +3224,95 @@ class Mutation(CompanyMutation):
     @strawberry.mutation
     async def create_interview_template(self, info: Info, input: InterviewTemplateInput) -> InterviewTemplateResponse:
         """Create a new interview template"""
-        from app.models.interview import InterviewTemplate, InterviewQuestion
-        
-        request = info.context["request"]
-        auth_header = request.headers.get("authorization")
-        if not auth_header:
-            raise Exception("Not authenticated")
-        try:
-            _, token = auth_header.split()
-        except ValueError:
-            raise Exception("Invalid authorization header")
-        
-        db = get_db_session()
-        try:
-            company_id = get_company_id_from_token(token)
-            
-            template = InterviewTemplate(
-                company_id=company_id,
-                name=input.name,
-                description=input.description,
-                intro_text=input.intro_text,
-                language=input.language,
-                duration_per_question=input.duration_per_question,
-                use_global_timer=input.use_global_timer,
-                total_duration=input.total_duration,
-                is_active=True,
-            )
-            db.add(template)
-            db.flush()
-            
-            for i, q in enumerate(input.questions):
-                question = InterviewQuestion(
-                    template_id=template.id,
-                    company_id=company_id,
-                    question_text=q.question_text,
-                    question_order=i + 1,
-                    time_limit=q.time_limit or input.duration_per_question,
-                )
-                db.add(question)
-            
-            db.commit()
-            db.refresh(template)
-            
-            return InterviewTemplateResponse(
-                success=True,
-                message="Template created successfully",
-                template=InterviewTemplateType(
-                    id=str(template.id),
-                    name=template.name,
-                    description=template.description,
-                    intro_text=template.intro_text,
-                    language=template.language,
-                    duration_per_question=template.duration_per_question,
-                    use_global_timer=template.use_global_timer or False,
-                    total_duration=template.total_duration,
-                    is_active=template.is_active,
-                    question_count=len(template.questions),
-                    questions=[],
-                    created_at=template.created_at.isoformat(),
-                    updated_at=None,
-                ),
-            )
-        except Exception as e:
-            db.rollback()
-            return InterviewTemplateResponse(success=False, message=str(e), template=None)
-        finally:
-            db.close()
+        from app.modules.interview.resolvers import create_interview_template
+        return await create_interview_template(info, input)
 
     @strawberry.mutation
     async def update_interview_template(self, info: Info, id: str, input: InterviewTemplateInput) -> InterviewTemplateResponse:
         """Update an interview template"""
-        from app.models.interview import InterviewTemplate, InterviewQuestion, InterviewAnswer
-        
-        request = info.context["request"]
-        auth_header = request.headers.get("authorization")
-        if not auth_header:
-            raise Exception("Not authenticated")
-        
-        db = get_db_session()
-        try:
-            template = db.query(InterviewTemplate).filter(InterviewTemplate.id == id).first()
-            if not template:
-                return InterviewTemplateResponse(success=False, message="Template not found", template=None)
-            
-            template.name = input.name
-            template.description = input.description
-            template.intro_text = input.intro_text
-            template.language = input.language
-            template.duration_per_question = input.duration_per_question
-            template.use_global_timer = input.use_global_timer
-            template.total_duration = input.total_duration
-            
-            # Get existing questions
-            existing_questions = db.query(InterviewQuestion).filter(
-                InterviewQuestion.template_id == template.id
-            ).all()
-            
-            # Find questions that have answers (should not be deleted)
-            questions_with_answers = set()
-            for eq in existing_questions:
-                answer_count = db.query(InterviewAnswer).filter(
-                    InterviewAnswer.question_id == eq.id
-                ).count()
-                if answer_count > 0:
-                    questions_with_answers.add(eq.id)
-            
-            # Only delete questions that have NO answers
-            for eq in existing_questions:
-                if eq.id not in questions_with_answers:
-                    db.delete(eq)
-            
-            # Update or create questions from input
-            for i, q in enumerate(input.questions):
-                # Try to find existing question by order or text to update
-                existing_q = None
-                for eq in existing_questions:
-                    if eq.id in questions_with_answers and eq.question_order == i + 1:
-                        existing_q = eq
-                        break
-                
-                if existing_q:
-                    # Update existing question (preserves question_id for answers)
-                    existing_q.question_text = q.question_text
-                    existing_q.question_order = i + 1
-                    existing_q.time_limit = q.time_limit or input.duration_per_question
-                else:
-                    # Create new question
-                    question = InterviewQuestion(
-                        template_id=template.id,
-                        company_id=template.company_id,
-                        question_text=q.question_text,
-                        question_order=i + 1,
-                        time_limit=q.time_limit or input.duration_per_question,
-                    )
-                    db.add(question)
-            
-            db.commit()
-            db.refresh(template)
-            
-            return InterviewTemplateResponse(
-                success=True,
-                message="Template updated successfully",
-                template=InterviewTemplateType(
-                    id=str(template.id),
-                    name=template.name,
-                    description=template.description,
-                    intro_text=template.intro_text,
-                    language=template.language,
-                    duration_per_question=template.duration_per_question,
-                    use_global_timer=template.use_global_timer or False,
-                    total_duration=template.total_duration,
-                    is_active=template.is_active,
-                    question_count=len(input.questions),
-                    questions=[],
-                    created_at=template.created_at.isoformat(),
-                    updated_at=template.updated_at.isoformat() if template.updated_at else None,
-                ),
-            )
-        except Exception as e:
-            db.rollback()
-            return InterviewTemplateResponse(success=False, message=str(e), template=None)
-        finally:
-            db.close()
+        from app.modules.interview.resolvers import update_interview_template
+        return await update_interview_template(info, id, input)
 
     @strawberry.mutation
     async def delete_interview_template(self, info: Info, id: str) -> MessageType:
         """Delete an interview template"""
-        from app.models.interview import InterviewTemplate
-        
-        request = info.context["request"]
-        auth_header = request.headers.get("authorization")
-        if not auth_header:
-            raise Exception("Not authenticated")
-        
-        db = get_db_session()
-        try:
-            template = db.query(InterviewTemplate).filter(InterviewTemplate.id == id).first()
-            if not template:
-                return MessageType(success=False, message="Template not found")
-            
-            db.delete(template)
-            db.commit()
-            return MessageType(success=True, message="Template deleted successfully")
-        except Exception as e:
-            db.rollback()
-            return MessageType(success=False, message=str(e))
-        finally:
-            db.close()
+        from app.modules.interview.resolvers import delete_interview_template
+        return await delete_interview_template(info, id)
 
     @strawberry.mutation
     async def toggle_interview_template(self, info: Info, id: str) -> InterviewTemplateResponse:
         """Toggle interview template active status"""
-        from app.models.interview import InterviewTemplate
-        
-        request = info.context["request"]
-        auth_header = request.headers.get("authorization")
-        if not auth_header:
-            raise Exception("Not authenticated")
-        
-        db = get_db_session()
-        try:
-            template = db.query(InterviewTemplate).filter(InterviewTemplate.id == id).first()
-            if not template:
-                return InterviewTemplateResponse(success=False, message="Template not found", template=None)
-            
-            template.is_active = not template.is_active
-            db.commit()
-            db.refresh(template)
-            
-            return InterviewTemplateResponse(
-                success=True,
-                message=f"Template {'activated' if template.is_active else 'deactivated'}",
-                template=InterviewTemplateType(
-                    id=str(template.id),
-                    name=template.name,
-                    description=template.description,
-                    intro_text=template.intro_text,
-                    language=template.language,
-                    duration_per_question=template.duration_per_question,
-                    is_active=template.is_active,
-                    question_count=len(template.questions),
-                    questions=[],
-                    created_at=template.created_at.isoformat(),
-                    updated_at=template.updated_at.isoformat() if template.updated_at else None,
-                ),
-            )
-        except Exception as e:
-            db.rollback()
-            return InterviewTemplateResponse(success=False, message=str(e), template=None)
-        finally:
-            db.close()
+        from app.modules.interview.resolvers import toggle_interview_template
+        return await toggle_interview_template(info, id)
 
     # ============ Agreement Template Mutations ============
     @strawberry.mutation
     async def create_agreement_template(self, info: Info, input: AgreementTemplateInput) -> AgreementTemplateResponse:
         """Create a new agreement template"""
-        from app.models.agreement_template import AgreementTemplate
-        
-        request = info.context["request"]
-        auth_header = request.headers.get("authorization")
-        if not auth_header:
-            raise Exception("Not authenticated")
-        try:
-            _, token = auth_header.split()
-        except ValueError:
-            raise Exception("Invalid authorization header")
-        
-        db = get_db_session()
-        try:
-            company_id = get_company_id_from_token(token)
-            current = get_current_user_from_token(token, db)
-            
-            template = AgreementTemplate(
-                company_id=company_id,
-                created_by=current.id,
-                name=input.name,
-                content=input.content,
-                is_active=input.is_active,
-            )
-            db.add(template)
-            db.commit()
-            db.refresh(template)
-            
-            return AgreementTemplateResponse(
-                success=True,
-                message="Agreement template created",
-                template=AgreementTemplateType(
-                    id=str(template.id),
-                    name=template.name,
-                    content=template.content,
-                    is_active=template.is_active,
-                    creator_name=current.full_name,
-                    created_at=template.created_at.isoformat(),
-                    updated_at=None,
-                ),
-            )
-        except Exception as e:
-            db.rollback()
-            return AgreementTemplateResponse(success=False, message=str(e), template=None)
-        finally:
-            db.close()
+        from app.modules.agreement.resolvers import create_agreement_template
+        return await create_agreement_template(info, input)
 
     @strawberry.mutation
     async def update_agreement_template(self, info: Info, id: str, input: AgreementTemplateInput) -> AgreementTemplateResponse:
         """Update an agreement template"""
-        from app.models.agreement_template import AgreementTemplate
-        
-        request = info.context["request"]
-        auth_header = request.headers.get("authorization")
-        if not auth_header:
-            raise Exception("Not authenticated")
-        
-        db = get_db_session()
-        try:
-            template = db.query(AgreementTemplate).filter(AgreementTemplate.id == id).first()
-            if not template:
-                return AgreementTemplateResponse(success=False, message="Template not found", template=None)
-            
-            template.name = input.name
-            template.content = input.content
-            template.is_active = input.is_active
-            db.commit()
-            db.refresh(template)
-            
-            return AgreementTemplateResponse(
-                success=True,
-                message="Agreement template updated",
-                template=AgreementTemplateType(
-                    id=str(template.id),
-                    name=template.name,
-                    content=template.content,
-                    is_active=template.is_active,
-                    creator_name=template.creator.full_name if template.creator else None,
-                    created_at=template.created_at.isoformat(),
-                    updated_at=template.updated_at.isoformat() if template.updated_at else None,
-                ),
-            )
-        except Exception as e:
-            db.rollback()
-            return AgreementTemplateResponse(success=False, message=str(e), template=None)
-        finally:
-            db.close()
+        from app.modules.agreement.resolvers import update_agreement_template
+        return await update_agreement_template(info, id, input)
 
     @strawberry.mutation
     async def delete_agreement_template(self, info: Info, id: str) -> MessageType:
         """Delete an agreement template"""
-        from app.models.agreement_template import AgreementTemplate
-        
-        request = info.context["request"]
-        auth_header = request.headers.get("authorization")
-        if not auth_header:
-            raise Exception("Not authenticated")
-        
-        db = get_db_session()
-        try:
-            template = db.query(AgreementTemplate).filter(AgreementTemplate.id == id).first()
-            if not template:
-                return MessageType(success=False, message="Template not found")
-            
-            db.delete(template)
-            db.commit()
-            return MessageType(success=True, message="Template deleted")
-        except Exception as e:
-            db.rollback()
-            return MessageType(success=False, message=str(e))
-        finally:
-            db.close()
+        from app.modules.agreement.resolvers import delete_agreement_template
+        return await delete_agreement_template(info, id)
 
     @strawberry.mutation
     async def toggle_agreement_template(self, info: Info, id: str) -> AgreementTemplateResponse:
         """Toggle agreement template active status"""
-        from app.models.agreement_template import AgreementTemplate
-        
-        request = info.context["request"]
-        auth_header = request.headers.get("authorization")
-        if not auth_header:
-            raise Exception("Not authenticated")
-        
-        db = get_db_session()
-        try:
-            template = db.query(AgreementTemplate).filter(AgreementTemplate.id == id).first()
-            if not template:
-                return AgreementTemplateResponse(success=False, message="Template not found", template=None)
-            
-            template.is_active = not template.is_active
-            db.commit()
-            db.refresh(template)
-            
-            return AgreementTemplateResponse(
-                success=True,
-                message=f"Template {'activated' if template.is_active else 'deactivated'}",
-                template=AgreementTemplateType(
-                    id=str(template.id),
-                    name=template.name,
-                    content=template.content,
-                    is_active=template.is_active,
-                    creator_name=template.creator.full_name if template.creator else None,
-                    created_at=template.created_at.isoformat(),
-                    updated_at=template.updated_at.isoformat() if template.updated_at else None,
-                ),
-            )
-        except Exception as e:
-            db.rollback()
-            return AgreementTemplateResponse(success=False, message=str(e), template=None)
-        finally:
-            db.close()
+        from app.modules.agreement.resolvers import toggle_agreement_template
+        return await toggle_agreement_template(info, id)
 
     # ============ Likert Template Mutations ============
     @strawberry.mutation
     async def create_likert_template(self, info: Info, input: LikertTemplateInput) -> LikertTemplateResponse:
         """Create a new likert template"""
-        from app.models.likert import LikertTemplate, LikertQuestion
-        
-        request = info.context["request"]
-        auth_header = request.headers.get("authorization")
-        if not auth_header:
-            raise Exception("Not authenticated")
-        try:
-            _, token = auth_header.split()
-        except ValueError:
-            raise Exception("Invalid authorization header")
-        
-        db = get_db_session()
-        try:
-            company_id = get_company_id_from_token(token)
-            current = get_current_user_from_token(token, db)
-            
-            # Default scale labels based on scale type
-            default_labels = {
-                3: ["Katılmıyorum", "Kararsızım", "Katılıyorum"],
-                4: ["Kesinlikle Katılmıyorum", "Katılmıyorum", "Katılıyorum", "Kesinlikle Katılıyorum"],
-                5: ["Kesinlikle Katılmıyorum", "Katılmıyorum", "Kararsızım", "Katılıyorum", "Kesinlikle Katılıyorum"],
-            }
-            scale_labels = input.scale_labels if input.scale_labels else default_labels.get(input.scale_type, default_labels[5])
-            
-            template = LikertTemplate(
-                company_id=company_id,
-                created_by=current.id,
-                name=input.name,
-                description=input.description,
-                scale_type=input.scale_type,
-                scale_labels=scale_labels,
-                language=input.language,
-                time_limit=input.time_limit,
-                is_active=True,
-            )
-            db.add(template)
-            db.flush()
-            
-            for i, q in enumerate(input.questions):
-                question = LikertQuestion(
-                    template_id=template.id,
-                    company_id=company_id,
-                    question_text=q.question_text,
-                    question_order=i + 1,
-                    is_reverse_scored=q.is_reverse_scored if hasattr(q, 'is_reverse_scored') else False,
-                )
-                db.add(question)
-            
-            db.commit()
-            db.refresh(template)
-            
-            return LikertTemplateResponse(
-                success=True,
-                message="Template created successfully",
-                template=LikertTemplateType(
-                    id=str(template.id),
-                    name=template.name,
-                    description=template.description,
-                    scale_type=template.scale_type,
-                    scale_labels=template.scale_labels,
-                    language=template.language,
-                    is_active=template.is_active,
-                    time_limit=template.time_limit,
-                    question_count=len(template.questions),
-                    questions=[],
-                    created_at=template.created_at.isoformat(),
-                    updated_at=None,
-                ),
-            )
-        except Exception as e:
-            db.rollback()
-            return LikertTemplateResponse(success=False, message=str(e), template=None)
-        finally:
-            db.close()
+        from app.modules.likert.resolvers import create_likert_template
+        return await create_likert_template(info, input)
 
     @strawberry.mutation
     async def update_likert_template(self, info: Info, id: str, input: LikertTemplateInput) -> LikertTemplateResponse:
         """Update a likert template"""
-        from app.models.likert import LikertTemplate, LikertQuestion
-        
-        request = info.context["request"]
-        auth_header = request.headers.get("authorization")
-        if not auth_header:
-            raise Exception("Not authenticated")
-        try:
-            _, token = auth_header.split()
-        except ValueError:
-            raise Exception("Invalid authorization header")
-        
-        db = get_db_session()
-        try:
-            company_id = get_company_id_from_token(token)
-            template = db.query(LikertTemplate).filter(LikertTemplate.id == id).first()
-            if not template:
-                return LikertTemplateResponse(success=False, message="Template not found", template=None)
-            template.name = input.name
-            template.description = input.description
-            template.scale_type = input.scale_type
-            template.language = input.language
-            template.time_limit = input.time_limit
-            
-            # Update scale labels if provided
-            if input.scale_labels:
-                template.scale_labels = input.scale_labels
-            
-            # Get existing questions
-            from app.models.likert import LikertAnswer
-            existing_questions = db.query(LikertQuestion).filter(
-                LikertQuestion.template_id == template.id
-            ).all()
-            existing_questions_dict = {str(eq.id): eq for eq in existing_questions}
-            
-            # Find questions that have answers (should not be deleted)
-            questions_with_answers = set()
-            for eq in existing_questions:
-                answer_count = db.query(LikertAnswer).filter(
-                    LikertAnswer.question_id == eq.id
-                ).count()
-                if answer_count > 0:
-                    questions_with_answers.add(str(eq.id))
-            
-            # Collect input question IDs (if they have IDs)
-            input_question_ids = set()
-            for q in input.questions:
-                if hasattr(q, 'id') and q.id:
-                    input_question_ids.add(str(q.id))
-            
-            # Delete questions that:
-            # 1. Are NOT in the input list (by ID)
-            # 2. AND do NOT have answers
-            for eq in existing_questions:
-                eq_id = str(eq.id)
-                if eq_id not in input_question_ids and eq_id not in questions_with_answers:
-                    db.delete(eq)
-            
-            # Flush deletions before adding new questions (to avoid unique constraint violation)
-            db.flush()
-            
-            # Update or create questions
-            for i, q in enumerate(input.questions):
-                q_id = getattr(q, 'id', None) if hasattr(q, 'id') else None
-                
-                if q_id and q_id in existing_questions_dict:
-                    # Update existing question
-                    existing_q = existing_questions_dict[q_id]
-                    existing_q.question_text = q.question_text
-                    existing_q.question_order = i + 1
-                    existing_q.is_reverse_scored = q.is_reverse_scored if hasattr(q, 'is_reverse_scored') else False
-                else:
-                    # Create new question
-                    question = LikertQuestion(
-                        template_id=template.id,
-                        company_id=company_id,
-                        question_text=q.question_text,
-                        question_order=i + 1,
-                        is_reverse_scored=q.is_reverse_scored if hasattr(q, 'is_reverse_scored') else False,
-                    )
-                    db.add(question)
-            
-            db.commit()
-            db.refresh(template)
-            
-            return LikertTemplateResponse(
-                success=True,
-                message="Template updated successfully",
-                template=LikertTemplateType(
-                    id=str(template.id),
-                    name=template.name,
-                    description=template.description,
-                    scale_type=template.scale_type,
-                    scale_labels=template.scale_labels,
-                    language=template.language,
-                    is_active=template.is_active,
-                    time_limit=template.time_limit,
-                    question_count=len(input.questions),
-                    questions=[],
-                    created_at=template.created_at.isoformat(),
-                    updated_at=template.updated_at.isoformat() if template.updated_at else None,
-                ),
-            )
-        except Exception as e:
-            db.rollback()
-            return LikertTemplateResponse(success=False, message=str(e), template=None)
-        finally:
-            db.close()
+        from app.modules.likert.resolvers import update_likert_template
+        return await update_likert_template(info, id, input)
 
     @strawberry.mutation
     async def delete_likert_template(self, info: Info, id: str) -> MessageType:
         """Delete a likert template"""
-        from app.models.likert import LikertTemplate
-        
-        request = info.context["request"]
-        auth_header = request.headers.get("authorization")
-        if not auth_header:
-            raise Exception("Not authenticated")
-        
-        db = get_db_session()
-        try:
-            template = db.query(LikertTemplate).filter(LikertTemplate.id == id).first()
-            if not template:
-                return MessageType(success=False, message="Template not found")
-            
-            db.delete(template)
-            db.commit()
-            return MessageType(success=True, message="Template deleted")
-        except Exception as e:
-            db.rollback()
-            return MessageType(success=False, message=str(e))
-        finally:
-            db.close()
+        from app.modules.likert.resolvers import delete_likert_template
+        return await delete_likert_template(info, id)
 
     @strawberry.mutation
     async def toggle_likert_template(self, info: Info, id: str) -> LikertTemplateResponse:
         """Toggle likert template active status"""
-        from app.models.likert import LikertTemplate
-        
-        request = info.context["request"]
-        auth_header = request.headers.get("authorization")
-        if not auth_header:
-            raise Exception("Not authenticated")
-        
-        db = get_db_session()
-        try:
-            template = db.query(LikertTemplate).filter(LikertTemplate.id == id).first()
-            if not template:
-                return LikertTemplateResponse(success=False, message="Template not found", template=None)
-            
-            template.is_active = not template.is_active
-            db.commit()
-            db.refresh(template)
-            
-            return LikertTemplateResponse(
-                success=True,
-                message=f"Template {'activated' if template.is_active else 'deactivated'}",
-                template=LikertTemplateType(
-                    id=str(template.id),
-                    name=template.name,
-                    description=template.description,
-                    scale_type=template.scale_type,
-                    scale_labels=template.scale_labels,
-                    language=template.language,
-                    is_active=template.is_active,
-                    time_limit=template.time_limit,
-                    question_count=len(template.questions),
-                    questions=[],
-                    created_at=template.created_at.isoformat(),
-                    updated_at=template.updated_at.isoformat() if template.updated_at else None,
-                ),
-            )
-        except Exception as e:
-            db.rollback()
-            return LikertTemplateResponse(success=False, message=str(e), template=None)
-        finally:
-            db.close()
+        from app.modules.likert.resolvers import toggle_likert_template
+        return await toggle_likert_template(info, id)
 
     # ============ Rejection Template Mutations ============
     @strawberry.mutation
     async def create_rejection_template(self, info: Info, input: "RejectionTemplateInput") -> "RejectionTemplateResponse":
         """Create a new rejection email template"""
-        from app.models.rejection_template import RejectionTemplate
-        
-        request = info.context["request"]
-        auth_header = request.headers.get("authorization")
-        if not auth_header:
-            raise Exception("Not authenticated")
-        try:
-            _, token = auth_header.split()
-        except ValueError:
-            raise Exception("Invalid authorization header")
-        
-        db = get_db_session()
-        try:
-            company_id = get_company_id_from_token(token)
-            current = get_current_user_from_token(token, db)
-            
-            template = RejectionTemplate(
-                company_id=company_id,
-                created_by=str(current.id),
-                name=input.name,
-                subject=input.subject,
-                body=input.body,
-                language=input.language or "TR",
-                is_active=input.is_active if input.is_active is not None else True,
-                is_default=input.is_default if input.is_default is not None else False,
-            )
-            db.add(template)
-            db.commit()
-            db.refresh(template)
-            
-            return RejectionTemplateResponse(
-                success=True,
-                message="Rejection template created",
-                template=RejectionTemplateType(
-                    id=str(template.id),
-                    name=template.name,
-                    subject=template.subject,
-                    body=template.body,
-                    language=template.language,
-                    is_active=template.is_active,
-                    is_default=template.is_default,
-                    created_at=template.created_at.isoformat() if template.created_at else None,
-                    updated_at=None,
-                ),
-            )
-        except Exception as e:
-            db.rollback()
-            return RejectionTemplateResponse(success=False, message=str(e), template=None)
-        finally:
-            db.close()
+        from app.modules.rejection.resolvers import create_rejection_template
+        return await create_rejection_template(info, input)
 
     @strawberry.mutation
     async def update_rejection_template(self, info: Info, id: str, input: "RejectionTemplateInput") -> "RejectionTemplateResponse":
         """Update a rejection email template"""
-        from app.models.rejection_template import RejectionTemplate
-        
-        request = info.context["request"]
-        auth_header = request.headers.get("authorization")
-        if not auth_header:
-            raise Exception("Not authenticated")
-        
-        db = get_db_session()
-        try:
-            template = db.query(RejectionTemplate).filter(RejectionTemplate.id == id).first()
-            if not template:
-                return RejectionTemplateResponse(success=False, message="Template not found", template=None)
-            
-            template.name = input.name
-            template.subject = input.subject
-            template.body = input.body
-            template.language = input.language or template.language
-            if input.is_active is not None:
-                template.is_active = input.is_active
-            if input.is_default is not None:
-                template.is_default = input.is_default
-            
-            db.commit()
-            db.refresh(template)
-            
-            return RejectionTemplateResponse(
-                success=True,
-                message="Template updated",
-                template=RejectionTemplateType(
-                    id=str(template.id),
-                    name=template.name,
-                    subject=template.subject,
-                    body=template.body,
-                    language=template.language,
-                    is_active=template.is_active,
-                    is_default=template.is_default,
-                    created_at=template.created_at.isoformat() if template.created_at else None,
-                    updated_at=template.updated_at.isoformat() if template.updated_at else None,
-                ),
-            )
-        except Exception as e:
-            db.rollback()
-            return RejectionTemplateResponse(success=False, message=str(e), template=None)
-        finally:
-            db.close()
+        from app.modules.rejection.resolvers import update_rejection_template
+        return await update_rejection_template(info, id, input)
 
     @strawberry.mutation
     async def delete_rejection_template(self, info: Info, id: str) -> MessageType:
         """Delete a rejection template"""
-        from app.models.rejection_template import RejectionTemplate
-        
-        request = info.context["request"]
-        auth_header = request.headers.get("authorization")
-        if not auth_header:
-            raise Exception("Not authenticated")
-        
-        db = get_db_session()
-        try:
-            template = db.query(RejectionTemplate).filter(RejectionTemplate.id == id).first()
-            if not template:
-                return MessageType(success=False, message="Template not found")
-            
-            db.delete(template)
-            db.commit()
-            return MessageType(success=True, message="Template deleted")
-        except Exception as e:
-            db.rollback()
-            return MessageType(success=False, message=str(e))
-        finally:
-            db.close()
+        from app.modules.rejection.resolvers import delete_rejection_template
+        return await delete_rejection_template(info, id)
 
     # ============ Application Rejection Mutations ============
     @strawberry.mutation
@@ -4381,609 +3324,81 @@ class Mutation(CompanyMutation):
         template_id: Optional[str] = None
     ) -> MessageType:
         """Reject an application and mark it with a rejection note"""
-        from app.models.application import Application, ApplicationStatus
-        
-        request = info.context["request"]
-        auth_header = request.headers.get("authorization")
-        if not auth_header:
-            raise Exception("Not authenticated")
-        try:
-            _, token = auth_header.split()
-        except ValueError:
-            raise Exception("Invalid authorization header")
-        
-        db = get_db_session()
-        try:
-            company_id = get_company_id_from_token(token)
-            
-            application = db.query(Application).filter(
-                Application.id == application_id,
-                Application.company_id == company_id
-            ).first()
-            
-            if not application:
-                return MessageType(success=False, message="Application not found")
-            
-            # Update application status and rejection data
-            application.status = ApplicationStatus.REJECTED
-            application.rejection_note = rejection_note
-            application.rejected_at = datetime.utcnow()
-            application.rejection_template_id = template_id
-            
-            db.commit()
-            
-            return MessageType(success=True, message="Application rejected successfully")
-        except Exception as e:
-            db.rollback()
-            return MessageType(success=False, message=str(e))
-        finally:
-            db.close()
+        from app.modules.rejection.resolvers import reject_application
+        return await reject_application(info, application_id, rejection_note, template_id)
+
+    # ============ History Mutations ============
+    @strawberry.mutation
+    async def add_history_entry(self, info: Info, input: "CreateHistoryEntryInput") -> "HistoryResponse":
+        """Add a new history entry for an application"""
+        from app.modules.history.resolvers import add_history_entry
+        return await add_history_entry(info, input)
+
+    @strawberry.mutation
+    async def seed_action_types(self, info: Info) -> "HistoryResponse":
+        """Seed default action types (admin only)"""
+        from app.modules.history.resolvers import seed_action_types_mutation
+        return await seed_action_types_mutation(info)
 
     # ============ Likert Session Mutations ============
     @strawberry.mutation
     async def create_likert_session(self, info: Info, input: CreateLikertSessionInput) -> LikertSessionResponse:
         """Create a new likert test session for a candidate"""
-        import secrets
-        from datetime import timedelta
-        from app.models.likert import LikertSession, LikertTemplate
-        from app.models.job import Job
-        from app.models.candidate import Candidate
-        
-        request = info.context["request"]
-        auth_header = request.headers.get("authorization")
-        if not auth_header:
-            raise Exception("Not authenticated")
-        try:
-            _, token = auth_header.split()
-        except ValueError:
-            raise Exception("Invalid authorization header")
-        
-        db = get_db_session()
-        try:
-            from app.api.dependencies import get_company_id_from_token
-            company_id = get_company_id_from_token(token)
-            
-            # Get job and validate likert is enabled
-            job = db.query(Job).filter(Job.id == input.job_id).first()
-            if not job:
-                return LikertSessionResponse(success=False, message="Job not found", likert_link=None, session=None)
-            
-            if not job.likert_enabled:
-                return LikertSessionResponse(success=False, message="Likert test is not enabled for this job", likert_link=None, session=None)
-            
-            if not job.likert_template_id:
-                return LikertSessionResponse(success=False, message="No Likert template configured for this job", likert_link=None, session=None)
-            
-            # Get template
-            template = db.query(LikertTemplate).filter(LikertTemplate.id == job.likert_template_id).first()
-            if not template:
-                return LikertSessionResponse(success=False, message="Likert template not found", likert_link=None, session=None)
-            
-            # Check if ANY session already exists (including completed)
-            existing = db.query(LikertSession).filter(
-                LikertSession.job_id == input.job_id,
-                LikertSession.candidate_id == input.candidate_id,
-            ).first()
-            
-            if existing:
-                base_url = request.headers.get("origin", "http://localhost:5173")
-                likert_link = f"{base_url}/likert/{existing.token}"
-                
-                # Return appropriate message based on status
-                if existing.status == 'completed':
-                    return LikertSessionResponse(
-                        success=True, 
-                        message="Bu aday için Likert testi zaten tamamlandı.", 
-                        likert_link=likert_link,
-                        session=LikertSessionType(
-                            id=str(existing.id),
-                            token=existing.token,
-                            status=existing.status,
-                            expires_at=existing.expires_at.isoformat() if existing.expires_at else None,
-                            created_at=existing.created_at.isoformat() if existing.created_at else None,
-                        )
-                    )
-                elif existing.status == 'expired':
-                    return LikertSessionResponse(
-                        success=True, 
-                        message="Bu aday için Likert testi süresi dolmuş. Yeni davet oluşturulamaz.", 
-                        likert_link=likert_link,
-                        session=LikertSessionType(
-                            id=str(existing.id),
-                            token=existing.token,
-                            status=existing.status,
-                            expires_at=existing.expires_at.isoformat() if existing.expires_at else None,
-                            created_at=existing.created_at.isoformat() if existing.created_at else None,
-                        )
-                    )
-                else:
-                    # pending or in_progress - return existing link
-                    return LikertSessionResponse(
-                        success=True, 
-                        message="Bu aday için Likert testi daveti zaten gönderildi.", 
-                        likert_link=likert_link,
-                        session=LikertSessionType(
-                            id=str(existing.id),
-                            token=existing.token,
-                            status=existing.status,
-                            expires_at=existing.expires_at.isoformat() if existing.expires_at else None,
-                            created_at=existing.created_at.isoformat() if existing.created_at else None,
-                        )
-                    )
-            
-            # Create new session
-            session_token = secrets.token_urlsafe(32)
-            deadline_hours = job.likert_deadline_hours or 72
-            expires_at = datetime.utcnow() + timedelta(hours=deadline_hours)
-            
-            session = LikertSession(
-                template_id=job.likert_template_id,
-                job_id=input.job_id,
-                candidate_id=input.candidate_id,
-                application_id=input.application_id,
-                company_id=company_id,
-                token=session_token,
-                status="pending",
-                expires_at=expires_at,
-            )
-            db.add(session)
-            db.commit()
-            db.refresh(session)
-            
-            base_url = request.headers.get("origin", "http://localhost:5173")
-            likert_link = f"{base_url}/likert/{session_token}"
-            
-            return LikertSessionResponse(
-                success=True,
-                message="Likert test invitation created successfully",
-                likert_link=likert_link,
-                session=LikertSessionType(
-                    id=str(session.id),
-                    token=session.token,
-                    status=session.status,
-                    expires_at=session.expires_at.isoformat(),
-                    created_at=session.created_at.isoformat(),
-                )
-            )
-        except Exception as e:
-            db.rollback()
-            return LikertSessionResponse(success=False, message=str(e), likert_link=None, session=None)
-        finally:
-            db.close()
+        from app.modules.likert.resolvers import create_likert_session
+        return await create_likert_session(info, input)
 
     @strawberry.mutation
     async def start_likert_session(self, token: str) -> "GenericResponse":
         """Start a likert session (mark as in_progress)"""
-        from app.models.likert import LikertSession
-        
-        db = get_db_session()
-        try:
-            session = db.query(LikertSession).filter(LikertSession.token == token).first()
-            if not session:
-                return GenericResponse(success=False, message="Session not found")
-            
-            if session.status == 'completed':
-                return GenericResponse(success=False, message="Session already completed")
-            
-            if session.status == 'expired' or (session.expires_at and datetime.utcnow() > session.expires_at):
-                session.status = 'expired'
-                db.commit()
-                return GenericResponse(success=False, message="Session expired")
-            
-            session.status = 'in_progress'
-            session.started_at = datetime.utcnow()
-            db.commit()
-            
-            return GenericResponse(success=True, message="Session started")
-        except Exception as e:
-            db.rollback()
-            return GenericResponse(success=False, message=str(e))
-        finally:
-            db.close()
+        from app.modules.likert.resolvers import start_likert_session
+        return await start_likert_session(token)
 
     @strawberry.mutation
     async def save_likert_answer(self, session_token: str, question_id: str, score: int) -> "GenericResponse":
         """Save a likert answer"""
-        from app.models.likert import LikertSession, LikertAnswer
-        
-        db = get_db_session()
-        try:
-            session = db.query(LikertSession).filter(LikertSession.token == session_token).first()
-            if not session:
-                return GenericResponse(success=False, message="Session not found")
-            
-            if session.status == 'completed':
-                return GenericResponse(success=False, message="Session already completed")
-            
-            # Check if answer already exists
-            existing = db.query(LikertAnswer).filter(
-                LikertAnswer.session_id == session.id,
-                LikertAnswer.question_id == question_id
-            ).first()
-            
-            if existing:
-                existing.selected_value = score
-                existing.score = score
-            else:
-                answer = LikertAnswer(
-                    session_id=session.id,
-                    question_id=question_id,
-                    company_id=session.company_id,
-                    selected_value=score,
-                    score=score,
-                )
-                db.add(answer)
-            
-            db.commit()
-            return GenericResponse(success=True, message="Answer saved")
-        except Exception as e:
-            db.rollback()
-            print(f"[save_likert_answer] Error: {e}")
-            return GenericResponse(success=False, message=str(e))
-        finally:
-            db.close()
+        from app.modules.likert.resolvers import save_likert_answer
+        return await save_likert_answer(session_token, question_id, score)
 
     @strawberry.mutation
     async def complete_likert_session(self, token: str) -> "GenericResponse":
         """Complete a likert session"""
-        from app.models.likert import LikertSession, LikertAnswer
-        
-        db = get_db_session()
-        try:
-            session = db.query(LikertSession).filter(LikertSession.token == token).first()
-            if not session:
-                return GenericResponse(success=False, message="Session not found")
-            
-            if session.status == 'completed':
-                return GenericResponse(success=True, message="Session already completed")
-            
-            # Calculate total score
-            answers = db.query(LikertAnswer).filter(LikertAnswer.session_id == session.id).all()
-            total_score = sum(a.score for a in answers)
-            
-            session.status = 'completed'
-            session.completed_at = datetime.utcnow()
-            session.total_score = total_score
-            db.commit()
-            
-            return GenericResponse(success=True, message="Session completed")
-        except Exception as e:
-            db.rollback()
-            return GenericResponse(success=False, message=str(e))
-        finally:
-            db.close()
+        from app.modules.likert.resolvers import complete_likert_session
+        return await complete_likert_session(token)
 
     @strawberry.mutation
     async def create_interview_session(self, info: Info, input: CreateInterviewSessionInput) -> InterviewSessionResponse:
         """Create a new interview session for a candidate"""
-        import secrets
-        from datetime import timedelta
-        from app.models.interview import InterviewSession, InterviewTemplate
-        from app.models.job import Job
-        from app.models.candidate import Candidate
-        
-        request = info.context["request"]
-        auth_header = request.headers.get("authorization")
-        if not auth_header:
-            raise Exception("Not authenticated")
-        try:
-            _, token = auth_header.split()
-        except ValueError:
-            raise Exception("Invalid authorization header")
-        
-        db = get_db_session()
-        try:
-            from app.api.dependencies import get_company_id_from_token
-            company_id = get_company_id_from_token(token)
-            
-            # Get job and validate interview is enabled
-            job = db.query(Job).filter(Job.id == input.job_id).first()
-            if not job:
-                return InterviewSessionResponse(success=False, message="Job not found", interview_link=None, session=None)
-            
-            if not job.interview_enabled:
-                return InterviewSessionResponse(success=False, message="Interview is not enabled for this job", interview_link=None, session=None)
-            
-            if not job.interview_template_id:
-                return InterviewSessionResponse(success=False, message="No interview template configured for this job", interview_link=None, session=None)
-            
-            # Get template
-            template = db.query(InterviewTemplate).filter(InterviewTemplate.id == job.interview_template_id).first()
-            if not template:
-                return InterviewSessionResponse(success=False, message="Interview template not found", interview_link=None, session=None)
-            
-            # Check if ANY session already exists (including completed)
-            existing = db.query(InterviewSession).filter(
-                InterviewSession.job_id == input.job_id,
-                InterviewSession.candidate_id == input.candidate_id,
-            ).first()
-            
-            if existing:
-                base_url = request.headers.get("origin", "http://localhost:5173")
-                interview_link = f"{base_url}/interview/{existing.token}"
-                
-                # Return appropriate message based on status
-                if existing.status == 'completed':
-                    return InterviewSessionResponse(
-                        success=True, 
-                        message="Bu aday için mülakat zaten tamamlandı.", 
-                        interview_link=interview_link,
-                        session=InterviewSessionType(
-                            id=str(existing.id),
-                            job_id=str(existing.job_id),
-                            candidate_id=str(existing.candidate_id),
-                            application_id=str(existing.application_id) if existing.application_id else None,
-                            token=existing.token,
-                            status=existing.status,
-                            expires_at=existing.expires_at.isoformat() if existing.expires_at else None,
-                            created_at=existing.created_at.isoformat() if existing.created_at else None,
-                        )
-                    )
-                elif existing.status == 'expired':
-                    return InterviewSessionResponse(
-                        success=True, 
-                        message="Bu aday için mülakat daveti süresi dolmuş. Yeni davet oluşturulamaz.", 
-                        interview_link=interview_link,
-                        session=InterviewSessionType(
-                            id=str(existing.id),
-                            job_id=str(existing.job_id),
-                            candidate_id=str(existing.candidate_id),
-                            application_id=str(existing.application_id) if existing.application_id else None,
-                            token=existing.token,
-                            status=existing.status,
-                            expires_at=existing.expires_at.isoformat() if existing.expires_at else None,
-                            created_at=existing.created_at.isoformat() if existing.created_at else None,
-                        )
-                    )
-                else:
-                    # pending or in_progress - return existing link
-                    return InterviewSessionResponse(
-                        success=True, 
-                        message="Bu aday için mülakat daveti zaten gönderildi.", 
-                        interview_link=interview_link,
-                        session=InterviewSessionType(
-                            id=str(existing.id),
-                            job_id=str(existing.job_id),
-                            candidate_id=str(existing.candidate_id),
-                            application_id=str(existing.application_id) if existing.application_id else None,
-                            token=existing.token,
-                            status=existing.status,
-                            expires_at=existing.expires_at.isoformat() if existing.expires_at else None,
-                            created_at=existing.created_at.isoformat() if existing.created_at else None,
-                        )
-                    )
-            
-            # Create new session
-            session_token = secrets.token_urlsafe(32)
-            deadline_hours = job.interview_deadline_hours or 72
-            expires_at = datetime.utcnow() + timedelta(hours=deadline_hours)
-            
-            session = InterviewSession(
-                job_id=input.job_id,
-                candidate_id=input.candidate_id,
-                application_id=input.application_id,
-                company_id=company_id,
-                token=session_token,
-                status="pending",
-                expires_at=expires_at,
-            )
-            db.add(session)
-            db.commit()
-            db.refresh(session)
-            
-            base_url = request.headers.get("origin", "http://localhost:5173")
-            interview_link = f"{base_url}/interview/{session_token}"
-            
-            return InterviewSessionResponse(
-                success=True,
-                message="Interview invitation created successfully",
-                interview_link=interview_link,
-                session=InterviewSessionType(
-                    id=str(session.id),
-                    job_id=str(session.job_id),
-                    candidate_id=str(session.candidate_id),
-                    application_id=str(session.application_id) if session.application_id else None,
-                    token=session.token,
-                    status=session.status,
-                    expires_at=session.expires_at.isoformat(),
-                    created_at=session.created_at.isoformat(),
-                )
-            )
-        except Exception as e:
-            db.rollback()
-            return InterviewSessionResponse(success=False, message=str(e), interview_link=None, session=None)
-        finally:
-            db.close()
+        from app.modules.interview.resolvers import create_interview_session
+        return await create_interview_session(info, input)
 
     @strawberry.mutation
     async def start_interview_session(self, info: Info, token: str) -> InterviewSessionResponse:
         """Start an interview session (called when candidate begins)"""
-        from app.models.interview import InterviewSession
-        
-        db = get_db_session()
-        try:
-            session = db.query(InterviewSession).filter(InterviewSession.token == token).first()
-            if not session:
-                return InterviewSessionResponse(success=False, message="Session not found", interview_link=None, session=None)
-            
-            if session.status == 'completed':
-                return InterviewSessionResponse(success=False, message="Session already completed", interview_link=None, session=None)
-            
-            if session.expires_at and session.expires_at < datetime.utcnow():
-                return InterviewSessionResponse(success=False, message="Session expired", interview_link=None, session=None)
-            
-            session.status = "in_progress"
-            session.started_at = datetime.utcnow()
-            db.commit()
-            db.refresh(session)
-            
-            return InterviewSessionResponse(
-                success=True,
-                message="Interview started successfully",
-                interview_link=None,
-                session=InterviewSessionType(
-                    id=str(session.id),
-                    job_id=str(session.job_id),
-                    candidate_id=str(session.candidate_id),
-                    application_id=str(session.application_id) if session.application_id else None,
-                    token=session.token,
-                    status=session.status,
-                    expires_at=session.expires_at.isoformat() if session.expires_at else None,
-                    started_at=session.started_at.isoformat() if session.started_at else None,
-                    created_at=session.created_at.isoformat() if session.created_at else None,
-                )
-            )
-        except Exception as e:
-            db.rollback()
-            return InterviewSessionResponse(success=False, message=str(e), interview_link=None, session=None)
-        finally:
-            db.close()
+        from app.modules.interview.resolvers import start_interview_session
+        return await start_interview_session(info, token)
 
     @strawberry.mutation
     async def save_interview_answer(self, info: Info, input: SaveInterviewAnswerInput) -> InterviewAnswerResponse:
         """Save an interview answer"""
-        from app.models.interview import InterviewSession, InterviewAnswer
-        
-        print(f"[save_interview_answer] Called with token={input.session_token[:20]}..., question_id={input.question_id}, answer_text={input.answer_text[:50] if input.answer_text else 'None'}...")
-        
-        db = get_db_session()
-        try:
-            session = db.query(InterviewSession).filter(InterviewSession.token == input.session_token).first()
-            if not session:
-                print(f"[save_interview_answer] Session not found for token")
-                return InterviewAnswerResponse(success=False, message="Session not found", answer=None)
-            
-            print(f"[save_interview_answer] Found session id={session.id}")
-            
-            # Check if answer already exists
-            existing = db.query(InterviewAnswer).filter(
-                InterviewAnswer.session_id == session.id,
-                InterviewAnswer.question_id == input.question_id
-            ).first()
-            
-            if existing:
-                print(f"[save_interview_answer] Updating existing answer id={existing.id}")
-                existing.answer_text = input.answer_text
-                existing.video_url = input.video_url
-                existing.duration_seconds = input.duration_seconds
-                existing.updated_at = datetime.utcnow()
-                db.commit()
-                db.refresh(existing)
-                answer = existing
-            else:
-                print(f"[save_interview_answer] Creating new answer")
-                answer = InterviewAnswer(
-                    session_id=session.id,
-                    question_id=input.question_id,
-                    answer_text=input.answer_text,
-                    video_url=input.video_url,
-                    duration_seconds=input.duration_seconds,
-                    status='submitted',
-                )
-                db.add(answer)
-                db.commit()
-                db.refresh(answer)
-                print(f"[save_interview_answer] Created answer id={answer.id}")
-            
-            return InterviewAnswerResponse(
-                success=True,
-                message="Answer saved successfully",
-                answer=InterviewAnswerType(
-                    id=str(answer.id),
-                    session_id=str(answer.session_id),
-                    question_id=str(answer.question_id),
-                    answer_text=answer.answer_text,
-                    video_url=answer.video_url,
-                    duration_seconds=answer.duration_seconds,
-                    created_at=answer.created_at.isoformat() if answer.created_at else datetime.utcnow().isoformat(),
-                )
-            )
-        except Exception as e:
-            db.rollback()
-            print(f"[save_interview_answer] Error: {str(e)}")
-            return InterviewAnswerResponse(success=False, message=str(e), answer=None)
-        finally:
-            db.close()
+        from app.modules.interview.resolvers import save_interview_answer
+        return await save_interview_answer(info, input)
 
     @strawberry.mutation
     async def complete_interview_session(self, info: Info, token: str) -> InterviewSessionResponse:
         """Complete an interview session"""
-        from app.models.interview import InterviewSession
-        
-        db = get_db_session()
-        try:
-            session = db.query(InterviewSession).filter(InterviewSession.token == token).first()
-            if not session:
-                return InterviewSessionResponse(success=False, message="Session not found", interview_link=None, session=None)
-            
-            session.status = "completed"
-            session.completed_at = datetime.utcnow()
-            db.commit()
-            db.refresh(session)
-            
-            return InterviewSessionResponse(
-                success=True,
-                message="Interview completed successfully",
-                interview_link=None,
-                session=InterviewSessionType(
-                    id=str(session.id),
-                    job_id=str(session.job_id),
-                    candidate_id=str(session.candidate_id),
-                    application_id=str(session.application_id) if session.application_id else None,
-                    token=session.token,
-                    status=session.status,
-                    expires_at=session.expires_at.isoformat() if session.expires_at else None,
-                    completed_at=session.completed_at.isoformat() if session.completed_at else None,
-                    created_at=session.created_at.isoformat() if session.created_at else None,
-                )
-            )
-        except Exception as e:
-            db.rollback()
-            return InterviewSessionResponse(success=False, message=str(e), interview_link=None, session=None)
-        finally:
-            db.close()
+        from app.modules.interview.resolvers import complete_interview_session
+        return await complete_interview_session(info, token)
 
     @strawberry.mutation
     async def accept_interview_agreement(self, info: Info, token: str) -> InterviewSessionResponse:
         """Accept interview agreement"""
-        from app.models.interview import InterviewSession
-        
-        db = get_db_session()
-        try:
-            session = db.query(InterviewSession).filter(InterviewSession.token == token).first()
-            if not session:
-                return InterviewSessionResponse(success=False, message="Session not found", interview_link=None, session=None)
-            
-            session.agreement_accepted_at = datetime.utcnow()
-            db.commit()
-            db.refresh(session)
-            
-            return InterviewSessionResponse(
-                success=True,
-                message="Agreement accepted successfully",
-                interview_link=None,
-                session=InterviewSessionType(
-                    id=str(session.id),
-                    job_id=str(session.job_id),
-                    candidate_id=str(session.candidate_id),
-                    application_id=str(session.application_id) if session.application_id else None,
-                    token=session.token,
-                    status=session.status,
-                    expires_at=session.expires_at.isoformat() if session.expires_at else None,
-                    agreement_accepted_at=session.agreement_accepted_at.isoformat() if session.agreement_accepted_at else None,
-                    created_at=session.created_at.isoformat() if session.created_at else None,
-                )
-            )
-        except Exception as e:
-            db.rollback()
-            return InterviewSessionResponse(success=False, message=str(e), interview_link=None, session=None)
-        finally:
-            db.close()
+        from app.modules.interview.resolvers import accept_interview_agreement
+        return await accept_interview_agreement(info, token)
 
     @strawberry.mutation
     async def submit_likert_session(self, info: Info, token: str, answers: List[LikertAnswerInput]) -> LikertSessionResponse:
         """Submit likert test answers"""
-        from app.models.likert import LikertSession, LikertAnswer
+        from app.modules.likert.models import LikertSession, LikertAnswer
         
         db = get_db_session()
         try:

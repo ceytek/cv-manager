@@ -175,9 +175,13 @@ const InterviewTemplatesPage = () => {
                   <div style={{ padding: '10px', background: '#F9FAFB', borderRadius: '8px' }}>
                     <div style={{ fontSize: '12px', color: '#6B7280', marginBottom: '4px' }}>
                       <Clock size={12} style={{ display: 'inline', marginRight: 4 }} />
-                      {t('interviewTemplates.durationPerQuestion')}
+                      {template.useGlobalTimer ? t('interviewTemplates.totalDuration') : t('interviewTemplates.durationPerQuestion')}
                     </div>
-                    <div style={{ fontSize: '14px', fontWeight: '600', color: '#374151' }}>{formatDuration(template.durationPerQuestion)}</div>
+                    <div style={{ fontSize: '14px', fontWeight: '600', color: '#374151' }}>
+                      {template.useGlobalTimer 
+                        ? formatDuration(template.totalDuration || 0)
+                        : formatDuration(template.durationPerQuestion)}
+                    </div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', background: '#EFF6FF', borderRadius: '8px', fontSize: '13px', color: '#1D4ED8' }}>

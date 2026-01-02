@@ -19,7 +19,10 @@ import {
   History,
   Video,
   ListChecks,
-  ScrollText
+  ScrollText,
+  Layers,
+  ChevronDown,
+  MailX
 } from 'lucide-react';
 import { useQuery, useMutation, useSubscription } from '@apollo/client/react';
 import { USERS_QUERY, DEACTIVATE_USER_MUTATION } from '../graphql/auth';
@@ -40,15 +43,18 @@ import SubscriptionUsageWidget from './SubscriptionUsageWidget';
 import InterviewTemplatesPage from './InterviewTemplatesPage';
 import LikertTemplatesPage from './LikertTemplatesPage';
 import AgreementTemplatesPage from './AgreementTemplatesPage';
+import RejectionTemplatesPage from './RejectionTemplatesPage';
 
 const Dashboard = ({ currentUser, onLogout }) => {
   const { t } = useTranslation();
   const [activeMenu, setActiveMenu] = useState('dashboard');
   const [showAddUser, setShowAddUser] = useState(false);
   const [settingsMenu, setSettingsMenu] = useState(null);
+  const [templatesMenu, setTemplatesMenu] = useState(null);
   const [cvEvalInitialView, setCvEvalInitialView] = useState('welcome');
   const [cvInitialView, setCvInitialView] = useState('welcome');
   const [jobsInitialCreate, setJobsInitialCreate] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   // Derive a safe display name
   const displayName = (currentUser?.fullName?.trim()) 
@@ -56,6 +62,17 @@ const Dashboard = ({ currentUser, onLogout }) => {
     || 'Kullanıcı';
   const avatarInitial = displayName ? displayName.charAt(0).toUpperCase() : 'K';
   const isAdmin = currentUser?.role === 'admin';
+
+  // Close user menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (showUserMenu && !e.target.closest('.user-menu-container')) {
+        setShowUserMenu(false);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [showUserMenu]);
 
   // Fetch departments for Jobs page
   const { data: departmentsData } = useQuery(DEPARTMENTS_QUERY, {
@@ -142,6 +159,7 @@ const Dashboard = ({ currentUser, onLogout }) => {
     { id: 'cvs', icon: FileText, label: t('sidebar.cvManagement') },
     { id: 'cv-evaluation', icon: BarChart3, label: t('sidebar.cvEvaluation') },
     { id: 'usage-history', icon: History, label: t('sidebar.usageHistory') },
+    { id: 'templates', icon: Layers, label: t('sidebar.templates') },
     { id: 'settings', icon: Settings, label: t('sidebar.settings') }
   ];
 
@@ -164,7 +182,12 @@ const Dashboard = ({ currentUser, onLogout }) => {
                 onClick={() => {
                   if (item.id === 'settings') {
                     setActiveMenu('settings');
-                    setSettingsMenu(null); // only expand submenu
+                    setSettingsMenu(null);
+                    setTemplatesMenu(null);
+                  } else if (item.id === 'templates') {
+                    setActiveMenu('templates');
+                    setTemplatesMenu(null);
+                    setSettingsMenu(null);
                   } else {
                     // For CV Management via sidebar, land on welcome by default
                     if (item.id === 'cvs') {
@@ -180,41 +203,67 @@ const Dashboard = ({ currentUser, onLogout }) => {
                     }
                     setActiveMenu(item.id);
                     setSettingsMenu(null);
+                    setTemplatesMenu(null);
                   }
                 }}
               >
                 <item.icon size={20} />
                 <span>{item.label}</span>
               </button>
+              
+              {/* Templates Submenu */}
+              {item.id === 'templates' && activeMenu === 'templates' && (
+                <div className="submenu">
+                  <button
+                    className={`submenu-item ${templatesMenu === 'interviewTemplates' ? 'active' : ''}`}
+                    onClick={() => setTemplatesMenu('interviewTemplates')}
+                  >
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <Video size={16} color="#6B7280" />
+                      {t('templates.interviewTemplates')}
+                    </span>
+                  </button>
+                  <button
+                    className={`submenu-item ${templatesMenu === 'likertTemplates' ? 'active' : ''}`}
+                    onClick={() => setTemplatesMenu('likertTemplates')}
+                  >
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <ListChecks size={16} color="#6B7280" />
+                      {t('templates.likertTemplates')}
+                    </span>
+                  </button>
+                  <button
+                    className={`submenu-item ${templatesMenu === 'agreementTemplates' ? 'active' : ''}`}
+                    onClick={() => setTemplatesMenu('agreementTemplates')}
+                  >
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <ScrollText size={16} color="#6B7280" />
+                      {t('templates.agreementTemplates')}
+                    </span>
+                  </button>
+                  <button
+                    className={`submenu-item ${templatesMenu === 'rejectionTemplates' ? 'active' : ''}`}
+                    onClick={() => setTemplatesMenu('rejectionTemplates')}
+                  >
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <MailX size={16} color="#6B7280" />
+                      {t('templates.rejectionTemplates', 'Red Mesajları')}
+                    </span>
+                  </button>
+                </div>
+              )}
+              
+              {/* Settings Submenu - Only Password */}
               {item.id === 'settings' && activeMenu === 'settings' && (
                 <div className="submenu">
                   <button
                     className={`submenu-item ${settingsMenu === 'password' ? 'active' : ''}`}
                     onClick={() => setSettingsMenu('password')}
                   >
-                    <KeyRound size={16} style={{ marginRight: 8, opacity: 0.8 }} />
-                    {t('settings.changePassword')}
-                  </button>
-                  <button
-                    className={`submenu-item ${settingsMenu === 'interviewTemplates' ? 'active' : ''}`}
-                    onClick={() => setSettingsMenu('interviewTemplates')}
-                  >
-                    <Video size={16} style={{ marginRight: 8, opacity: 0.8 }} />
-                    {t('settings.interviewTemplates')}
-                  </button>
-                  <button
-                    className={`submenu-item ${settingsMenu === 'likertTemplates' ? 'active' : ''}`}
-                    onClick={() => setSettingsMenu('likertTemplates')}
-                  >
-                    <ListChecks size={16} style={{ marginRight: 8, opacity: 0.8 }} />
-                    {t('settings.likertTemplates')}
-                  </button>
-                  <button
-                    className={`submenu-item ${settingsMenu === 'agreementTemplates' ? 'active' : ''}`}
-                    onClick={() => setSettingsMenu('agreementTemplates')}
-                  >
-                    <ScrollText size={16} style={{ marginRight: 8, opacity: 0.8 }} />
-                    {t('settings.agreementTemplates')}
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <KeyRound size={16} color="#6B7280" />
+                      {t('settings.changePassword')}
+                    </span>
                   </button>
                 </div>
               )}
@@ -223,25 +272,7 @@ const Dashboard = ({ currentUser, onLogout }) => {
         </nav>
 
         <div className="sidebar-footer">
-          <div style={{ marginBottom: '16px' }}>
-            <SubscriptionUsageWidget />
-          </div>
-          <button className="new-job-button" onClick={() => { setJobsInitialCreate(true); setActiveMenu('jobs'); }}>
-            {t('sidebar.newJobButton')}
-          </button>
-          <div className="user-profile">
-            <div className="user-avatar">
-              {avatarInitial}
-            </div>
-            <div className="user-info">
-              <div className="user-name">{displayName}</div>
-              <div className="user-role">{t('sidebar.userRole')}</div>
-            </div>
-          </div>
-          <button className="sidebar-logout" onClick={onLogout}>
-            <LogOut size={16} />
-            <span>{t('common.logout')}</span>
-          </button>
+          <SubscriptionUsageWidget />
         </div>
       </aside>
 
@@ -265,9 +296,32 @@ const Dashboard = ({ currentUser, onLogout }) => {
                 <UserPlus size={20} />
               </button>
             )}
-            <button className="logout-btn" onClick={onLogout}>
-              {t('common.logout')}
-            </button>
+            
+            {/* User Profile Dropdown */}
+            <div className="user-menu-container">
+              <button 
+                className="user-menu-trigger"
+                onClick={() => setShowUserMenu(!showUserMenu)}
+              >
+                <div className="user-avatar-small">
+                  {avatarInitial}
+                </div>
+                <div className="user-menu-info">
+                  <span className="user-menu-name">{displayName}</span>
+                  <span className="user-menu-role">{t('sidebar.userRole')}</span>
+                </div>
+                <ChevronDown size={16} className={`user-menu-chevron ${showUserMenu ? 'open' : ''}`} />
+              </button>
+              
+              {showUserMenu && (
+                <div className="user-dropdown">
+                  <button className="user-dropdown-item" onClick={() => { onLogout(); setShowUserMenu(false); }}>
+                    <LogOut size={16} />
+                    <span>{t('common.logout')}</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
@@ -308,20 +362,25 @@ const Dashboard = ({ currentUser, onLogout }) => {
           </div>
         )}
 
-        {activeMenu === 'settings' && settingsMenu === 'interviewTemplates' && (
+        {/* Templates pages */}
+        {activeMenu === 'templates' && templatesMenu === 'interviewTemplates' && (
           <InterviewTemplatesPage />
         )}
 
-        {activeMenu === 'settings' && settingsMenu === 'likertTemplates' && (
+        {activeMenu === 'templates' && templatesMenu === 'likertTemplates' && (
           <LikertTemplatesPage />
         )}
 
-        {activeMenu === 'settings' && settingsMenu === 'agreementTemplates' && (
+        {activeMenu === 'templates' && templatesMenu === 'agreementTemplates' && (
           <AgreementTemplatesPage />
         )}
 
-        {/* Show dashboard widgets unless a settings subpage is open */}
-  {!(activeMenu === 'settings' && settingsMenu) && activeMenu !== 'users' && activeMenu !== 'departments' && activeMenu !== 'jobs' && activeMenu !== 'cvs' && activeMenu !== 'cv-evaluation' && activeMenu !== 'usage-history' && (
+        {activeMenu === 'templates' && templatesMenu === 'rejectionTemplates' && (
+          <RejectionTemplatesPage />
+        )}
+
+        {/* Show dashboard widgets unless a settings/templates subpage is open */}
+  {!(activeMenu === 'settings' && settingsMenu) && !(activeMenu === 'templates' && templatesMenu) && activeMenu !== 'users' && activeMenu !== 'departments' && activeMenu !== 'jobs' && activeMenu !== 'cvs' && activeMenu !== 'cv-evaluation' && activeMenu !== 'usage-history' && activeMenu !== 'templates' && (
         <div className="stats-grid">
           {stats.map((stat, index) => (
             <div key={index} className="stat-card">

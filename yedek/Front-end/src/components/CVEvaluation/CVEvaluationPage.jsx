@@ -5,15 +5,23 @@
  */
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useQuery } from '@apollo/client/react';
 import { Brain, FileSearch, TrendingUp } from 'lucide-react';
 import CVEvaluationAnalysis from './CVEvaluationAnalysis';
 import JobsOverview from './JobsOverview';
 import JobDetails from './JobDetails';
+import { DEPARTMENTS_QUERY } from '../../graphql/departments';
 
 const CVEvaluationPage = ({ initialView = 'welcome' }) => {
   const { t } = useTranslation();
   const [currentView, setCurrentView] = useState(initialView); // 'welcome' | 'analysis' | 'jobs' | 'job-details'
   const [selectedJob, setSelectedJob] = useState(null);
+  
+  // Fetch departments for job detail modal
+  const { data: departmentsData } = useQuery(DEPARTMENTS_QUERY, {
+    variables: { includeInactive: false },
+  });
+  const departments = departmentsData?.departments || [];
 
   // Update internal view when parent changes initialView (e.g., dashboard quick action)
   useEffect(() => {
@@ -35,7 +43,7 @@ const CVEvaluationPage = ({ initialView = 'welcome' }) => {
     );
   }
   if (currentView === 'job-details') {
-    return <JobDetails job={selectedJob} onBack={() => setCurrentView('jobs')} />;
+    return <JobDetails job={selectedJob} onBack={() => setCurrentView('jobs')} departments={departments} />;
   }
 
   // Show welcome page

@@ -4,14 +4,20 @@
  */
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Briefcase, GraduationCap, Award, MapPin, Mail, Phone, Linkedin, CheckCircle2, XCircle, AlertCircle, Video, ListChecks } from 'lucide-react';
+import { X, Briefcase, GraduationCap, Award, MapPin, Mail, Phone, Linkedin, CheckCircle2, XCircle, AlertCircle, Video, ListChecks, MailX } from 'lucide-react';
 import InterviewInviteModal from '../InterviewInviteModal';
 import LikertInviteModal from '../LikertInviteModal';
+import SendRejectionModal from '../SendRejectionModal';
 
-const CandidateDetailModal = ({ candidate, onClose, jobId, application }) => {
-  const { t } = useTranslation();
+const CandidateDetailModal = ({ candidate, onClose, jobId, jobTitle, application, onRefetch }) => {
+  const { t, i18n } = useTranslation();
+  const isEnglish = i18n.language === 'en';
   const [showInterviewModal, setShowInterviewModal] = useState(false);
   const [showLikertModal, setShowLikertModal] = useState(false);
+  const [showRejectionModal, setShowRejectionModal] = useState(false);
+  
+  // Check if candidate is already rejected
+  const isRejected = application?.status === 'rejected' || application?.status === 'REJECTED';
   
   // Build real detail object from props (selectedCandidate from list)
   const detail = useMemo(() => {
@@ -316,6 +322,37 @@ const CandidateDetailModal = ({ candidate, onClose, jobId, application }) => {
                 <ListChecks size={16} />
                 Send Likert Test
               </button>
+              <button 
+                onClick={() => {
+                  if (isRejected) {
+                    alert(isEnglish 
+                      ? 'This candidate has already been rejected. You cannot send another rejection message.' 
+                      : 'Bu aday zaten reddedilmiş. Reddedilmiş adaylara tekrar red mesajı gönderemezsiniz.'
+                    );
+                    return;
+                  }
+                  setShowRejectionModal(true);
+                }}
+                style={{
+                  padding: '10px 20px',
+                  background: isRejected ? '#9CA3AF' : '#DC2626',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 8,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: isRejected ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  opacity: isRejected ? 0.6 : 1,
+                }}
+                title={isRejected ? (isEnglish ? 'Already rejected' : 'Zaten reddedildi') : ''}
+              >
+                <MailX size={16} />
+                {t('candidateDetail.sendRejection', 'Red Mesajı Gönder')}
+              </button>
             </div>
           </div>
 
@@ -386,6 +423,23 @@ const CandidateDetailModal = ({ candidate, onClose, jobId, application }) => {
           jobId={jobId}
           onSuccess={() => {
             // Optionally refresh data
+          }}
+        />
+      )}
+      
+      {/* Send Rejection Modal */}
+      {showRejectionModal && (
+        <SendRejectionModal
+          isOpen={showRejectionModal}
+          onClose={() => setShowRejectionModal(false)}
+          candidate={candidate?.candidate || candidate}
+          application={application}
+          jobId={jobId}
+          jobTitle={jobTitle}
+          onSuccess={() => {
+            setShowRejectionModal(false);
+            if (onRefetch) onRefetch();
+            onClose();
           }}
         />
       )}

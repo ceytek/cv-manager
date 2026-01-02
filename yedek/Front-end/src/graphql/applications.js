@@ -24,6 +24,11 @@ export const APPLICATIONS_QUERY = gql`
       updatedAt
       hasInterviewSession
       hasLikertSession
+      interviewSessionStatus
+      likertSessionStatus
+      rejectionNote
+      rejectedAt
+      rejectionTemplateId
       
       job {
         id
@@ -93,11 +98,11 @@ export const APPLICATION_UPDATES_SUBSCRIPTION = gql`
       notes
       createdAt
       updatedAt
-  job { id title departmentId department { id name } }
-  candidate { id name email phone cvFileName cvFilePath cvLanguage parsedData location birthYear experienceMonths cvPhotoPath status departmentId uploadedAt }
-  # If backend exposes birthYear/experienceMonths in subscription payload these could be added too
-  
-  # We also want location on candidate in subscription payload; if backend exposes it, include here.
+      rejectionNote
+      rejectedAt
+      rejectionTemplateId
+      job { id title departmentId department { id name } }
+      candidate { id name email phone cvFileName cvFilePath cvLanguage parsedData location birthYear experienceMonths cvPhotoPath status departmentId uploadedAt }
     }
   }
 `;

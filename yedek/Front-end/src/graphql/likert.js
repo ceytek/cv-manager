@@ -14,6 +14,7 @@ export const GET_LIKERT_TEMPLATES = gql`
       scaleType
       language
       isActive
+      timeLimit
       questionCount
       createdAt
       updatedAt
@@ -31,6 +32,7 @@ export const GET_LIKERT_TEMPLATE = gql`
       scaleLabels
       language
       isActive
+      timeLimit
       questionCount
       questions {
         id
@@ -56,6 +58,7 @@ export const CREATE_LIKERT_TEMPLATE = gql`
         scaleType
         language
         isActive
+        timeLimit
         questionCount
       }
     }
@@ -74,6 +77,7 @@ export const UPDATE_LIKERT_TEMPLATE = gql`
         scaleType
         language
         isActive
+        timeLimit
         questionCount
       }
     }
@@ -113,14 +117,17 @@ export const GET_LIKERT_SESSION = gql`
       expiresAt
       startedAt
       completedAt
-      totalScore
       createdAt
       template {
         id
         name
         description
         scaleType
+        scaleLabels
         language
+        timeLimit
+        isActive
+        questionCount
         questions {
           id
           questionText
@@ -131,15 +138,20 @@ export const GET_LIKERT_SESSION = gql`
       job {
         id
         title
+        descriptionPlain
+        location
+        agreementTemplateId
+        agreementTemplate {
+          id
+          name
+          content
+        }
       }
       candidate {
         id
         name
-      }
-      answers {
-        id
-        questionId
-        score
+        cvPhotoPath
+        email
       }
     }
   }
@@ -159,8 +171,11 @@ export const GET_LIKERT_SESSION_BY_APPLICATION = gql`
       template {
         id
         name
+        description
         scaleType
+        scaleLabels
         language
+        questionCount
         questions {
           id
           questionText
@@ -178,6 +193,8 @@ export const GET_LIKERT_SESSION_BY_APPLICATION = gql`
       answers {
         id
         questionId
+        questionText
+        questionOrder
         score
       }
     }
@@ -205,11 +222,6 @@ export const START_LIKERT_SESSION = gql`
     startLikertSession(token: $token) {
       success
       message
-      session {
-        id
-        status
-        startedAt
-      }
     }
   }
 `;
@@ -228,11 +240,18 @@ export const COMPLETE_LIKERT_SESSION = gql`
     completeLikertSession(token: $token) {
       success
       message
+    }
+  }
+`;
+
+export const SUBMIT_LIKERT_SESSION = gql`
+  mutation SubmitLikertSession($token: String!, $answers: [LikertAnswerInput!]!) {
+    submitLikertSession(token: $token, answers: $answers) {
+      success
+      message
       session {
         id
         status
-        completedAt
-        totalScore
       }
     }
   }

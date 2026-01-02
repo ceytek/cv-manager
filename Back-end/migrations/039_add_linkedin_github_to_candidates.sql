@@ -12,3 +12,4 @@ ALTER TABLE candidates ADD COLUMN IF NOT EXISTS github VARCHAR(500);
 COMMENT ON COLUMN candidates.linkedin IS 'LinkedIn profile URL extracted from CV';
 COMMENT ON COLUMN candidates.github IS 'GitHub profile URL extracted from CV';
 
+

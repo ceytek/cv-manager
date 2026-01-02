@@ -86,10 +86,6 @@ export const JOB_QUERY = gql`
       interviewEnabled
       interviewTemplateId
       interviewDeadlineHours
-      interviewDurationPerQuestion
-      interviewTotalQuestions
-      interviewIntroText
-      interviewLanguage
       interviewTemplate {
         id
         name

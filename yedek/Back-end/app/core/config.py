@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     ALLOWED_EXTENSIONS: set = {".pdf", ".docx"}
     
     # AI Service
-    AI_SERVICE_URL: str = "http://localhost:8001"
+    AI_SERVICE_URL: str = "http://127.0.0.1:8001"
     
     # Email
     MAIL_USERNAME: Optional[str] = None

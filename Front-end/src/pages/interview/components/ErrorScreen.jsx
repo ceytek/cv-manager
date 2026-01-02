@@ -18,3 +18,4 @@ const ErrorScreen = ({ message, details, language = 'tr' }) => {
 
 export default ErrorScreen;
 
+

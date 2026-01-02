@@ -1,0 +1,150 @@
+version: '3.8'
+
+services:
+  # ===========================================
+  # PostgreSQL Database
+  # ===========================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: hrsmart-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-hrsmart}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-hrsmart_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./Back-end/migrations:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hrsmart}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - hrsmart-network
+
+  # ===========================================
+  # AI Service (CV Parsing, Job Matching)
+  # ===========================================
+  ai-service:
+    build:
+      context: ./AI-Service
+      dockerfile: Dockerfile
+    container_name: hrsmart-ai-service
+    restart: unless-stopped
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - MODEL_NAME=${MODEL_NAME:-gpt-4o-mini}
+      - AI_SERVICE_PORT=8001
+    ports:
+      - "127.0.0.1:8001:8001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - hrsmart-network
+
+  # ===========================================
+  # Backend (FastAPI + GraphQL)
+  # ===========================================
+  backend:
+    build:
+      context: ./Back-end
+      dockerfile: Dockerfile
+    container_name: hrsmart-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ai-service:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-hrsmart}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hrsmart_db}
+      - SECRET_KEY=${SECRET_KEY}
+      - AI_SERVICE_URL=http://ai-service:8001
+      - MAIL_SERVER=${MAIL_SERVER}
+      - MAIL_PORT=${MAIL_PORT:-587}
+      - MAIL_USERNAME=${MAIL_USERNAME}
+      - MAIL_PASSWORD=${MAIL_PASSWORD}
+      - MAIL_FROM=${MAIL_FROM}
+      - MAIL_FROM_NAME=${MAIL_FROM_NAME:-HRSmart}
+      - FRONTEND_URL=${FRONTEND_URL:-https://test.hrsmart.co}
+      - MAILTRAP_API_TOKEN=${MAILTRAP_API_TOKEN:-}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
+    volumes:
+      - uploads_data:/app/uploads
+    ports:
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - hrsmart-network
+
+  # ===========================================
+  # Frontend (React - Nginx)
+  # ===========================================
+  frontend:
+    build:
+      context: ./Front-end
+      dockerfile: Dockerfile
+      args:
+        - VITE_GRAPHQL_URL=${VITE_GRAPHQL_URL:-https://test.hrsmart.co/graphql}
+        - VITE_WS_URL=${VITE_WS_URL:-wss://test.hrsmart.co/graphql}
+    container_name: hrsmart-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "127.0.0.1:3000:80"
+    networks:
+      - hrsmart-network
+
+  # ===========================================
+  # Caddy (Reverse Proxy + Auto SSL)
+  # ===========================================
+  caddy:
+    image: caddy:2-alpine
+    container_name: hrsmart-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - hrsmart-network
+
+# ===========================================
+# Volumes
+# ===========================================
+volumes:
+  postgres_data:
+    name: hrsmart-postgres-data
+  uploads_data:
+    name: hrsmart-uploads
+  caddy_data:
+    name: hrsmart-caddy-data
+  caddy_config:
+    name: hrsmart-caddy-config
+
+# ===========================================
+# Networks
+# ===========================================
+networks:
+  hrsmart-network:
+    name: hrsmart-network
+    driver: bridge
+

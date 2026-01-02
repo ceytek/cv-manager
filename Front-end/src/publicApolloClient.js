@@ -26,3 +26,4 @@ const publicClient = new ApolloClient({
 
 export default publicClient;
 
+

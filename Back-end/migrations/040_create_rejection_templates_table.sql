@@ -25,3 +25,4 @@ CREATE INDEX IF NOT EXISTS idx_rejection_templates_active ON rejection_templates
 -- Comment
 COMMENT ON TABLE rejection_templates IS 'Stores rejection email templates with variable placeholders like {ad}, {soyad}, {ilan_adi}';
 
+

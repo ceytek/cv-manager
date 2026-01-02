@@ -6,6 +6,14 @@ from datetime import datetime
 from typing import Optional, List
 from strawberry.file_uploads import Upload
 
+
+@strawberry.type
+class GenericResponse:
+    """Generic response type for simple mutations"""
+    success: bool
+    message: Optional[str] = None
+
+
 @strawberry.type
 class StatsType:
     """Lightweight global stats for dashboard"""
@@ -265,10 +273,16 @@ class JobUpdateInput:
 
 @strawberry.type
 class UploadedFileType:
-    """Single uploaded file response"""
+    """Single uploaded file response with parsed candidate info"""
     file_name: str = strawberry.field(name="fileName")
     file_path: str = strawberry.field(name="filePath")
     file_size: int = strawberry.field(name="fileSize")
+    # Parsed candidate info
+    candidate_name: Optional[str] = strawberry.field(name="candidateName", default=None)
+    candidate_email: Optional[str] = strawberry.field(name="candidateEmail", default=None)
+    candidate_phone: Optional[str] = strawberry.field(name="candidatePhone", default=None)
+    candidate_linkedin: Optional[str] = strawberry.field(name="candidateLinkedin", default=None)
+    candidate_github: Optional[str] = strawberry.field(name="candidateGithub", default=None)
 
 
 @strawberry.type
@@ -298,6 +312,8 @@ class CandidateType:
     name: Optional[str]
     email: Optional[str]
     phone: Optional[str]
+    linkedin: Optional[str] = None  # LinkedIn profile URL
+    github: Optional[str] = None    # GitHub profile URL
     cv_file_name: str = strawberry.field(name="cvFileName")
     cv_file_path: str = strawberry.field(name="cvFilePath")
     cv_file_size: int = strawberry.field(name="cvFileSize")
@@ -336,6 +352,13 @@ class ApplicationType:
     # Session flags
     has_interview_session: bool = strawberry.field(name="hasInterviewSession", default=False)
     has_likert_session: bool = strawberry.field(name="hasLikertSession", default=False)
+    interview_session_status: Optional[str] = strawberry.field(name="interviewSessionStatus", default=None)
+    likert_session_status: Optional[str] = strawberry.field(name="likertSessionStatus", default=None)
+    
+    # Rejection fields
+    rejection_note: Optional[str] = strawberry.field(name="rejectionNote", default=None)
+    rejected_at: Optional[str] = strawberry.field(name="rejectedAt", default=None)
+    rejection_template_id: Optional[str] = strawberry.field(name="rejectionTemplateId", default=None)
     
     # Nested data
     job: Optional['JobType'] = None
@@ -688,7 +711,7 @@ class InterviewQuestionType:
     question_order: int = strawberry.field(name="questionOrder")
     time_limit: int = strawberry.field(name="timeLimit", default=120)
     is_ai_generated: bool = strawberry.field(name="isAiGenerated", default=False)
-    created_at: str = strawberry.field(name="createdAt")
+    created_at: Optional[str] = strawberry.field(name="createdAt", default=None)
 
 
 @strawberry.type
@@ -712,10 +735,12 @@ class InterviewTemplateType:
     intro_text: Optional[str] = strawberry.field(name="introText", default=None)
     language: str = "tr"
     duration_per_question: int = strawberry.field(name="durationPerQuestion", default=120)
+    use_global_timer: bool = strawberry.field(name="useGlobalTimer", default=False)
+    total_duration: Optional[int] = strawberry.field(name="totalDuration", default=None)
     is_active: bool = strawberry.field(name="isActive", default=True)
     question_count: int = strawberry.field(name="questionCount", default=0)
     questions: List[InterviewQuestionType] = strawberry.field(default_factory=list)
-    created_at: str = strawberry.field(name="createdAt")
+    created_at: Optional[str] = strawberry.field(name="createdAt", default=None)
     updated_at: Optional[str] = strawberry.field(name="updatedAt", default=None)
 
 
@@ -749,6 +774,8 @@ class InterviewTemplateInput:
     intro_text: Optional[str] = strawberry.field(name="introText", default=None)
     language: str = "tr"
     duration_per_question: int = strawberry.field(name="durationPerQuestion", default=120)
+    use_global_timer: bool = strawberry.field(name="useGlobalTimer", default=False)
+    total_duration: Optional[int] = strawberry.field(name="totalDuration", default=None)
     questions: List['InterviewQuestionInput'] = strawberry.field(default_factory=list)
 
 
@@ -805,132 +832,149 @@ class InterviewAnswerResponse:
 
 
 # ============================================
-# Agreement Template Types
+# Agreement Template Types (Re-exported from module)
+# ============================================
+from app.modules.agreement.types import (
+    AgreementTemplateType,
+    AgreementTemplateInput,
+    AgreementTemplateResponse,
+)
+
+
+# ============================================
+# Likert Test Types (Re-exported from module)
+# ============================================
+from app.modules.likert.types import (
+    LikertQuestionType,
+    LikertAnswerType,
+    LikertTemplateType,
+    LikertSessionType,
+    LikertTemplateInput,
+    LikertQuestionInput,
+    CreateLikertSessionInput,
+    LikertAnswerInput,
+    LikertTemplateResponse,
+    LikertSessionResponse,
+)
+
+
+# ============================================
+# Full Session Types for Public Access (Candidates)
 # ============================================
 
 @strawberry.type
-class AgreementTemplateType:
-    """Agreement template type"""
+class InterviewCandidateType:
+    """Simplified candidate type for interview page"""
     id: str
     name: str
-    content: str
-    is_active: bool = strawberry.field(name="isActive", default=True)
-    creator_name: Optional[str] = strawberry.field(name="creatorName", default=None)
-    created_at: str = strawberry.field(name="createdAt")
-    updated_at: Optional[str] = strawberry.field(name="updatedAt", default=None)
-
-
-@strawberry.input
-class AgreementTemplateInput:
-    """Input for creating/updating agreement template"""
-    name: str
-    content: str
-    is_active: bool = strawberry.field(name="isActive", default=True)
+    cv_photo_path: Optional[str] = strawberry.field(name="cvPhotoPath", default=None)
+    cv_language: Optional[str] = strawberry.field(name="cvLanguage", default=None)
 
 
 @strawberry.type
-class AgreementTemplateResponse:
-    """Response for agreement template mutations"""
-    success: bool
-    message: Optional[str] = None
-    template: Optional[AgreementTemplateType] = None
-
-
-# ============================================
-# Likert Test Types
-# ============================================
-
-@strawberry.type
-class LikertQuestionType:
-    """Likert question type"""
+class InterviewJobType:
+    """Job type with interview-specific fields"""
     id: str
-    question_text: str = strawberry.field(name="questionText")
-    question_order: int = strawberry.field(name="questionOrder")
-    is_reverse_scored: bool = strawberry.field(name="isReverseScored", default=False)
+    title: str
+    description: Optional[str] = None
+    description_plain: Optional[str] = strawberry.field(name="descriptionPlain", default=None)
+    requirements: Optional[str] = None
+    requirements_plain: Optional[str] = strawberry.field(name="requirementsPlain", default=None)
+    location: Optional[str] = None
+    remote_policy: Optional[str] = strawberry.field(name="remotePolicy", default=None)
+    employment_type: Optional[str] = strawberry.field(name="employmentType", default=None)
+    experience_level: Optional[str] = strawberry.field(name="experienceLevel", default=None)
+    interview_enabled: bool = strawberry.field(name="interviewEnabled", default=False)
+    interview_duration_per_question: int = strawberry.field(name="interviewDurationPerQuestion", default=2)
+    interview_total_questions: int = strawberry.field(name="interviewTotalQuestions", default=5)
+    interview_deadline_hours: int = strawberry.field(name="interviewDeadlineHours", default=72)
+    interview_intro_text: Optional[str] = strawberry.field(name="interviewIntroText", default=None)
+    interview_language: str = strawberry.field(name="interviewLanguage", default="tr")
+    use_global_timer: bool = strawberry.field(name="useGlobalTimer", default=False)
+    total_duration: Optional[int] = strawberry.field(name="totalDuration", default=None)
+    agreement_template_id: Optional[str] = strawberry.field(name="agreementTemplateId", default=None)
+    agreement_template: Optional[AgreementTemplateType] = strawberry.field(name="agreementTemplate", default=None)
+    department: Optional['DepartmentType'] = None
 
 
 @strawberry.type
-class LikertAnswerType:
-    """Likert answer type"""
+class InterviewSessionFullType:
+    """Full interview session type with nested objects for candidate view"""
+    id: str
+    job_id: str = strawberry.field(name="jobId")
+    candidate_id: str = strawberry.field(name="candidateId")
+    application_id: Optional[str] = strawberry.field(name="applicationId", default=None)
+    token: str
+    status: str
+    expires_at: Optional[str] = strawberry.field(name="expiresAt", default=None)
+    started_at: Optional[str] = strawberry.field(name="startedAt", default=None)
+    completed_at: Optional[str] = strawberry.field(name="completedAt", default=None)
+    invitation_sent_at: Optional[str] = strawberry.field(name="invitationSentAt", default=None)
+    invitation_email: Optional[str] = strawberry.field(name="invitationEmail", default=None)
+    created_at: Optional[str] = strawberry.field(name="createdAt", default=None)
+    agreement_accepted_at: Optional[str] = strawberry.field(name="agreementAcceptedAt", default=None)
+    job: Optional[InterviewJobType] = None
+    candidate: Optional[InterviewCandidateType] = None
+    questions: List[InterviewQuestionType] = strawberry.field(default_factory=list)
+
+
+# Likert Full Session Types (Re-exported from module)
+from app.modules.likert.types import (
+    LikertJobType,
+    LikertCandidateType,
+    LikertSessionFullType,
+    LikertAnswerWithQuestionType,
+    LikertSessionWithAnswersType,
+)
+
+
+@strawberry.type
+class InterviewAnswerWithQuestionType:
+    """Interview answer with question details"""
     id: str
     question_id: str = strawberry.field(name="questionId")
-    score: int
+    question_text: str = strawberry.field(name="questionText")
+    question_order: int = strawberry.field(name="questionOrder")
+    answer_text: Optional[str] = strawberry.field(name="answerText", default=None)
+    created_at: Optional[str] = strawberry.field(name="createdAt", default=None)
 
 
 @strawberry.type
-class LikertTemplateType:
-    """Likert template type"""
-    id: str
-    name: str
-    description: Optional[str] = None
-    scale_type: int = strawberry.field(name="scaleType", default=5)
-    scale_labels: Optional[List[str]] = strawberry.field(name="scaleLabels", default=None)
-    language: str = "tr"
-    is_active: bool = strawberry.field(name="isActive", default=True)
-    question_count: int = strawberry.field(name="questionCount", default=0)
-    questions: List[LikertQuestionType] = strawberry.field(default_factory=list)
-    created_at: str = strawberry.field(name="createdAt")
-    updated_at: Optional[str] = strawberry.field(name="updatedAt", default=None)
-
-
-@strawberry.type
-class LikertSessionType:
-    """Likert session type"""
+class InterviewSessionWithAnswersType:
+    """Interview session with answers for HR view"""
     id: str
     token: str
     status: str
-    expires_at: str = strawberry.field(name="expiresAt")
+    expires_at: Optional[str] = strawberry.field(name="expiresAt", default=None)
     started_at: Optional[str] = strawberry.field(name="startedAt", default=None)
     completed_at: Optional[str] = strawberry.field(name="completedAt", default=None)
-    total_score: Optional[int] = strawberry.field(name="totalScore", default=None)
-    created_at: str = strawberry.field(name="createdAt")
-    template: Optional[LikertTemplateType] = None
-    job: Optional['JobType'] = None
-    candidate: Optional['CandidateType'] = None
-    answers: List[LikertAnswerType] = strawberry.field(default_factory=list)
+    invitation_sent_at: Optional[str] = strawberry.field(name="invitationSentAt", default=None)
+    created_at: Optional[str] = strawberry.field(name="createdAt", default=None)
+    template: Optional["InterviewTemplateType"] = None
+    job: Optional["InterviewJobType"] = None
+    candidate: Optional["InterviewCandidateType"] = None
+    answers: List[InterviewAnswerWithQuestionType] = strawberry.field(default_factory=list)
 
 
-@strawberry.input
-class LikertTemplateInput:
-    """Input for creating/updating likert template"""
-    name: str
-    description: Optional[str] = None
-    scale_type: int = strawberry.field(name="scaleType", default=5)
-    scale_labels: Optional[List[str]] = strawberry.field(name="scaleLabels", default=None)
-    language: str = "tr"
-    questions: List['LikertQuestionInput'] = strawberry.field(default_factory=list)
+# ============================================
+# Rejection Template Types (Re-exported from module)
+# ============================================
+from app.modules.rejection.types import (
+    RejectionTemplateType,
+    RejectionTemplateInput,
+    RejectionTemplateResponse,
+)
 
 
-@strawberry.input
-class LikertQuestionInput:
-    """Input for likert question"""
-    question_text: str = strawberry.field(name="questionText")
-    question_order: int = strawberry.field(name="questionOrder", default=1)
-    is_reverse_scored: bool = strawberry.field(name="isReverseScored", default=False)
-
-
-@strawberry.input
-class CreateLikertSessionInput:
-    """Input for creating likert session"""
-    job_id: str = strawberry.field(name="jobId")
-    candidate_id: str = strawberry.field(name="candidateId")
-    application_id: str = strawberry.field(name="applicationId")
-
-
-@strawberry.type
-class LikertTemplateResponse:
-    """Response for likert template mutations"""
-    success: bool
-    message: Optional[str] = None
-    template: Optional[LikertTemplateType] = None
-
-
-@strawberry.type
-class LikertSessionResponse:
-    """Response for likert session mutations"""
-    success: bool
-    message: Optional[str] = None
-    likert_link: Optional[str] = strawberry.field(name="likertLink", default=None)
-    session: Optional[LikertSessionType] = None
-
+# ============================================
+# History Types (Re-exported from module)
+# ============================================
+from app.modules.history.types import (
+    ActionTypeType,
+    ApplicationHistoryType,
+    LastStatusType,
+    CreateHistoryEntryInput,
+    HistoryResponse,
+    HistoryListResponse,
+)
 

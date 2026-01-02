@@ -12,10 +12,10 @@ import JobsOverview from './JobsOverview';
 import JobDetails from './JobDetails';
 import { DEPARTMENTS_QUERY } from '../../graphql/departments';
 
-const CVEvaluationPage = ({ initialView = 'welcome' }) => {
+const CVEvaluationPage = ({ initialView = 'welcome', initialJob = null }) => {
   const { t } = useTranslation();
   const [currentView, setCurrentView] = useState(initialView); // 'welcome' | 'analysis' | 'jobs' | 'job-details'
-  const [selectedJob, setSelectedJob] = useState(null);
+  const [selectedJob, setSelectedJob] = useState(initialJob);
   
   // Fetch departments for job detail modal
   const { data: departmentsData } = useQuery(DEPARTMENTS_QUERY, {
@@ -28,7 +28,12 @@ const CVEvaluationPage = ({ initialView = 'welcome' }) => {
     if (initialView && ['welcome', 'analysis', 'jobs', 'job-details'].includes(initialView)) {
       setCurrentView(initialView);
     }
-  }, [initialView]);
+    // If initialJob is provided, set it and go to job-details view
+    if (initialJob) {
+      setSelectedJob(initialJob);
+      setCurrentView('job-details');
+    }
+  }, [initialView, initialJob]);
 
   // Show analysis page
   if (currentView === 'analysis') {

@@ -1,7 +1,7 @@
 .dashboard-layout {
   display: flex;
   min-height: 100vh;
-  background-color: #F3F4F6;
+  background-color: #FFFFFF;
 }
 
 /* Sidebar */
@@ -145,41 +145,56 @@
   border: 1px solid #E5E7EB;
   background: white;
   color: #374151;
-
-/* Submenu under Settings */
-.submenu {
-  margin-left: 12px;
-  margin-top: 6px;
-  padding-left: 8px;
-  border-left: 2px solid #e6eef9;
-}
-
-.submenu-item {
-  display: block;
-  width: 100%;
-  text-align: left;
-  background: transparent;
-  border: none;
-  color: #445366;
-  padding: 8px 10px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.submenu-item:hover {
-  background: #f3f7fc;
-}
-
-.submenu-item.active {
-  background: #eaf3ff;
-  color: #0a66c2;
-  font-weight: 600;
-}
   border-radius: 8px;
   font-size: 14px;
   cursor: pointer;
   transition: all 0.2s;
+}
+
+/* Submenu under Settings */
+.submenu {
+  margin-left: 20px;
+  margin-top: 8px;
+  margin-bottom: 8px;
+  background: white;
+  border: 1px solid #E5E7EB;
+  border-radius: 12px;
+  padding: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.submenu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: #374151;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 400;
+  transition: all 0.15s ease;
+}
+
+.submenu-item:hover {
+  background: #F9FAFB;
+}
+
+.submenu-item.active {
+  background: #F3F4F6;
+  color: #111827;
+  font-weight: 500;
+}
+
+.submenu-item.active::after {
+  content: '›';
+  font-size: 18px;
+  font-weight: 600;
+  color: #6B7280;
 }
 
 .sidebar-logout:hover {
@@ -194,12 +209,17 @@
   padding: 24px;
 }
 
-/* Topbar */
+/* Topbar - Connected to sidebar header */
 .topbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  background: white;
+  height: 88px;
+  padding: 0 24px;
+  margin: -24px -24px 24px -24px;
+  border-bottom: 1px solid #E5E7EB;
+  box-sizing: border-box;
 }
 
 .topbar-left {
@@ -243,20 +263,98 @@
   border-color: #D1D5DB;
 }
 
-.logout-btn {
-  padding: 10px 20px;
-  background-color: #10B981;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.2s;
+/* User Menu in Header */
+.user-menu-container {
+  position: relative;
 }
 
-.logout-btn:hover {
-  background-color: #059669;
+.user-menu-trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  background: white;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.user-menu-trigger:hover {
+  background: #F9FAFB;
+  border-color: #D1D5DB;
+}
+
+.user-avatar-small {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.user-menu-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+}
+
+.user-menu-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1F2937;
+}
+
+.user-menu-role {
+  font-size: 11px;
+  color: #6B7280;
+}
+
+.user-menu-chevron {
+  color: #6B7280;
+  transition: transform 0.2s;
+}
+
+.user-menu-chevron.open {
+  transform: rotate(180deg);
+}
+
+.user-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 160px;
+  background: white;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  padding: 6px;
+}
+
+.user-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #374151;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.user-dropdown-item:hover {
+  background: #F3F4F6;
 }
 
 /* Stats grid */

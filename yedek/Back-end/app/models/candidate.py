@@ -36,6 +36,8 @@ class Candidate(Base):
     name = Column(String(255), nullable=True, index=True)
     email = Column(String(255), nullable=True, index=True)
     phone = Column(String(50), nullable=True)
+    linkedin = Column(String(500), nullable=True)  # LinkedIn profile URL
+    github = Column(String(500), nullable=True)    # GitHub profile URL
     
     # CV File Information
     cv_file_name = Column(String(500), nullable=False)

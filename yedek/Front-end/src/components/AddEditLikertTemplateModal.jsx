@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery } from '@apollo/client/react';
-import { X, Plus, Trash2, Globe, ListChecks } from 'lucide-react';
+import { X, Plus, Trash2, Globe, ListChecks, Clock } from 'lucide-react';
 import { CREATE_LIKERT_TEMPLATE, UPDATE_LIKERT_TEMPLATE, GET_LIKERT_TEMPLATE } from '../graphql/likert';
 
 const defaultScaleLabels = {
@@ -22,6 +22,8 @@ const AddEditLikertTemplateModal = ({ isOpen, onClose, onSuccess, template }) =>
   const [scaleType, setScaleType] = useState(5);
   const [scaleLabels, setScaleLabels] = useState(defaultScaleLabels[5]);
   const [language, setLanguage] = useState('tr');
+  const [hasTimeLimit, setHasTimeLimit] = useState(false);
+  const [timeLimit, setTimeLimit] = useState(30 * 60); // Default 30 minutes in seconds
   const [questions, setQuestions] = useState([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -44,6 +46,8 @@ const AddEditLikertTemplateModal = ({ isOpen, onClose, onSuccess, template }) =>
       setScaleType(st);
       setScaleLabels(t.scaleLabels || defaultScaleLabels[st]);
       setLanguage(t.language || 'tr');
+      setHasTimeLimit(!!t.timeLimit);
+      setTimeLimit(t.timeLimit || 30 * 60);
       setQuestions(t.questions?.map(q => ({
         id: q.id,
         text: q.questionText,
@@ -51,7 +55,7 @@ const AddEditLikertTemplateModal = ({ isOpen, onClose, onSuccess, template }) =>
         isReverseScored: q.isReverseScored || false,
       })) || []);
     } else if (!template) {
-      setName(''); setDescription(''); setScaleType(5); setScaleLabels(defaultScaleLabels[5]); setLanguage('tr'); setQuestions([]);
+      setName(''); setDescription(''); setScaleType(5); setScaleLabels(defaultScaleLabels[5]); setLanguage('tr'); setHasTimeLimit(false); setTimeLimit(30 * 60); setQuestions([]);
     }
   }, [templateData, template]);
   
@@ -97,7 +101,13 @@ const AddEditLikertTemplateModal = ({ isOpen, onClose, onSuccess, template }) =>
         scaleType: parseInt(scaleType),
         scaleLabels: scaleLabels,
         language,
-        questions: validQuestions.map((q, i) => ({ questionText: q.text.trim(), questionOrder: i + 1, isReverseScored: q.isReverseScored || false })),
+        timeLimit: hasTimeLimit ? parseInt(timeLimit) : null,
+        questions: validQuestions.map((q, i) => ({ 
+          id: q.id || null,  // Include existing question ID for updates
+          questionText: q.text.trim(), 
+          questionOrder: i + 1, 
+          isReverseScored: q.isReverseScored || false 
+        })),
       };
 
       if (isEdit) {
@@ -107,6 +117,7 @@ const AddEditLikertTemplateModal = ({ isOpen, onClose, onSuccess, template }) =>
       }
       onSuccess?.();
     } catch (err) {
+      console.error('[LikertTemplate] Error:', err);
       setError(err.message);
     } finally {
       setSaving(false);
@@ -245,6 +256,53 @@ const AddEditLikertTemplateModal = ({ isOpen, onClose, onSuccess, template }) =>
                 ))}
               </div>
             </div>
+          </div>
+
+          {/* Time Limit Settings */}
+          <div style={{ marginBottom: '20px', padding: '16px', background: '#FEF3C7', borderRadius: '12px', border: '1px solid #FDE68A' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: hasTimeLimit ? '16px' : '0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Clock size={18} color="#D97706" />
+                <span style={{ fontWeight: '600', fontSize: '14px', color: '#92400E' }}>
+                  {language === 'en' ? 'Time Limit' : 'Süre Sınırı'}
+                </span>
+              </div>
+              <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={hasTimeLimit}
+                  onChange={(e) => setHasTimeLimit(e.target.checked)}
+                  style={{ marginRight: '8px', width: '18px', height: '18px', accentColor: '#D97706' }}
+                />
+                <span style={{ fontSize: '13px', color: '#78350F' }}>
+                  {language === 'en' ? 'Enable time limit' : 'Süre sınırı aktif'}
+                </span>
+              </label>
+            </div>
+            
+            {hasTimeLimit && (
+              <div>
+                <p style={{ fontSize: '12px', color: '#92400E', marginBottom: '12px' }}>
+                  {language === 'en' 
+                    ? 'Candidate must complete the test within this time. If time runs out, only completed answers will be saved.'
+                    : 'Aday testi bu süre içinde tamamlamalı. Süre dolarsa sadece tamamlanan cevaplar kaydedilir.'}
+                </p>
+                <select 
+                  value={timeLimit} 
+                  onChange={(e) => setTimeLimit(parseInt(e.target.value))} 
+                  className="text-input" 
+                  style={{ width: '100%' }}
+                >
+                  <option value={5 * 60}>5 {language === 'en' ? 'minutes' : 'dakika'}</option>
+                  <option value={10 * 60}>10 {language === 'en' ? 'minutes' : 'dakika'}</option>
+                  <option value={15 * 60}>15 {language === 'en' ? 'minutes' : 'dakika'}</option>
+                  <option value={20 * 60}>20 {language === 'en' ? 'minutes' : 'dakika'}</option>
+                  <option value={30 * 60}>30 {language === 'en' ? 'minutes' : 'dakika'}</option>
+                  <option value={45 * 60}>45 {language === 'en' ? 'minutes' : 'dakika'}</option>
+                  <option value={60 * 60}>60 {language === 'en' ? 'minutes' : 'dakika'}</option>
+                </select>
+              </div>
+            )}
           </div>
 
           {/* Questions */}

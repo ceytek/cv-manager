@@ -12,6 +12,8 @@ export const GET_INTERVIEW_TEMPLATES = gql`
       introText
       language
       durationPerQuestion
+      useGlobalTimer
+      totalDuration
       isActive
       questionCount
       createdAt
@@ -29,6 +31,8 @@ export const GET_INTERVIEW_TEMPLATE = gql`
       introText
       language
       durationPerQuestion
+      useGlobalTimer
+      totalDuration
       isActive
       questionCount
       questions {
@@ -55,6 +59,8 @@ export const CREATE_INTERVIEW_TEMPLATE = gql`
         introText
         language
         durationPerQuestion
+        useGlobalTimer
+        totalDuration
         isActive
         questionCount
       }
@@ -74,6 +80,8 @@ export const UPDATE_INTERVIEW_TEMPLATE = gql`
         introText
         language
         durationPerQuestion
+        useGlobalTimer
+        totalDuration
         isActive
         questionCount
       }
@@ -102,4 +110,5 @@ export const TOGGLE_INTERVIEW_TEMPLATE = gql`
     }
   }
 `;
+
 

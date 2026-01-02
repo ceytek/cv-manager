@@ -94,6 +94,11 @@ class Application(Base):
     reviewed_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     notes = Column(Text, nullable=True, comment="Reviewer notes")
     
+    # Rejection data
+    rejection_note = Column(Text, nullable=True, comment="Internal note for rejection reason")
+    rejected_at = Column(DateTime, nullable=True, comment="When application was rejected")
+    rejection_template_id = Column(String(36), nullable=True, comment="Template used for rejection email")
+    
     # Batch tracking
     batch_number = Column(String(20), nullable=True, index=True)
     
@@ -107,6 +112,7 @@ class Application(Base):
     reviewer = relationship("User", foreign_keys=[reviewed_by])
     interview_session = relationship("InterviewSession", back_populates="application", uselist=False)
     likert_session = relationship("LikertSession", back_populates="application", uselist=False)
+    history_entries = relationship("ApplicationHistory", back_populates="application", cascade="all, delete-orphan", order_by="ApplicationHistory.created_at.desc()")
     
     # Constraints
     __table_args__ = (

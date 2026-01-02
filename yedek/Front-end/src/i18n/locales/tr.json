@@ -18,7 +18,13 @@
     "retry": "Tekrar Dene",
     "showMore": "Daha Fazla",
     "showLess": "Daha Az",
-    "submitting": "Gönderiliyor..."
+    "submitting": "Gönderiliyor...",
+    "active": "Aktif",
+    "inactive": "Pasif",
+    "minutes": "dk",
+    "deleting": "Siliniyor...",
+    "show": "Göster",
+    "hide": "Gizle"
   },
   "header": {
     "welcome": "Hoş Geldiniz, {{name}}!",
@@ -35,9 +41,16 @@
     "cvManagement": "CV Yönetimi",
     "cvEvaluation": "CV Değerlendirme",
     "usageHistory": "Kullanım Geçmişi",
+    "templates": "Şablonlar",
     "settings": "Ayarlar",
     "newJobButton": "Yeni İş İlanı Oluştur",
     "userRole": "İK Uzmanı"
+  },
+  "templates": {
+    "interviewTemplates": "Mülakat Şablonları",
+    "likertTemplates": "Likert Test Şablonları",
+    "agreementTemplates": "Sözleşme Şablonları",
+    "rejectionTemplates": "Red Mesajları"
   },
   "stats": {
     "cvCount": "Sistemdeki CV Sayısı",
@@ -93,6 +106,7 @@
     "questionCount": "Soru Sayısı",
     "questions": "soru",
     "durationPerQuestion": "Soru Başına Süre",
+    "totalDuration": "Genel Süre",
     "deleteConfirmTitle": "Şablonu Sil",
     "deleteConfirmMessage": "şablonunu silmek istediğinize emin misiniz?"
   },
@@ -126,7 +140,9 @@
     "days": "gün",
     "agreementTemplate": "Gizlilik Sözleşmesi",
     "noAgreement": "Sözleşme yok",
-    "agreementHint": "Aday mülakata başlamadan önce onaylaması gereken sözleşme"
+    "agreementHint": "Aday mülakata başlamadan önce onaylaması gereken sözleşme",
+    "totalDuration": "Genel Süre",
+    "totalQuestionsDuration": "Soruların Toplam Süresi"
   },
   "likertTemplates": {
     "title": "Likert Test Şablonları",
@@ -293,10 +309,12 @@
     "locationScore": "Lokasyon Skoru",
     "unknown": "Bilinmiyor",
     "languageLevel": "Yabancı Dil Seviyesi",
-    "language": "Dil"
+    "language": "Dil",
+    "sendRejection": "Red Mesajı Gönder"
   },
   "jobDetails": {
     "backToJobs": "İş İlanlarına Geri Dön",
+    "viewDetail": "Detay Görüntüle",
     "location": "Lokasyon",
     "employmentType": "Çalışma Türü",
     "department": "Departman",
@@ -316,7 +334,120 @@
     "viewCV": "CV'yi Görüntüle",
     "previous": "Önceki",
     "next": "Sonraki",
-    "noAnalysisFound": "Analiz bulunamadı"
+    "noAnalysisFound": "Analiz bulunamadı",
+    "lastStatus": "SON DURUM",
+    "sessionStatus": {
+      "interviewCompleted": "Mülakat Tamamlandı",
+      "likertCompleted": "Likert Tamamlandı",
+      "interviewInProgress": "Mülakat Devam Ediyor",
+      "likertInProgress": "Likert Devam Ediyor",
+      "interviewSent": "Mülakat Gönderildi",
+      "likertSent": "Likert Gönderildi",
+      "interviewExpired": "Mülakat Süresi Doldu",
+      "likertExpired": "Likert Süresi Doldu",
+      "cvAnalyzed": "CV Analiz Edildi",
+      "rejected": "Reddedildi"
+    },
+    "viewHistory": "Geçmişi Görüntüle",
+    "downloadCV": "CV İndir"
+  },
+  "candidateHistory": {
+    "title": "Aday Geçmişi",
+    "timeline": "Zaman Çizelgesi",
+    "cvUploaded": "CV Yüklendi",
+    "cvAnalyzed": "CV Analiz Edildi",
+    "interviewSent": "Mülakat Daveti Gönderildi",
+    "interviewStarted": "Mülakat Başladı",
+    "interviewCompleted": "Mülakat Tamamlandı",
+    "interviewExpired": "Mülakat Süresi Doldu",
+    "likertSent": "Likert Testi Gönderildi",
+    "likertStarted": "Likert Testi Başladı",
+    "likertCompleted": "Likert Testi Tamamlandı",
+    "likertExpired": "Likert Testi Süresi Doldu",
+    "rejected": "Başvuru Reddedildi",
+    "noHistory": "Henüz geçmiş kaydı bulunmuyor"
+  },
+  "rejection": {
+    "title": "Red Mesajı Gönder",
+    "selectTemplate": "Şablon Seçin",
+    "preview": "Mesaj Önizleme",
+    "internalNote": "Dahili Not",
+    "sendButton": "Red Mesajı Gönder",
+    "sent": "Red Mesajı Gönderildi",
+    "info": "Bu mesaj adayın e-posta adresine gönderilecektir. Gönderim sonrası adayın durumu \"Reddedildi\" olarak işaretlenecek ve geçmişe kaydedilecektir."
+  },
+  "rejectionModal": {
+    "pleaseSelectTemplate": "Lütfen bir şablon seçin",
+    "warningMessage": "Bu adaya red mesajı gönderilecek ve başvuru durumu \"Reddedildi\" olarak güncellenecek.",
+    "noTemplatesFound": "Red mesajı şablonu bulunamadı",
+    "createTemplateHint": "Lütfen önce Şablonlar → Red Mesajları menüsünden bir şablon oluşturun.",
+    "selectTemplatePlaceholder": "-- Şablon seçin --",
+    "onlyYouWillSee": "Sadece siz göreceksiniz",
+    "notePlaceholder": "Red sebebi, görüşme notları veya ileride referans için not ekleyebilirsiniz...",
+    "sending": "Gönderiliyor...",
+    "emailTo": "Kime",
+    "emailSubject": "Konu"
+  },
+  "rejectionTemplates": {
+    "title": "Red Mesajı Şablonları",
+    "subtitle": "Aday red e-postaları için şablonlar oluşturun ve yönetin",
+    "newTemplate": "Yeni Şablon",
+    "noTemplates": "Henüz şablon yok",
+    "createFirst": "İlk red mesajı şablonunuzu oluşturun",
+    "availableVariables": "Kullanılabilir Değişkenler",
+    "subject": "Konu",
+    "contentPreview": "İçerik Önizleme",
+    "edit": "Düzenle",
+    "delete": "Sil",
+    "deleteConfirmTitle": "Şablonu Sil",
+    "deleteConfirmMessage": "Bu şablonu silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
+    "cancel": "İptal",
+    "variables": {
+      "name": "Ad",
+      "surname": "Soyad",
+      "phone": "Telefon",
+      "jobTitle": "İlan Adı"
+    },
+    "modal": {
+      "createTitle": "Yeni Red Mesajı Şablonu",
+      "editTitle": "Şablonu Düzenle",
+      "templateName": "Şablon Adı",
+      "templateNamePlaceholder": "Örn: Standart Red Mesajı",
+      "language": "Dil",
+      "active": "Aktif",
+      "default": "Varsayılan",
+      "emailSubject": "E-posta Konusu",
+      "emailSubjectPlaceholder": "Örn: {ilan_adi} Başvurunuz Hakkında",
+      "emailBody": "E-posta İçeriği",
+      "preview": "Önizleme (Örnek Verilerle)",
+      "dragDropVariables": "Değişkenler",
+      "dragDropHint": "Sürükle-bırak veya tıklayarak ekleyin",
+      "quickAdd": "Hızlı Ekle (İçerik):",
+      "saving": "Kaydediliyor...",
+      "save": "Kaydet",
+      "update": "Güncelle"
+    }
+  },
+  "interviewResults": {
+    "title": "Mülakat Sonuçları",
+    "candidateName": "Aday",
+    "completedAt": "Tamamlanma Tarihi",
+    "totalQuestions": "Toplam Soru",
+    "question": "Soru",
+    "answer": "Cevap",
+    "duration": "Süre",
+    "seconds": "saniye",
+    "noAnswer": "Cevap verilmedi",
+    "notCompleted": "Mülakat henüz tamamlanmadı"
+  },
+  "likertResults": {
+    "title": "Likert Testi Sonuçları",
+    "candidateName": "Aday",
+    "completedAt": "Tamamlanma Tarihi",
+    "totalScore": "Toplam Puan",
+    "question": "Soru",
+    "answer": "Cevap",
+    "notCompleted": "Likert testi henüz tamamlanmadı"
   },
   "departments": {
     "title": "Departmanlar",
@@ -365,7 +496,10 @@
       "title": "CV Upload",
       "description": "Toplu ya da tekil CV yükleyin; sistem otomatik olarak işler.",
       "button": "CV Yüklemeye Git"
-    }
+    },
+    "uploadedInSession": "Bu Oturumda Yüklenenler",
+    "clearList": "Listeyi Temizle",
+    "download": "İndir"
   },
   "cvUploader": {
     "uploadComplete": "Yükleme Tamamlandı!",
@@ -433,7 +567,16 @@
     "error": "Hata: {{message}}",
     "noCV": "Henüz CV yüklenmemiş",
     "uploadToStart": "Yukarıdan CV yükleyerek başlayın",
-    "compare": "Karşılaştır"
+    "compare": "Karşılaştır",
+    "contactCard": {
+      "title": "İletişim Kartı",
+      "email": "E-posta",
+      "phone": "Telefon",
+      "linkedin": "LinkedIn",
+      "github": "GitHub",
+      "noContact": "İletişim bilgisi bulunamadı",
+      "unnamedCandidate": "İsimsiz Aday"
+    }
   },
   "jobsPage": {
     "title": "İş İlanları Yönetimi",

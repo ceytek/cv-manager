@@ -75,7 +75,20 @@
     "viewDetails": "Detayları Görüntüle",
     "noDescription": "Açıklama yok",
     "unknownDepartment": "Bilinmiyor",
-    "locale": "tr-TR"
+    "locale": "tr-TR",
+    "jobsWidget": "Akışlar",
+    "candidates": "aday",
+    "noJobs": "Henüz iş ilanı yok",
+    "jobTitle": "İş İlanı",
+    "applicants": "Başvuran",
+    "showing": "Gösterilen",
+    "recentActivities": "Son İşlemler",
+    "activity": "İşlem",
+    "time": "Zaman",
+    "noActivities": "Henüz işlem yok",
+    "minutesAgo": "dk önce",
+    "hoursAgo": "saat önce",
+    "daysAgo": "gün önce"
   },
   "settings": {
     "changePassword": "Şifre Değiştir",

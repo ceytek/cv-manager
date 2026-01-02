@@ -167,3 +167,4 @@ const CameraTestScreen = ({ language = 'tr', onReady, onBack }) => {
 
 export default CameraTestScreen;
 
+

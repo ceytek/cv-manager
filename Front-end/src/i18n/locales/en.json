@@ -75,7 +75,20 @@
     "viewDetails": "View Details",
     "noDescription": "No description",
     "unknownDepartment": "Unknown",
-    "locale": "en-US"
+    "locale": "en-US",
+    "jobsWidget": "Job Flows",
+    "candidates": "candidates",
+    "noJobs": "No job postings yet",
+    "jobTitle": "Job Title",
+    "applicants": "Applicants",
+    "showing": "Showing",
+    "recentActivities": "Recent Activities",
+    "activity": "Activity",
+    "time": "Time",
+    "noActivities": "No activities yet",
+    "minutesAgo": "min ago",
+    "hoursAgo": "hours ago",
+    "daysAgo": "days ago"
   },
   "settings": {
     "changePassword": "Change Password",

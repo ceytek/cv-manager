@@ -39,3 +39,4 @@ const CompletedScreen = ({ job, language = 'tr' }) => {
 
 export default CompletedScreen;
 
+

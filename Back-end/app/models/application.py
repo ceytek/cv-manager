@@ -112,6 +112,7 @@ class Application(Base):
     reviewer = relationship("User", foreign_keys=[reviewed_by])
     interview_session = relationship("InterviewSession", back_populates="application", uselist=False)
     likert_session = relationship("LikertSession", back_populates="application", uselist=False)
+    history_entries = relationship("ApplicationHistory", back_populates="application", cascade="all, delete-orphan", order_by="ApplicationHistory.created_at.desc()")
     
     # Constraints
     __table_args__ = (

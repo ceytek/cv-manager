@@ -832,143 +832,30 @@ class InterviewAnswerResponse:
 
 
 # ============================================
-# Agreement Template Types
+# Agreement Template Types (Re-exported from module)
 # ============================================
-
-@strawberry.type
-class AgreementTemplateType:
-    """Agreement template type"""
-    id: str
-    name: str
-    content: str
-    is_active: bool = strawberry.field(name="isActive", default=True)
-    creator_name: Optional[str] = strawberry.field(name="creatorName", default=None)
-    created_at: str = strawberry.field(name="createdAt")
-    updated_at: Optional[str] = strawberry.field(name="updatedAt", default=None)
-
-
-@strawberry.input
-class AgreementTemplateInput:
-    """Input for creating/updating agreement template"""
-    name: str
-    content: str
-    is_active: bool = strawberry.field(name="isActive", default=True)
-
-
-@strawberry.type
-class AgreementTemplateResponse:
-    """Response for agreement template mutations"""
-    success: bool
-    message: Optional[str] = None
-    template: Optional[AgreementTemplateType] = None
+from app.modules.agreement.types import (
+    AgreementTemplateType,
+    AgreementTemplateInput,
+    AgreementTemplateResponse,
+)
 
 
 # ============================================
-# Likert Test Types
+# Likert Test Types (Re-exported from module)
 # ============================================
-
-@strawberry.type
-class LikertQuestionType:
-    """Likert question type"""
-    id: str
-    question_text: str = strawberry.field(name="questionText")
-    question_order: int = strawberry.field(name="questionOrder")
-    is_reverse_scored: bool = strawberry.field(name="isReverseScored", default=False)
-
-
-@strawberry.type
-class LikertAnswerType:
-    """Likert answer type"""
-    id: str
-    question_id: str = strawberry.field(name="questionId")
-    score: int
-
-
-@strawberry.type
-class LikertTemplateType:
-    """Likert template type"""
-    id: str
-    name: str
-    description: Optional[str] = None
-    scale_type: int = strawberry.field(name="scaleType", default=5)
-    scale_labels: Optional[List[str]] = strawberry.field(name="scaleLabels", default=None)
-    language: str = "tr"
-    is_active: bool = strawberry.field(name="isActive", default=True)
-    time_limit: Optional[int] = strawberry.field(name="timeLimit", default=None)  # Total time in seconds
-    question_count: int = strawberry.field(name="questionCount", default=0)
-    questions: List[LikertQuestionType] = strawberry.field(default_factory=list)
-    created_at: Optional[str] = strawberry.field(name="createdAt", default=None)
-    updated_at: Optional[str] = strawberry.field(name="updatedAt", default=None)
-
-
-@strawberry.type
-class LikertSessionType:
-    """Likert session type"""
-    id: str
-    token: str
-    status: str
-    expires_at: str = strawberry.field(name="expiresAt")
-    started_at: Optional[str] = strawberry.field(name="startedAt", default=None)
-    completed_at: Optional[str] = strawberry.field(name="completedAt", default=None)
-    total_score: Optional[int] = strawberry.field(name="totalScore", default=None)
-    created_at: str = strawberry.field(name="createdAt")
-    template: Optional[LikertTemplateType] = None
-    job: Optional['JobType'] = None
-    candidate: Optional['CandidateType'] = None
-    answers: List[LikertAnswerType] = strawberry.field(default_factory=list)
-
-
-@strawberry.input
-class LikertTemplateInput:
-    """Input for creating/updating likert template"""
-    name: str
-    description: Optional[str] = None
-    scale_type: int = strawberry.field(name="scaleType", default=5)
-    scale_labels: Optional[List[str]] = strawberry.field(name="scaleLabels", default=None)
-    language: str = "tr"
-    time_limit: Optional[int] = strawberry.field(name="timeLimit", default=None)  # Total time in seconds
-    questions: List['LikertQuestionInput'] = strawberry.field(default_factory=list)
-
-
-@strawberry.input
-class LikertQuestionInput:
-    """Input for likert question"""
-    id: Optional[str] = None  # Optional - only for updates
-    question_text: str = strawberry.field(name="questionText")
-    question_order: int = strawberry.field(name="questionOrder", default=1)
-    is_reverse_scored: bool = strawberry.field(name="isReverseScored", default=False)
-
-
-@strawberry.input
-class CreateLikertSessionInput:
-    """Input for creating likert session"""
-    job_id: str = strawberry.field(name="jobId")
-    candidate_id: str = strawberry.field(name="candidateId")
-    application_id: str = strawberry.field(name="applicationId")
-
-
-@strawberry.input
-class LikertAnswerInput:
-    """Input for likert answer submission"""
-    question_id: str = strawberry.field(name="questionId")
-    value: int
-
-
-@strawberry.type
-class LikertTemplateResponse:
-    """Response for likert template mutations"""
-    success: bool
-    message: Optional[str] = None
-    template: Optional[LikertTemplateType] = None
-
-
-@strawberry.type
-class LikertSessionResponse:
-    """Response for likert session mutations"""
-    success: bool
-    message: Optional[str] = None
-    likert_link: Optional[str] = strawberry.field(name="likertLink", default=None)
-    session: Optional[LikertSessionType] = None
+from app.modules.likert.types import (
+    LikertQuestionType,
+    LikertAnswerType,
+    LikertTemplateType,
+    LikertSessionType,
+    LikertTemplateInput,
+    LikertQuestionInput,
+    CreateLikertSessionInput,
+    LikertAnswerInput,
+    LikertTemplateResponse,
+    LikertSessionResponse,
+)
 
 
 # ============================================
@@ -1031,67 +918,14 @@ class InterviewSessionFullType:
     questions: List[InterviewQuestionType] = strawberry.field(default_factory=list)
 
 
-@strawberry.type
-class LikertJobType:
-    """Job info for Likert session"""
-    id: str
-    title: str
-    description: Optional[str] = None
-    description_plain: Optional[str] = strawberry.field(name="descriptionPlain", default=None)
-    location: Optional[str] = None
-    agreement_template_id: Optional[str] = strawberry.field(name="agreementTemplateId", default=None)
-    agreement_template: Optional["AgreementTemplateType"] = strawberry.field(name="agreementTemplate", default=None)
-
-
-@strawberry.type
-class LikertCandidateType:
-    """Candidate info for Likert session"""
-    id: str
-    name: str
-    cv_photo_path: Optional[str] = strawberry.field(name="cvPhotoPath", default=None)
-    email: Optional[str] = None
-
-
-@strawberry.type
-class LikertSessionFullType:
-    """Full likert session type with nested objects for candidate view"""
-    id: str
-    token: str
-    status: str
-    expires_at: Optional[str] = strawberry.field(name="expiresAt", default=None)
-    started_at: Optional[str] = strawberry.field(name="startedAt", default=None)
-    completed_at: Optional[str] = strawberry.field(name="completedAt", default=None)
-    created_at: Optional[str] = strawberry.field(name="createdAt", default=None)
-    template: Optional[LikertTemplateType] = None
-    job: Optional[LikertJobType] = None
-    candidate: Optional[LikertCandidateType] = None
-
-
-@strawberry.type
-class LikertAnswerWithQuestionType:
-    """Likert answer with question details"""
-    id: str
-    question_id: str = strawberry.field(name="questionId")
-    question_text: str = strawberry.field(name="questionText")
-    question_order: int = strawberry.field(name="questionOrder")
-    score: int
-
-
-@strawberry.type
-class LikertSessionWithAnswersType:
-    """Likert session with answers for HR view"""
-    id: str
-    token: str
-    status: str
-    expires_at: Optional[str] = strawberry.field(name="expiresAt", default=None)
-    started_at: Optional[str] = strawberry.field(name="startedAt", default=None)
-    completed_at: Optional[str] = strawberry.field(name="completedAt", default=None)
-    created_at: Optional[str] = strawberry.field(name="createdAt", default=None)
-    total_score: Optional[int] = strawberry.field(name="totalScore", default=None)
-    template: Optional[LikertTemplateType] = None
-    job: Optional[LikertJobType] = None
-    candidate: Optional[LikertCandidateType] = None
-    answers: List[LikertAnswerWithQuestionType] = strawberry.field(default_factory=list)
+# Likert Full Session Types (Re-exported from module)
+from app.modules.likert.types import (
+    LikertJobType,
+    LikertCandidateType,
+    LikertSessionFullType,
+    LikertAnswerWithQuestionType,
+    LikertSessionWithAnswersType,
+)
 
 
 @strawberry.type
@@ -1123,39 +957,26 @@ class InterviewSessionWithAnswersType:
 
 
 # ============================================
-# Rejection Template Types
+# Rejection Template Types (Re-exported from module)
 # ============================================
-
-@strawberry.type
-class RejectionTemplateType:
-    """GraphQL type for rejection email templates"""
-    id: str
-    name: str
-    subject: str
-    body: str
-    language: str
-    is_active: bool = strawberry.field(name="isActive")
-    is_default: bool = strawberry.field(name="isDefault")
-    created_at: Optional[str] = strawberry.field(name="createdAt", default=None)
-    updated_at: Optional[str] = strawberry.field(name="updatedAt", default=None)
+from app.modules.rejection.types import (
+    RejectionTemplateType,
+    RejectionTemplateInput,
+    RejectionTemplateResponse,
+)
 
 
-@strawberry.input
-class RejectionTemplateInput:
-    """Input for creating/updating rejection templates"""
-    name: str
-    subject: str
-    body: str
-    language: Optional[str] = "TR"
-    is_active: Optional[bool] = strawberry.field(name="isActive", default=True)
-    is_default: Optional[bool] = strawberry.field(name="isDefault", default=False)
-
-
-@strawberry.type
-class RejectionTemplateResponse:
-    """Response for rejection template mutations"""
-    success: bool
-    message: str
-    template: Optional[RejectionTemplateType] = None
-
+# ============================================
+# History Types (Re-exported from module)
+# ============================================
+from app.modules.history.types import (
+    ActionTypeType,
+    ApplicationHistoryType,
+    LastStatusType,
+    CreateHistoryEntryInput,
+    HistoryResponse,
+    HistoryListResponse,
+    RecentActivityType,
+    RecentActivitiesResponse,
+)
 

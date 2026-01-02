@@ -58,3 +58,4 @@ const AgreementScreen = ({ agreement, language = 'tr', onAccept, onBack }) => {
 
 export default AgreementScreen;
 
+

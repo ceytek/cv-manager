@@ -20,3 +20,4 @@ const LoadingScreen = ({ language = 'tr' }) => {
 
 export default LoadingScreen;
 
+

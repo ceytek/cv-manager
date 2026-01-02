@@ -11,8 +11,8 @@ class AIServiceClient:
     """Client for AI-Service HTTP API"""
     
     def __init__(self):
-        # AI-Service runs on port 8001
-        self.base_url = "http://localhost:8001"
+        # AI-Service runs on port 8001 - use 127.0.0.1 instead of localhost for IPv4
+        self.base_url = settings.AI_SERVICE_URL or "http://127.0.0.1:8001"
         self.timeout = 60.0  # 60 seconds for AI processing
     
     async def parse_cv_file(self, file_content: bytes, filename: str) -> Dict[str, Any]:
