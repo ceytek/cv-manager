@@ -1,8 +1,9 @@
 import { ApolloClient, InMemoryCache, createHttpLink } from '@apollo/client';
+import { GRAPHQL_URL } from './config/api';
 
 // Simple HTTP link for public pages (no auth, no websocket)
 const httpLink = createHttpLink({
-  uri: 'http://localhost:8000/graphql',
+  uri: GRAPHQL_URL,
 });
 
 // Public Apollo Client - simpler, no authentication required

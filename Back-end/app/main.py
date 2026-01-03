@@ -159,8 +159,13 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[],
-    allow_origin_regex=r"^http://localhost:517[0-9]{1}$",
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://localhost:3000",
+        "http://185.92.2.38:3000",
+        settings.FRONTEND_URL,
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -173,7 +178,8 @@ app.include_router(public.router, tags=["public"])  # Public routes (no prefix, 
 # GraphQL endpoint with multipart upload support
 graphql_app = GraphQLRouter(
     schema, 
-    path="/graphql"
+    path="/graphql",
+    multipart_uploads_enabled=True
 )
 app.include_router(graphql_app, prefix="")
 

@@ -8,6 +8,7 @@ import { useDropzone } from 'react-dropzone';
 import { UPLOAD_CVS_MUTATION } from '../graphql/cvs';
 import { Upload, FileText, X, CheckCircle, AlertCircle } from 'lucide-react';
 import CVUploadProgressModal from './CVUploadProgressModal';
+import { GRAPHQL_URL } from '../config/api';
 
 const CVUploader = ({ onUploadComplete, departments }) => {
   const { t } = useTranslation();
@@ -133,7 +134,7 @@ const CVUploader = ({ onUploadComplete, departments }) => {
         currentFileName: selectedFiles.map(f => f.name).join(', ')
       }));
 
-      const response = await fetch('http://localhost:8000/graphql', {
+      const response = await fetch(GRAPHQL_URL, {
         method: 'POST',
         headers: {
           'Authorization': token ? `Bearer ${token}` : '',

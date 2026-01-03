@@ -5,7 +5,7 @@ services:
   # PostgreSQL Database
   # ===========================================
   postgres:
-    image: postgres:15-alpine
+    image: pgvector/pgvector:pg15
     container_name: hrsmart-postgres
     restart: unless-stopped
     environment:
@@ -14,7 +14,6 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-hrsmart_db}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./Back-end/migrations:/docker-entrypoint-initdb.d:ro
     ports:
       - "127.0.0.1:5432:5432"
     healthcheck:
@@ -72,14 +71,14 @@ services:
       - MAIL_PASSWORD=${MAIL_PASSWORD}
       - MAIL_FROM=${MAIL_FROM}
       - MAIL_FROM_NAME=${MAIL_FROM_NAME:-HRSmart}
-      - FRONTEND_URL=${FRONTEND_URL:-https://test.hrsmart.co}
+      - FRONTEND_URL=${FRONTEND_URL:-http://185.92.2.38:3000}
       - MAILTRAP_API_TOKEN=${MAILTRAP_API_TOKEN:-}
       - ADMIN_EMAIL=${ADMIN_EMAIL:-}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
     volumes:
       - uploads_data:/app/uploads
     ports:
-      - "127.0.0.1:8000:8000"
+      - "0.0.0.0:8000:8000"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -96,36 +95,36 @@ services:
       context: ./Front-end
       dockerfile: Dockerfile
       args:
-        - VITE_GRAPHQL_URL=${VITE_GRAPHQL_URL:-https://test.hrsmart.co/graphql}
-        - VITE_WS_URL=${VITE_WS_URL:-wss://test.hrsmart.co/graphql}
+        VITE_GRAPHQL_URL: "http://185.92.2.38:8000/graphql"
+        VITE_WS_URL: "ws://185.92.2.38:8000/graphql"
     container_name: hrsmart-frontend
     restart: unless-stopped
     depends_on:
       - backend
     ports:
-      - "127.0.0.1:3000:80"
+      - "0.0.0.0:3000:80"
     networks:
       - hrsmart-network
 
   # ===========================================
-  # Caddy (Reverse Proxy + Auto SSL)
+  # Caddy (Reverse Proxy + Auto SSL) - Disabled for now
   # ===========================================
-  caddy:
-    image: caddy:2-alpine
-    container_name: hrsmart-caddy
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on:
-      - frontend
-      - backend
-    networks:
-      - hrsmart-network
+  # caddy:
+  #   image: caddy:2-alpine
+  #   container_name: hrsmart-caddy
+  #   restart: unless-stopped
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./Caddyfile:/etc/caddy/Caddyfile:ro
+  #     - caddy_data:/data
+  #     - caddy_config:/config
+  #   depends_on:
+  #     - frontend
+  #     - backend
+  #   networks:
+  #     - hrsmart-network
 
 # ===========================================
 # Volumes
@@ -135,10 +134,6 @@ volumes:
     name: hrsmart-postgres-data
   uploads_data:
     name: hrsmart-uploads
-  caddy_data:
-    name: hrsmart-caddy-data
-  caddy_config:
-    name: hrsmart-caddy-config
 
 # ===========================================
 # Networks

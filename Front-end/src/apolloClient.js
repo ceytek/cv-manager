@@ -6,7 +6,7 @@ import { getMainDefinition } from '@apollo/client/utilities';
 
 // HTTP bağlantısı
 const httpLink = createHttpLink({
-  uri: 'http://localhost:8000/graphql',
+  uri: import.meta.env.VITE_GRAPHQL_URL || 'http://localhost:8000/graphql',
 });
 
 // Auth middleware - her istekte token ekle
@@ -24,7 +24,7 @@ const authLink = setContext((_, { headers }) => {
 
 // WebSocket bağlantısı (subscriptions)
 const wsLink = new GraphQLWsLink(createClient({
-  url: 'ws://localhost:8000/graphql',
+  url: import.meta.env.VITE_WS_URL || 'ws://localhost:8000/graphql',
   connectionParams: async () => {
     const token = localStorage.getItem('accessToken');
     return {

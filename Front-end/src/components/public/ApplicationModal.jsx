@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import '../../styles/ApplicationModal.css';
+import { API_BASE_URL } from '../../config/api';
 
 function ApplicationModal({ job, onClose, onSuccess }) {
   const { t } = useTranslation();
@@ -97,7 +98,7 @@ function ApplicationModal({ job, onClose, onSuccess }) {
       formDataToSend.append('phone', formData.phone);
       formDataToSend.append('cv_file', formData.cv_file);
 
-      const response = await fetch('http://localhost:8000/api/public/apply', {
+      const response = await fetch(`${API_BASE_URL}/api/public/apply`, {
         method: 'POST',
         body: formDataToSend
       });

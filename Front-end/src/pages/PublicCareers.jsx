@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import JobBoard from '../components/public/JobBoard';
 import ApplicationModal from '../components/public/ApplicationModal';
 import '../styles/PublicCareers.css';
+import { API_BASE_URL } from '../config/api';
 
 function PublicCareers() {
   const { t, i18n } = useTranslation();
@@ -38,7 +39,7 @@ function PublicCareers() {
         }
       });
 
-      const response = await fetch(`http://localhost:8000/api/public/jobs?${params}`);
+      const response = await fetch(`${API_BASE_URL}/api/public/jobs?${params}`);
       
       if (!response.ok) {
         throw new Error('Failed to fetch jobs');

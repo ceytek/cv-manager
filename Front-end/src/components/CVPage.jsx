@@ -9,6 +9,7 @@ import { FileText, Upload as UploadIcon, CheckCircle, Download, Mail, Phone, Lin
 import CVUploader from './CVUploader';
 import CandidateList from './CandidateList';
 import CVCompareView from './CVCompareView';
+import { API_BASE_URL } from '../config/api';
 
 const CVPage = ({ departments, initialView = 'welcome' }) => {
   const { t } = useTranslation();
@@ -198,7 +199,7 @@ const CVPage = ({ departments, initialView = 'welcome' }) => {
                   </div>
                   
                   <a
-                    href={`http://localhost:8000${file.filePath}`}
+                    href={`${API_BASE_URL}${file.filePath}`}
                     download={file.fileName}
                     style={{
                       display: 'flex',

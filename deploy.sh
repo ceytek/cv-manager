@@ -30,47 +30,48 @@ fi
 
 # Build and deploy
 echo -e "${YELLOW}🔨 Building Docker images...${NC}"
-docker-compose -f docker-compose.prod.yml build --no-cache
+docker compose -f docker-compose.prod.yml build --no-cache
 
 echo -e "${YELLOW}🛑 Stopping existing containers...${NC}"
-docker-compose -f docker-compose.prod.yml down
+docker compose -f docker-compose.prod.yml down
 
 echo -e "${YELLOW}🚀 Starting services...${NC}"
-docker-compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml up -d
 
 # Wait for services to be healthy
 echo -e "${YELLOW}⏳ Waiting for services to be healthy...${NC}"
 sleep 10
 
-# Run database migrations
-echo -e "${YELLOW}📊 Running database migrations...${NC}"
-docker-compose -f docker-compose.prod.yml exec -T backend python -c "
-from app.core.database import engine
+# Create database tables from SQLAlchemy models
+echo -e "${YELLOW}📊 Creating database tables...${NC}"
+docker compose -f docker-compose.prod.yml exec -T backend python -c "
+from app.core.database import engine, Base
 from sqlalchemy import text
-import os
 
-migrations_dir = 'migrations'
-if os.path.exists(migrations_dir):
-    files = sorted([f for f in os.listdir(migrations_dir) if f.endswith('.sql')])
-    with engine.connect() as conn:
-        for f in files:
-            print(f'Running migration: {f}')
-            with open(os.path.join(migrations_dir, f), 'r') as sql_file:
-                conn.execute(text(sql_file.read()))
-        conn.commit()
-    print('Migrations completed!')
+# Enable pgvector extension
+print('Enabling pgvector extension...')
+with engine.connect() as conn:
+    conn.execute(text('CREATE EXTENSION IF NOT EXISTS vector'))
+    conn.commit()
+print('pgvector extension enabled!')
+
+# Import all models to register them with Base
+from app.models import *
+print('Creating tables from SQLAlchemy models...')
+Base.metadata.create_all(bind=engine)
+print('Tables created successfully!')
 "
 
 # Show status
 echo -e "${YELLOW}📊 Container Status:${NC}"
-docker-compose -f docker-compose.prod.yml ps
+docker compose -f docker-compose.prod.yml ps
 
 echo ""
 echo -e "${GREEN}✅ Deployment completed successfully!${NC}"
 echo -e "🌐 Application: https://test.hrsmart.co"
 echo ""
 echo "Useful commands:"
-echo "  - View logs: docker-compose -f docker-compose.prod.yml logs -f"
-echo "  - Stop: docker-compose -f docker-compose.prod.yml down"
-echo "  - Restart: docker-compose -f docker-compose.prod.yml restart"
+echo "  - View logs: docker compose -f docker-compose.prod.yml logs -f"
+echo "  - Stop: docker compose -f docker-compose.prod.yml down"
+echo "  - Restart: docker compose -f docker-compose.prod.yml restart"
 

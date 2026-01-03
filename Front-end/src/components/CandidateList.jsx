@@ -7,6 +7,7 @@ import { useQuery } from '@apollo/client/react';
 import { CANDIDATES_QUERY } from '../graphql/cvs';
 import { User, Mail, Phone, Calendar, FileText, Contact, Linkedin, Github, X, ExternalLink, Copy, Check, Download } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { API_BASE_URL } from '../config/api';
 
 // Contact Card Component
 const ContactCard = ({ candidate, onClose, position }) => {
@@ -597,7 +598,7 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
               {/* CV Dosyası */}
               <td style={{ padding: 12 }}>
                 <a
-                  href={`http://localhost:8000${candidate.cvFilePath}`}
+                  href={`${API_BASE_URL}${candidate.cvFilePath}`}
                   download={candidate.cvFileName}
                   onClick={(e) => e.stopPropagation()}
                   style={{

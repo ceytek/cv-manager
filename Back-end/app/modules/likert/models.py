@@ -29,7 +29,7 @@ class LikertTemplate(Base):
     time_limit = Column(Integer, nullable=True)  # Total time limit in seconds (null = no limit)
     
     # Optional agreement template
-    agreement_template_id = Column(String(36), ForeignKey("agreement_templates.id", ondelete="SET NULL"), nullable=True)
+    agreement_template_id = Column(UUID(as_uuid=True), ForeignKey("agreement_templates.id", ondelete="SET NULL"), nullable=True)
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
