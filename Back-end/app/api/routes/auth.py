@@ -1,6 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
+from jose import jwt, JWTError
 from app.core.database import get_db
+from app.core.config import settings
 from app.schemas.user import (
     UserRegister,
     UserLogin,
@@ -15,6 +18,11 @@ from app.schemas.user import (
 from app.services.auth import AuthService
 from app.api.dependencies import get_current_user
 from app.models.user import User
+from app.utils.security import create_access_token, create_refresh_token
+
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -109,3 +117,47 @@ async def get_me(current_user: User = Depends(get_current_user)):
     **Requires authentication**
     """
     return current_user
+
+
+@router.post("/refresh", response_model=TokenResponse)
+async def refresh_token(data: RefreshTokenRequest, db: Session = Depends(get_db)):
+    """
+    Refresh token ile yeni access token al
+    
+    - **refresh_token**: Geçerli refresh token
+    """
+    try:
+        payload = jwt.decode(
+            data.refresh_token,
+            settings.SECRET_KEY,
+            algorithms=[settings.ALGORITHM]
+        )
+        
+        # Check token type
+        if payload.get("type") != "refresh":
+            raise HTTPException(status_code=401, detail="Geçersiz token tipi")
+        
+        user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Geçersiz token")
+        
+        # Get user from database
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=401, detail="Kullanıcı bulunamadı")
+        
+        if not user.is_active:
+            raise HTTPException(status_code=401, detail="Hesap devre dışı")
+        
+        # Create new tokens
+        new_access_token = create_access_token(data={"sub": str(user.id)})
+        new_refresh_token = create_refresh_token(data={"sub": str(user.id)})
+        
+        return TokenResponse(
+            access_token=new_access_token,
+            refresh_token=new_refresh_token,
+            token_type="bearer"
+        )
+        
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Geçersiz veya süresi dolmuş token")

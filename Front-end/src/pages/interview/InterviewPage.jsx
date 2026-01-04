@@ -5,8 +5,10 @@ import {
   START_INTERVIEW_SESSION, 
   SAVE_INTERVIEW_ANSWER, 
   COMPLETE_INTERVIEW_SESSION,
-  ACCEPT_INTERVIEW_AGREEMENT
+  ACCEPT_INTERVIEW_AGREEMENT,
+  UPDATE_BROWSER_STT_SUPPORT
 } from '../../graphql/interview';
+import { API_BASE_URL } from '../../config/api';
 import WelcomeScreen from './components/WelcomeScreen';
 import CameraTestScreen from './components/CameraTestScreen';
 import AgreementScreen from './components/AgreementScreen';
@@ -48,6 +50,7 @@ const InterviewPage = ({ token }) => {
   const [language, setLanguage] = useState('tr');
   const [mediaStream, setMediaStream] = useState(null);
   const [globalTimeRemaining, setGlobalTimeRemaining] = useState(null);
+  const [browserUnsupportedFeatures, setBrowserUnsupportedFeatures] = useState([]);
   const globalTimerRef = useRef(null);
   
   const t = translations[language] || translations.tr;
@@ -64,8 +67,10 @@ const InterviewPage = ({ token }) => {
   const [saveAnswer] = useMutation(SAVE_INTERVIEW_ANSWER);
   const [completeSession] = useMutation(COMPLETE_INTERVIEW_SESSION);
   const [acceptAgreement] = useMutation(ACCEPT_INTERVIEW_AGREEMENT);
+  const [updateBrowserSttSupport] = useMutation(UPDATE_BROWSER_STT_SUPPORT);
 
   const session = data?.interviewSession;
+  const template = session?.template;
   const job = session?.job;
   const candidate = session?.candidate;
   const questions = session?.questions || [];
@@ -191,15 +196,50 @@ const InterviewPage = ({ token }) => {
     }
   };
 
-  const handleSaveAnswer = async (questionId, answerText) => {
-    console.log('handleSaveAnswer called:', { questionId, answerText, token });
+  // Upload video blob and return URL
+  const uploadVideoBlob = async (videoBlob, questionId) => {
+    if (!videoBlob) return null;
+    
     try {
+      const formData = new FormData();
+      formData.append('video', videoBlob, `interview_${token}_q${questionId}.webm`);
+      formData.append('token', token);
+      formData.append('questionId', questionId);
+      
+      const response = await fetch(`${API_BASE_URL}/upload-interview-video`, {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        console.error('Video upload failed:', response.status);
+        return null;
+      }
+      
+      const data = await response.json();
+      return data.videoUrl;
+    } catch (err) {
+      console.error('Error uploading video:', err);
+      return null;
+    }
+  };
+
+  const handleSaveAnswer = async (questionId, answerText, videoBlob) => {
+    console.log('handleSaveAnswer called:', { questionId, answerText, hasVideo: !!videoBlob, token });
+    try {
+      // Upload video if exists
+      let videoUrl = null;
+      if (videoBlob) {
+        videoUrl = await uploadVideoBlob(videoBlob, questionId);
+      }
+      
       const result = await saveAnswer({
         variables: {
           input: {
             sessionToken: token,
             questionId,
-            answerText
+            answerText,
+            videoUrl
           }
         }
       });
@@ -209,6 +249,21 @@ const InterviewPage = ({ token }) => {
       console.error('Error saving answer:', err);
     }
   };
+
+  // Handle browser support update
+  const handleBrowserSupportUpdate = useCallback(async (unsupportedFeatures) => {
+    setBrowserUnsupportedFeatures(unsupportedFeatures);
+    
+    // Update backend about STT support
+    const sttSupported = !unsupportedFeatures.includes('SpeechRecognition');
+    try {
+      await updateBrowserSttSupport({
+        variables: { token, supported: sttSupported }
+      });
+    } catch (err) {
+      console.error('Error updating browser STT support:', err);
+    }
+  }, [token, updateBrowserSttSupport]);
 
   const handleNextQuestion = () => {
     if (currentQuestionIndex < questions.length - 1) {
@@ -285,6 +340,8 @@ const InterviewPage = ({ token }) => {
           onComplete={handleCompleteInterview}
           sessionToken={token}
           globalTimeRemaining={globalTimeRemaining}
+          template={template}
+          onBrowserSupportUpdate={handleBrowserSupportUpdate}
         />
       );
     

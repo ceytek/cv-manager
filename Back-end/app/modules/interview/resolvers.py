@@ -18,6 +18,7 @@ from app.modules.interview.models import (
 )
 from app.modules.interview.types import (
     InterviewTemplateType,
+    InterviewTemplateMinimalType,
     InterviewTemplateInput,
     InterviewTemplateResponse,
     InterviewQuestionType,
@@ -32,6 +33,9 @@ from app.modules.interview.types import (
     InterviewSessionFullType,
     InterviewAnswerWithQuestionType,
     InterviewSessionWithAnswersType,
+    AIAnalysisCategoryType,
+    AIInterviewAnalysisType,
+    AIAnalysisResponse,
 )
 
 
@@ -66,6 +70,8 @@ def get_interview_templates(info: Info) -> List[InterviewTemplateType]:
                 use_global_timer=t.use_global_timer or False,
                 total_duration=t.total_duration,
                 is_active=t.is_active,
+                ai_analysis_enabled=t.ai_analysis_enabled or False,
+                voice_response_enabled=t.voice_response_enabled or False,
                 question_count=len(t.questions),
                 questions=[],
                 created_at=t.created_at.isoformat(),
@@ -99,6 +105,8 @@ def get_interview_template(info: Info, id: str) -> Optional[InterviewTemplateTyp
             use_global_timer=template.use_global_timer or False,
             total_duration=template.total_duration,
             is_active=template.is_active,
+            ai_analysis_enabled=template.ai_analysis_enabled or False,
+            voice_response_enabled=template.voice_response_enabled or False,
             question_count=len(template.questions),
             questions=[
                 InterviewQuestionType(
@@ -208,6 +216,15 @@ def get_interview_session(info: Info, token: str) -> Optional[InterviewSessionFu
                 cv_language=candidate.cv_language,
             )
         
+        template_type = None
+        if template:
+            template_type = InterviewTemplateMinimalType(
+                id=str(template.id),
+                name=template.name,
+                voice_response_enabled=template.voice_response_enabled or False,
+                ai_analysis_enabled=template.ai_analysis_enabled or False,
+            )
+        
         return InterviewSessionFullType(
             id=str(session.id),
             job_id=str(session.job_id),
@@ -222,6 +239,7 @@ def get_interview_session(info: Info, token: str) -> Optional[InterviewSessionFu
             invitation_email=session.invitation_email,
             created_at=session.created_at.isoformat() if session.created_at else None,
             agreement_accepted_at=session.agreement_accepted_at.isoformat() if session.agreement_accepted_at else None,
+            template=template_type,
             job=job_type,
             candidate=candidate_type,
             questions=questions,
@@ -265,6 +283,8 @@ def get_interview_session_by_application(info: Info, application_id: str) -> Opt
                     duration_per_question=template.duration_per_question or 120,
                     use_global_timer=template.use_global_timer or False,
                     total_duration=template.total_duration,
+                    ai_analysis_enabled=template.ai_analysis_enabled or False,
+                    voice_response_enabled=template.voice_response_enabled or False,
                     is_active=template.is_active,
                     question_count=len(questions_list),
                     questions=[],
@@ -315,12 +335,16 @@ def get_interview_session_by_application(info: Info, application_id: str) -> Opt
         answers_type = []
         for a in answers:
             q = next((q for q in questions_list if str(q.id) == str(a.question_id)), None)
+            # Use saved question_text from answer (snapshot), fallback to current question
+            saved_question_text = a.question_text if a.question_text else (q.question_text if q else "")
             answers_type.append(InterviewAnswerWithQuestionType(
                 id=str(a.id),
                 question_id=str(a.question_id),
-                question_text=q.question_text if q else "",
+                question_text=saved_question_text,
                 question_order=q.question_order if q else 0,
                 answer_text=a.answer_text,
+                video_url=a.video_url,
+                duration_seconds=a.duration_seconds,
                 created_at=a.created_at.isoformat() if a.created_at else None,
             ))
         
@@ -337,6 +361,9 @@ def get_interview_session_by_application(info: Info, application_id: str) -> Opt
             job=job_type,
             candidate=candidate_type,
             answers=sorted(answers_type, key=lambda x: x.question_order),
+            ai_analysis=session.ai_analysis,
+            ai_overall_score=float(session.ai_overall_score) if session.ai_overall_score else None,
+            browser_stt_supported=session.browser_stt_supported,
         )
     finally:
         db.close()
@@ -368,6 +395,8 @@ async def create_interview_template(info: Info, input: InterviewTemplateInput) -
             duration_per_question=input.duration_per_question,
             use_global_timer=input.use_global_timer,
             total_duration=input.total_duration,
+            ai_analysis_enabled=input.ai_analysis_enabled,
+            voice_response_enabled=input.voice_response_enabled,
             is_active=True,
         )
         db.add(template)
@@ -398,6 +427,8 @@ async def create_interview_template(info: Info, input: InterviewTemplateInput) -
                 duration_per_question=template.duration_per_question,
                 use_global_timer=template.use_global_timer or False,
                 total_duration=template.total_duration,
+                ai_analysis_enabled=template.ai_analysis_enabled or False,
+                voice_response_enabled=template.voice_response_enabled or False,
                 is_active=template.is_active,
                 question_count=len(template.questions),
                 questions=[],
@@ -432,6 +463,8 @@ async def update_interview_template(info: Info, id: str, input: InterviewTemplat
         template.duration_per_question = input.duration_per_question
         template.use_global_timer = input.use_global_timer
         template.total_duration = input.total_duration
+        template.ai_analysis_enabled = input.ai_analysis_enabled
+        template.voice_response_enabled = input.voice_response_enabled
         
         # Get existing questions
         existing_questions = db.query(InterviewQuestion).filter(
@@ -492,6 +525,8 @@ async def update_interview_template(info: Info, id: str, input: InterviewTemplat
                 duration_per_question=template.duration_per_question,
                 use_global_timer=template.use_global_timer or False,
                 total_duration=template.total_duration,
+                ai_analysis_enabled=template.ai_analysis_enabled or False,
+                voice_response_enabled=template.voice_response_enabled or False,
                 is_active=template.is_active,
                 question_count=len(input.questions),
                 questions=[],
@@ -791,6 +826,10 @@ async def save_interview_answer(info: Info, input: SaveInterviewAnswerInput) -> 
         if not session:
             return InterviewAnswerResponse(success=False, message="Session not found", answer=None)
         
+        # Get the question to save its text (snapshot at answer time)
+        question = db.query(InterviewQuestion).filter(InterviewQuestion.id == input.question_id).first()
+        question_text_snapshot = question.question_text if question else None
+        
         # Check if answer already exists
         existing = db.query(InterviewAnswer).filter(
             InterviewAnswer.session_id == session.id,
@@ -801,6 +840,9 @@ async def save_interview_answer(info: Info, input: SaveInterviewAnswerInput) -> 
             existing.answer_text = input.answer_text
             existing.video_url = input.video_url
             existing.duration_seconds = input.duration_seconds
+            # Keep original question_text if exists, otherwise set it
+            if not existing.question_text and question_text_snapshot:
+                existing.question_text = question_text_snapshot
             existing.updated_at = datetime.utcnow()
             db.commit()
             db.refresh(existing)
@@ -809,6 +851,7 @@ async def save_interview_answer(info: Info, input: SaveInterviewAnswerInput) -> 
             answer = InterviewAnswer(
                 session_id=session.id,
                 question_id=input.question_id,
+                question_text=question_text_snapshot,  # Save question text at answer time
                 answer_text=input.answer_text,
                 video_url=input.video_url,
                 duration_seconds=input.duration_seconds,
@@ -841,6 +884,10 @@ async def save_interview_answer(info: Info, input: SaveInterviewAnswerInput) -> 
 async def complete_interview_session(info: Info, token: str) -> InterviewSessionResponse:
     """Complete an interview session"""
     from app.modules.history.resolvers import create_history_entry
+    from app.models.subscription import UsageTracking
+    from datetime import date
+    from calendar import monthrange
+    import secrets
     
     db = get_db_session()
     try:
@@ -867,6 +914,39 @@ async def complete_interview_session(info: Info, token: str) -> InterviewSession
                 performed_by=None,  # Candidate completed it
                 action_data={"session_id": str(session.id)},
             )
+            
+            # Record usage for interview_completed
+            try:
+                from app.models.candidate import Candidate
+                today = date.today()
+                month_start = date(today.year, today.month, 1)
+                last_day = monthrange(today.year, today.month)[1]
+                month_end = date(today.year, today.month, last_day)
+                batch_number = f"##INT{secrets.token_hex(3).upper()}"
+                
+                # Get candidate name for metadata
+                candidate = db.query(Candidate).filter(Candidate.id == session.candidate_id).first()
+                candidate_name = candidate.name if candidate else "Unknown"
+                
+                usage_entry = UsageTracking(
+                    company_id=session.company_id,
+                    resource_type="interview_completed",
+                    count=1,
+                    period_start=month_start,
+                    period_end=month_end,
+                    usage_metadata={
+                        "session_id": str(session.id), 
+                        "candidate_id": str(session.candidate_id),
+                        "candidate_name": candidate_name,
+                        "application_id": str(session.application_id) if session.application_id else None
+                    },
+                    batch_number=batch_number
+                )
+                db.add(usage_entry)
+                db.commit()
+                print(f"✅ Recorded interview_completed usage: {batch_number}")
+            except Exception as ue:
+                print(f"❌ Usage record failed for interview_completed: {ue}")
         
         return InterviewSessionResponse(
             success=True,
@@ -916,6 +996,217 @@ async def accept_interview_agreement(info: Info, token: str) -> InterviewSession
                 status=session.status,
                 expires_at=session.expires_at.isoformat() if session.expires_at else None,
                 agreement_accepted_at=session.agreement_accepted_at.isoformat() if session.agreement_accepted_at else None,
+                created_at=session.created_at.isoformat() if session.created_at else None,
+            )
+        )
+    except Exception as e:
+        db.rollback()
+        return InterviewSessionResponse(success=False, message=str(e), interview_link=None, session=None)
+    finally:
+        db.close()
+
+
+# ============ AI Analysis Resolvers ============
+
+async def analyze_interview_with_ai(info: Info, session_id: str) -> AIAnalysisResponse:
+    """Trigger AI analysis for a completed interview session"""
+    import httpx
+    import os
+    from app.models.job import Job
+    
+    request = info.context["request"]
+    auth_header = request.headers.get("authorization")
+    if not auth_header:
+        raise Exception("Not authenticated")
+    
+    db = get_db_session()
+    try:
+        session = db.query(InterviewSession).filter(InterviewSession.id == session_id).first()
+        if not session:
+            return AIAnalysisResponse(success=False, message="Session not found", analysis=None)
+        
+        # Check if already analyzed
+        if session.ai_analysis:
+            # Return cached analysis
+            return AIAnalysisResponse(
+                success=True,
+                message="Analysis already exists",
+                analysis=AIInterviewAnalysisType(
+                    overall_score=float(session.ai_overall_score) if session.ai_overall_score else 0,
+                    categories=[
+                        AIAnalysisCategoryType(
+                            category=cat.get("category", ""),
+                            category_en=cat.get("category_en", ""),
+                            score=cat.get("score", 0),
+                            feedback=cat.get("feedback", []),
+                        ) for cat in session.ai_analysis.get("categories", [])
+                    ],
+                    summary=session.ai_analysis.get("summary"),
+                    analyzed_at=session.ai_analysis.get("analyzed_at"),
+                )
+            )
+        
+        # Get job details
+        job = db.query(Job).filter(Job.id == session.job_id).first()
+        if not job:
+            return AIAnalysisResponse(success=False, message="Job not found", analysis=None)
+        
+        # Get template for AI analysis check
+        template = None
+        if job.interview_template_id:
+            template = db.query(InterviewTemplate).filter(InterviewTemplate.id == job.interview_template_id).first()
+        
+        # Get answers with questions
+        answers = db.query(InterviewAnswer).filter(InterviewAnswer.session_id == session.id).all()
+        questions_list = []
+        if template:
+            questions_list = db.query(InterviewQuestion).filter(
+                InterviewQuestion.template_id == template.id
+            ).order_by(InterviewQuestion.question_order).all()
+        
+        # Build Q&A list for AI
+        qa_list = []
+        for a in sorted(answers, key=lambda x: x.created_at):
+            q = next((q for q in questions_list if str(q.id) == str(a.question_id)), None)
+            if q:
+                qa_list.append({
+                    "question": q.question_text,
+                    "answer": a.answer_text or "",
+                    "order": q.question_order,
+                })
+        
+        # Prepare job context
+        job_context = {
+            "title": job.title,
+            "description": job.description_plain or job.description or "",
+            "requirements": job.requirements_plain or job.requirements or "",
+        }
+        
+        # Call AI-Service
+        ai_service_url = os.getenv("AI_SERVICE_URL", "http://localhost:8001")
+        interview_language = template.language if template else "tr"
+        
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            response = await client.post(
+                f"{ai_service_url}/analyze-interview",
+                json={
+                    "job_context": job_context,
+                    "questions_answers": qa_list,
+                    "language": interview_language,
+                }
+            )
+            
+            if response.status_code != 200:
+                return AIAnalysisResponse(
+                    success=False, 
+                    message=f"AI Service error: {response.text}", 
+                    analysis=None
+                )
+            
+            ai_response = response.json()
+            
+            # AI-Service returns {"success": bool, "data": {...}, "error": str}
+            if not ai_response.get("success"):
+                return AIAnalysisResponse(
+                    success=False, 
+                    message=ai_response.get("error", "AI analysis failed"), 
+                    analysis=None
+                )
+            
+            ai_result = ai_response.get("data", {})
+        
+        # Save to database
+        session.ai_analysis = ai_result
+        session.ai_overall_score = ai_result.get("overall_score", 0)
+        db.commit()
+        db.refresh(session)
+        
+        # Record usage for interview_ai_analysis
+        try:
+            from app.models.subscription import UsageTracking
+            from app.models.candidate import Candidate
+            from datetime import date
+            from calendar import monthrange
+            import secrets
+            
+            today = date.today()
+            month_start = date(today.year, today.month, 1)
+            last_day = monthrange(today.year, today.month)[1]
+            month_end = date(today.year, today.month, last_day)
+            batch_number = f"##AIA{secrets.token_hex(3).upper()}"
+            
+            # Get candidate name for metadata
+            candidate = db.query(Candidate).filter(Candidate.id == session.candidate_id).first()
+            candidate_name = candidate.name if candidate else "Unknown"
+            
+            usage_entry = UsageTracking(
+                company_id=session.company_id,
+                resource_type="interview_ai_analysis",
+                count=1,
+                period_start=month_start,
+                period_end=month_end,
+                usage_metadata={
+                    "session_id": str(session.id), 
+                    "candidate_id": str(session.candidate_id),
+                    "candidate_name": candidate_name,
+                    "application_id": str(session.application_id) if session.application_id else None
+                },
+                batch_number=batch_number
+            )
+            db.add(usage_entry)
+            db.commit()
+            print(f"✅ Recorded interview_ai_analysis usage: {batch_number}")
+        except Exception as ue:
+            print(f"❌ Usage record failed for interview_ai_analysis: {ue}")
+        
+        return AIAnalysisResponse(
+            success=True,
+            message="Analysis completed successfully",
+            analysis=AIInterviewAnalysisType(
+                overall_score=ai_result.get("overall_score", 0),
+                categories=[
+                    AIAnalysisCategoryType(
+                        category=cat.get("category", ""),
+                        category_en=cat.get("category_en", ""),
+                        score=cat.get("score", 0),
+                        feedback=cat.get("feedback", []),
+                    ) for cat in ai_result.get("categories", [])
+                ],
+                summary=ai_result.get("summary"),
+                analyzed_at=ai_result.get("analyzed_at", datetime.utcnow().isoformat()),
+            )
+        )
+    except Exception as e:
+        db.rollback()
+        return AIAnalysisResponse(success=False, message=str(e), analysis=None)
+    finally:
+        db.close()
+
+
+async def update_browser_stt_support(info: Info, token: str, supported: bool) -> InterviewSessionResponse:
+    """Update browser STT support status for a session"""
+    db = get_db_session()
+    try:
+        session = db.query(InterviewSession).filter(InterviewSession.token == token).first()
+        if not session:
+            return InterviewSessionResponse(success=False, message="Session not found", interview_link=None, session=None)
+        
+        session.browser_stt_supported = supported
+        db.commit()
+        db.refresh(session)
+        
+        return InterviewSessionResponse(
+            success=True,
+            message="Browser STT support updated",
+            interview_link=None,
+            session=InterviewSessionType(
+                id=str(session.id),
+                job_id=str(session.job_id),
+                candidate_id=str(session.candidate_id),
+                application_id=str(session.application_id) if session.application_id else None,
+                token=session.token,
+                status=session.status,
+                expires_at=session.expires_at.isoformat() if session.expires_at else None,
                 created_at=session.created_at.isoformat() if session.created_at else None,
             )
         )

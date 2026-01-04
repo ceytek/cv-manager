@@ -64,14 +64,27 @@ const AIJobCreator = ({ isOpen, onClose, onGenerate }) => {
   ];
 
   const languageLevels = [
-    { value: 'A1', label: 'A1 - Başlangıç' },
-    { value: 'A2', label: 'A2 - Temel' },
-    { value: 'B1', label: 'B1 - Orta Seviye' },
-    { value: 'B2', label: 'B2 - Orta-İleri Seviye' },
-    { value: 'C1', label: 'C1 - İleri Seviye' },
-    { value: 'C2', label: 'C2 - Ana Dil Seviyesi' },
-    { value: 'Native', label: 'Ana Dil' }
+    { value: 'A1', labelTr: 'A1 - Başlangıç', labelEn: 'A1 - Beginner' },
+    { value: 'A2', labelTr: 'A2 - Temel', labelEn: 'A2 - Elementary' },
+    { value: 'B1', labelTr: 'B1 - Orta Seviye', labelEn: 'B1 - Intermediate' },
+    { value: 'B2', labelTr: 'B2 - Orta-İleri Seviye', labelEn: 'B2 - Upper Intermediate' },
+    { value: 'C1', labelTr: 'C1 - İleri Seviye', labelEn: 'C1 - Advanced' },
+    { value: 'C2', labelTr: 'C2 - Ana Dil Seviyesi', labelEn: 'C2 - Proficiency' },
+    { value: 'Native', labelTr: 'Ana Dil', labelEn: 'Native' }
   ];
+  
+  // Predefined language options
+  const languageOptions = [
+    { value: 'turkish', labelTr: 'Türkçe', labelEn: 'Turkish' },
+    { value: 'english', labelTr: 'İngilizce', labelEn: 'English' },
+    { value: 'german', labelTr: 'Almanca', labelEn: 'German' },
+    { value: 'russian', labelTr: 'Rusça', labelEn: 'Russian' }
+  ];
+  
+  // Get label based on current language
+  const getLabel = (item) => {
+    return i18n.language === 'en' ? item.labelEn : item.labelTr;
+  };
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -102,16 +115,20 @@ const AIJobCreator = ({ isOpen, onClose, onGenerate }) => {
   };
 
   const handleAddLanguage = () => {
-    if (currentLanguage.name.trim() && currentLanguage.level) {
+    if (currentLanguage.name && currentLanguage.level) {
       const languageExists = formData.requiredLanguages.some(
-        lang => lang.name.toLowerCase() === currentLanguage.name.trim().toLowerCase()
+        lang => lang.name === currentLanguage.name
       );
       
       if (!languageExists) {
+        const selectedLang = languageOptions.find(l => l.value === currentLanguage.name);
+        const displayName = selectedLang ? getLabel(selectedLang) : currentLanguage.name;
+        
         setFormData(prev => ({
           ...prev,
           requiredLanguages: [...prev.requiredLanguages, {
-            name: currentLanguage.name.trim(),
+            name: currentLanguage.name,
+            displayName,
             level: currentLanguage.level
           }]
         }));
@@ -608,7 +625,7 @@ const AIJobCreator = ({ isOpen, onClose, onGenerate }) => {
               )}
             </div>
 
-            {/* Required Languages */}
+            {/* Required Languages - Selectbox */}
             <div style={{ gridColumn: '1 / -1' }}>
               <label style={{
                 display: 'block',
@@ -627,11 +644,9 @@ const AIJobCreator = ({ isOpen, onClose, onGenerate }) => {
                 alignItems: 'end'
               }}>
                 <div>
-                  <input
-                    type="text"
+                  <select
                     value={currentLanguage.name}
                     onChange={(e) => setCurrentLanguage(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder={t('aiJobCreator.languageNamePlaceholder')}
                     style={{
                       width: '100%',
                       padding: '12px 16px',
@@ -639,11 +654,23 @@ const AIJobCreator = ({ isOpen, onClose, onGenerate }) => {
                       borderRadius: 10,
                       fontSize: 14,
                       outline: 'none',
-                      transition: 'border-color 0.2s'
+                      cursor: 'pointer',
+                      transition: 'border-color 0.2s',
+                      background: 'white'
                     }}
                     onFocus={(e) => e.target.style.borderColor = '#667eea'}
                     onBlur={(e) => e.target.style.borderColor = '#E5E7EB'}
-                  />
+                  >
+                    <option value="">{t('aiJobCreator.selectLanguage')}</option>
+                    {languageOptions
+                      .filter(lang => !formData.requiredLanguages.some(l => l.name === lang.value))
+                      .map(lang => (
+                        <option key={lang.value} value={lang.value}>
+                          {getLabel(lang)}
+                        </option>
+                      ))
+                    }
+                  </select>
                 </div>
                 <div>
                   <select
@@ -665,20 +692,20 @@ const AIJobCreator = ({ isOpen, onClose, onGenerate }) => {
                   >
                     <option value="">{t('aiJobCreator.languageLevel')}</option>
                     {languageLevels.map(level => (
-                      <option key={level.value} value={level.value}>{level.label}</option>
+                      <option key={level.value} value={level.value}>{getLabel(level)}</option>
                     ))}
                   </select>
                 </div>
                 <button
                   onClick={handleAddLanguage}
-                  disabled={!currentLanguage.name.trim() || !currentLanguage.level}
+                  disabled={!currentLanguage.name || !currentLanguage.level}
                   style={{
                     padding: '12px 16px',
                     border: 'none',
                     borderRadius: 10,
-                    background: currentLanguage.name.trim() && currentLanguage.level ? '#667eea' : '#D1D5DB',
+                    background: currentLanguage.name && currentLanguage.level ? '#667eea' : '#D1D5DB',
                     color: 'white',
-                    cursor: currentLanguage.name.trim() && currentLanguage.level ? 'pointer' : 'not-allowed',
+                    cursor: currentLanguage.name && currentLanguage.level ? 'pointer' : 'not-allowed',
                     display: 'flex',
                     alignItems: 'center',
                     gap: 6,
@@ -691,7 +718,7 @@ const AIJobCreator = ({ isOpen, onClose, onGenerate }) => {
                 </button>
               </div>
               <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>
-                Dil adı ve seviyesini girerek ekleyin.
+                {t('aiJobCreator.languageHint')}
               </p>
               
               {/* Language Tags */}
@@ -702,37 +729,43 @@ const AIJobCreator = ({ isOpen, onClose, onGenerate }) => {
                   gap: 8,
                   marginTop: 12
                 }}>
-                  {formData.requiredLanguages.map((lang, index) => (
-                    <div
-                      key={index}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        padding: '6px 12px',
-                        background: '#F0F9FF',
-                        color: '#0369A1',
-                        borderRadius: 6,
-                        fontSize: 13,
-                        fontWeight: 500
-                      }}
-                    >
-                      {lang.name} ({lang.level})
-                      <button
-                        onClick={() => handleRemoveLanguage(lang)}
+                  {formData.requiredLanguages.map((lang, index) => {
+                    const langOption = languageOptions.find(l => l.value === lang.name);
+                    const displayName = langOption ? getLabel(langOption) : lang.name;
+                    const levelOption = languageLevels.find(l => l.value === lang.level);
+                    const levelLabel = levelOption ? getLabel(levelOption) : lang.level;
+                    return (
+                      <div
+                        key={index}
                         style={{
-                          border: 'none',
-                          background: 'transparent',
-                          cursor: 'pointer',
-                          padding: 0,
                           display: 'flex',
-                          alignItems: 'center'
+                          alignItems: 'center',
+                          gap: 6,
+                          padding: '6px 12px',
+                          background: '#F0F9FF',
+                          color: '#0369A1',
+                          borderRadius: 6,
+                          fontSize: 13,
+                          fontWeight: 500
                         }}
                       >
-                        <X size={14} color="#0369A1" />
-                      </button>
-                    </div>
-                  ))}
+                        {displayName} ({levelLabel})
+                        <button
+                          onClick={() => handleRemoveLanguage(lang)}
+                          style={{
+                            border: 'none',
+                            background: 'transparent',
+                            cursor: 'pointer',
+                            padding: 0,
+                            display: 'flex',
+                            alignItems: 'center'
+                          }}
+                        >
+                          <X size={14} color="#0369A1" />
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

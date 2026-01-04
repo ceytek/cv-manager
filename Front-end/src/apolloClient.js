@@ -1,12 +1,16 @@
-import { ApolloClient, InMemoryCache, createHttpLink, split } from '@apollo/client';
+import { ApolloClient, InMemoryCache, createHttpLink, split, from } from '@apollo/client';
 import { setContext } from '@apollo/client/link/context';
+import { onError } from '@apollo/client/link/error';
 import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
 import { createClient } from 'graphql-ws';
 import { getMainDefinition } from '@apollo/client/utilities';
 
+const GRAPHQL_URL = import.meta.env.VITE_GRAPHQL_URL || 'http://localhost:8000/graphql';
+const API_URL = GRAPHQL_URL.replace('/graphql', '');
+
 // HTTP bağlantısı
 const httpLink = createHttpLink({
-  uri: import.meta.env.VITE_GRAPHQL_URL || 'http://localhost:8000/graphql',
+  uri: GRAPHQL_URL,
 });
 
 // Auth middleware - her istekte token ekle
@@ -19,6 +23,77 @@ const authLink = setContext((_, { headers }) => {
       ...headers,
       authorization: token ? `Bearer ${token}` : "",
     }
+  }
+});
+
+// Token refresh function
+const refreshToken = async () => {
+  const refresh = localStorage.getItem('refreshToken');
+  if (!refresh) return null;
+  
+  try {
+    const response = await fetch(`${API_URL}/api/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ refresh_token: refresh }),
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (data.access_token) {
+        localStorage.setItem('accessToken', data.access_token);
+        if (data.refresh_token) {
+          localStorage.setItem('refreshToken', data.refresh_token);
+        }
+        return data.access_token;
+      }
+    }
+  } catch (err) {
+    console.error('Token refresh failed:', err);
+  }
+  return null;
+};
+
+// Error handling - 401 hatalarında token yenileme
+const errorLink = onError(({ graphQLErrors, networkError, operation, forward }) => {
+  if (graphQLErrors) {
+    for (const err of graphQLErrors) {
+      // Check for authentication errors
+      if (err.message?.includes('401') || 
+          err.message?.includes('token') || 
+          err.message?.includes('Geçersiz') ||
+          err.extensions?.code === 'UNAUTHENTICATED') {
+        
+        // Try to refresh token
+        return new Promise((resolve) => {
+          refreshToken().then((newToken) => {
+            if (newToken) {
+              // Retry the request with new token
+              const oldHeaders = operation.getContext().headers;
+              operation.setContext({
+                headers: {
+                  ...oldHeaders,
+                  authorization: `Bearer ${newToken}`,
+                },
+              });
+              resolve(forward(operation));
+            } else {
+              // Refresh failed, redirect to login
+              localStorage.removeItem('accessToken');
+              localStorage.removeItem('refreshToken');
+              window.location.href = '/login';
+              resolve(null);
+            }
+          });
+        });
+      }
+    }
+  }
+  
+  if (networkError) {
+    console.error(`[Network error]: ${networkError}`);
   }
 });
 
@@ -40,7 +115,7 @@ const splitLink = split(
     return def.kind === 'OperationDefinition' && def.operation === 'subscription';
   },
   wsLink,
-  authLink.concat(httpLink)
+  from([errorLink, authLink, httpLink])
 );
 
 // Apollo Client oluştur

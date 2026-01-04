@@ -18,6 +18,12 @@ export const GET_INTERVIEW_SESSION = gql`
       completedAt
       createdAt
       agreementAcceptedAt
+      template {
+        id
+        name
+        voiceResponseEnabled
+        aiAnalysisEnabled
+      }
       job {
         id
         title
@@ -66,6 +72,9 @@ export const GET_INTERVIEW_SESSION_BY_APPLICATION = gql`
       completedAt
       invitationSentAt
       createdAt
+      aiAnalysis
+      aiOverallScore
+      browserSttSupported
       template {
         id
         name
@@ -74,6 +83,8 @@ export const GET_INTERVIEW_SESSION_BY_APPLICATION = gql`
         durationPerQuestion
         useGlobalTimer
         totalDuration
+        aiAnalysisEnabled
+        voiceResponseEnabled
         questionCount
       }
       job {
@@ -93,6 +104,8 @@ export const GET_INTERVIEW_SESSION_BY_APPLICATION = gql`
         questionText
         questionOrder
         answerText
+        videoUrl
+        durationSeconds
         createdAt
       }
     }
@@ -175,6 +188,37 @@ export const ACCEPT_INTERVIEW_AGREEMENT = gql`
         id
         agreementAcceptedAt
       }
+    }
+  }
+`;
+
+// Mutation to trigger AI analysis
+export const ANALYZE_INTERVIEW_WITH_AI = gql`
+  mutation AnalyzeInterviewWithAI($sessionId: String!) {
+    analyzeInterviewWithAi(sessionId: $sessionId) {
+      success
+      message
+      analysis {
+        overallScore
+        summary
+        analyzedAt
+        categories {
+          category
+          categoryEn
+          score
+          feedback
+        }
+      }
+    }
+  }
+`;
+
+// Mutation to update browser STT support
+export const UPDATE_BROWSER_STT_SUPPORT = gql`
+  mutation UpdateBrowserSttSupport($token: String!, $supported: Boolean!) {
+    updateBrowserSttSupport(token: $token, supported: $supported) {
+      success
+      message
     }
   }
 `;

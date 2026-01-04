@@ -14,6 +14,7 @@ export const GET_USAGE_HISTORY = gql`
       createdAt
       periodStart
       periodEnd
+      metadata
     }
   }
 `;
@@ -64,6 +65,8 @@ export const GET_USAGE_PERIODS = gql`
       totalCredits
       cvAnalyses
       cvUploads
+      interviewCompleted
+      interviewAIAnalysis
     }
   }
 `;

@@ -11,10 +11,11 @@ import CandidateList from './CandidateList';
 import CVCompareView from './CVCompareView';
 import { API_BASE_URL } from '../config/api';
 
-const CVPage = ({ departments, initialView = 'welcome' }) => {
+const CVPage = ({ departments, initialView = 'list' }) => {
   const { t } = useTranslation();
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [view, setView] = useState(initialView); // 'welcome' | 'upload' | 'list'
+  // Convert 'welcome' to 'list' for backwards compatibility
+  const [view, setView] = useState(initialView === 'welcome' ? 'list' : initialView); // 'upload' | 'list'
   const [deptId, setDeptId] = useState('');
   const [lang, setLang] = useState(''); // TR/EN/..
   const [search, setSearch] = useState('');
@@ -25,8 +26,12 @@ const CVPage = ({ departments, initialView = 'welcome' }) => {
 
   // If parent changes initialView (e.g., dashboard quick action), sync it here
   useEffect(() => {
-    if (initialView && ['welcome', 'upload', 'list'].includes(initialView)) {
-      setView(initialView);
+    if (initialView) {
+      // Convert 'welcome' to 'list' for backwards compatibility
+      const targetView = initialView === 'welcome' ? 'list' : initialView;
+      if (['upload', 'list'].includes(targetView)) {
+        setView(targetView);
+      }
     }
   }, [initialView]);
   
@@ -71,10 +76,10 @@ const CVPage = ({ departments, initialView = 'welcome' }) => {
             </p>
           </div>
           <button
-            onClick={() => setView('welcome')}
-            style={{ padding: '10px 16px', background: 'white', border: '1px solid #D1D5DB', borderRadius: 8, fontWeight: 600, color: '#374151' }}
+            onClick={() => setView('list')}
+            style={{ padding: '10px 16px', background: 'white', border: '1px solid #D1D5DB', borderRadius: 8, fontWeight: 600, color: '#374151', cursor: 'pointer' }}
           >
-            ← {t('cvManagement.back')}
+            ← {t('cvManagement.backToList')}
           </button>
         </div>
 
@@ -242,10 +247,37 @@ const CVPage = ({ departments, initialView = 'welcome' }) => {
         {/* Header */}
         <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <h1 style={{ fontSize: 28, fontWeight: 700, color: '#1F2937', marginBottom: 8 }}>{t('cvManagement.cvListTitle')}</h1>
+            <h1 style={{ fontSize: 28, fontWeight: 700, color: '#1F2937', marginBottom: 8 }}>{t('cvManagement.title')}</h1>
             <p style={{ fontSize: 14, color: '#6B7280' }}>{t('cvManagement.cvListSubtitle')}</p>
           </div>
-          <button onClick={() => setView('welcome')} style={{ padding: '10px 16px', background: 'white', border: '1px solid #D1D5DB', borderRadius: 8, fontWeight: 600, color: '#374151' }}>← {t('cvManagement.back')}</button>
+          <button 
+            onClick={() => setView('upload')} 
+            style={{ 
+              padding: '12px 20px', 
+              background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', 
+              border: 'none', 
+              borderRadius: 10, 
+              fontWeight: 600, 
+              color: 'white',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.transform = 'translateY(-2px)';
+              e.target.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.4)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.transform = 'translateY(0)';
+              e.target.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
+            }}
+          >
+            <UploadIcon size={18} />
+            {t('cvManagement.uploadNewCV')}
+          </button>
         </div>
 
         {/* Filters */}
@@ -312,70 +344,8 @@ const CVPage = ({ departments, initialView = 'welcome' }) => {
     );
   }
 
-  // Welcome view with two buttons
-  return (
-    <div style={{ padding: 24, maxWidth: 1200, margin: '0 auto' }}>
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 700, color: '#1F2937', marginBottom: 8 }}>{t('cvManagement.title')}</h1>
-        <p style={{ fontSize: 16, color: '#6B7280' }}>{t('cvManagement.subtitle')}</p>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24 }}>
-        {/* CV Listesi Card */}
-        <Card
-          icon={<FileText size={48} color="#2563EB" />}
-          title={t('cvManagement.cvListCard.title')}
-          description={t('cvManagement.cvListCard.description')}
-          buttonText={t('cvManagement.cvListCard.button')}
-          onClick={() => setView('list')}
-        />
-
-        {/* CV Upload Card */}
-        <Card
-          icon={<UploadIcon size={48} color="#10B981" />}
-          title={t('cvManagement.cvUploadCard.title')}
-          description={t('cvManagement.cvUploadCard.description')}
-          buttonText={t('cvManagement.cvUploadCard.button')}
-          onClick={() => setView('upload')}
-        />
-      </div>
-    </div>
-  );
-};
-
-const Card = ({ icon, title, description, buttonText, onClick }) => {
-  const [hover, setHover] = useState(false);
-  return (
-    <div
-      style={{
-        background: 'white',
-        borderRadius: 16,
-        padding: 24,
-        border: '1px solid #E5E7EB',
-        transition: 'all 0.2s ease',
-        transform: hover ? 'translateY(-4px)' : 'none',
-        boxShadow: hover ? '0 12px 24px rgba(0,0,0,0.08)' : '0 1px 3px rgba(0,0,0,0.06)'
-      }}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-    >
-      <div style={{
-        width: 80, height: 80, borderRadius: 16, background: '#F3F4F6',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16
-      }}>{icon}</div>
-      <h3 style={{ fontSize: 20, fontWeight: 700, color: '#111827', marginBottom: 8 }}>{title}</h3>
-      <p style={{ fontSize: 14, color: '#6B7280', marginBottom: 16, lineHeight: 1.6 }}>{description}</p>
-      <button
-        onClick={onClick}
-        style={{
-          width: '100%', padding: '10px 16px', background: hover ? '#3B82F6' : '#2563EB', color: 'white',
-          border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer'
-        }}
-      >
-        {buttonText}
-      </button>
-    </div>
-  );
+  // Default - should not reach here, but return list view
+  return null;
 };
 
 export default CVPage;

@@ -7,55 +7,41 @@ import { useTranslation } from 'react-i18next';
 import { X, Eye, Briefcase, MapPin, Clock, GraduationCap, DollarSign, Calendar, Building2 } from 'lucide-react';
 
 const JobPreviewModal = ({ isOpen, onClose, jobData, departments, onPublish, isLoading, viewOnly = false }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language === 'en' ? 'en-US' : 'tr-TR';
 
   if (!isOpen || !jobData) return null;
 
   // Find department name
   const department = departments?.find(d => d.id === jobData.departmentId);
-  const departmentName = department?.name || 'Belirtilmemiş';
+  const departmentName = department?.name || t('jobPreview.notSpecified');
 
   // Format salary
   const formatSalary = () => {
-    if (!jobData.salaryMin && !jobData.salaryMax) return 'Belirtilmemiş';
+    if (!jobData.salaryMin && !jobData.salaryMax) return t('jobPreview.notSpecified');
     if (jobData.salaryMin && jobData.salaryMax) {
-      return `${jobData.salaryMin.toLocaleString('tr-TR')} - ${jobData.salaryMax.toLocaleString('tr-TR')} ${jobData.salaryCurrency}`;
+      return `${jobData.salaryMin.toLocaleString(locale)} - ${jobData.salaryMax.toLocaleString(locale)} ${jobData.salaryCurrency}`;
     }
-    if (jobData.salaryMin) return `${jobData.salaryMin.toLocaleString('tr-TR')}+ ${jobData.salaryCurrency}`;
-    if (jobData.salaryMax) return `${jobData.salaryMax.toLocaleString('tr-TR')}'e kadar ${jobData.salaryCurrency}`;
+    if (jobData.salaryMin) return `${jobData.salaryMin.toLocaleString(locale)}+ ${jobData.salaryCurrency}`;
+    if (jobData.salaryMax) return `${jobData.salaryMax.toLocaleString(locale)} ${t('jobPreview.upTo')} ${jobData.salaryCurrency}`;
   };
 
-  // Format employment type
+  // Format employment type - using translations
   const getEmploymentTypeLabel = () => {
-    const types = {
-      'full-time': 'Tam Zamanlı',
-      'part-time': 'Yarı Zamanlı',
-      'contract': 'Sözleşmeli',
-      'internship': 'Stajyer'
-    };
-    return types[jobData.employmentType] || jobData.employmentType;
+    return t(`job.${jobData.employmentType === 'full-time' ? 'fullTime' : 
+              jobData.employmentType === 'part-time' ? 'partTime' : 
+              jobData.employmentType === 'contract' ? 'contract' : 
+              jobData.employmentType === 'internship' ? 'internship' : jobData.employmentType}`);
   };
 
-  // Format experience level
+  // Format experience level - using translations
   const getExperienceLevelLabel = () => {
-    const levels = {
-      'entry': 'Giriş Seviyesi',
-      'junior': 'Junior (0-2 yıl)',
-      'mid': 'Mid-Level (2-5 yıl)',
-      'senior': 'Senior (5+ yıl)',
-      'lead': 'Lead/Manager'
-    };
-    return levels[jobData.experienceLevel] || jobData.experienceLevel;
+    return t(`job.${jobData.experienceLevel}`);
   };
 
-  // Format remote policy
+  // Format remote policy - using translations
   const getRemotePolicyLabel = () => {
-    const policies = {
-      'office': 'Ofiste',
-      'hybrid': 'Hibrit',
-      'remote': 'Uzaktan'
-    };
-    return policies[jobData.remotePolicy] || jobData.remotePolicy;
+    return t(`job.${jobData.remotePolicy}`);
   };
 
   // Parse languages
@@ -115,10 +101,10 @@ const JobPreviewModal = ({ isOpen, onClose, jobData, departments, onPublish, isL
             </div>
             <div>
               <h2 style={{ fontSize: 20, fontWeight: 700, color: 'white', margin: 0 }}>
-                İlan Önizlemesi
+                {t('jobPreview.title')}
               </h2>
               <p style={{ fontSize: 14, color: 'rgba(255, 255, 255, 0.9)', margin: '4px 0 0 0' }}>
-                İlanı yayınlamadan önce son bir kez kontrol edin
+                {t('jobPreview.subtitle')}
               </p>
             </div>
           </div>
@@ -173,7 +159,7 @@ const JobPreviewModal = ({ isOpen, onClose, jobData, departments, onPublish, isL
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Building2 size={18} color="#667eea" />
                 <div>
-                  <div style={{ fontSize: 12, color: '#6B7280' }}>Departman</div>
+                  <div style={{ fontSize: 12, color: '#6B7280' }}>{t('jobPreview.department')}</div>
                   <div style={{ fontSize: 14, fontWeight: 600, color: '#1F2937' }}>
                     {departmentName}
                   </div>
@@ -183,7 +169,7 @@ const JobPreviewModal = ({ isOpen, onClose, jobData, departments, onPublish, isL
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <MapPin size={18} color="#667eea" />
                 <div>
-                  <div style={{ fontSize: 12, color: '#6B7280' }}>Lokasyon</div>
+                  <div style={{ fontSize: 12, color: '#6B7280' }}>{t('jobPreview.location')}</div>
                   <div style={{ fontSize: 14, fontWeight: 600, color: '#1F2937' }}>
                     {jobData.location} • {getRemotePolicyLabel()}
                   </div>
@@ -193,7 +179,7 @@ const JobPreviewModal = ({ isOpen, onClose, jobData, departments, onPublish, isL
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Clock size={18} color="#667eea" />
                 <div>
-                  <div style={{ fontSize: 12, color: '#6B7280' }}>Çalışma Türü</div>
+                  <div style={{ fontSize: 12, color: '#6B7280' }}>{t('jobPreview.employmentType')}</div>
                   <div style={{ fontSize: 14, fontWeight: 600, color: '#1F2937' }}>
                     {getEmploymentTypeLabel()}
                   </div>
@@ -203,7 +189,7 @@ const JobPreviewModal = ({ isOpen, onClose, jobData, departments, onPublish, isL
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <GraduationCap size={18} color="#667eea" />
                 <div>
-                  <div style={{ fontSize: 12, color: '#6B7280' }}>Deneyim</div>
+                  <div style={{ fontSize: 12, color: '#6B7280' }}>{t('jobPreview.experience')}</div>
                   <div style={{ fontSize: 14, fontWeight: 600, color: '#1F2937' }}>
                     {getExperienceLevelLabel()}
                   </div>
@@ -214,7 +200,7 @@ const JobPreviewModal = ({ isOpen, onClose, jobData, departments, onPublish, isL
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <DollarSign size={18} color="#667eea" />
                   <div>
-                    <div style={{ fontSize: 12, color: '#6B7280' }}>Maaş Aralığı</div>
+                    <div style={{ fontSize: 12, color: '#6B7280' }}>{t('jobPreview.salaryRange')}</div>
                     <div style={{ fontSize: 14, fontWeight: 600, color: '#1F2937' }}>
                       {formatSalary()}
                     </div>
@@ -226,9 +212,9 @@ const JobPreviewModal = ({ isOpen, onClose, jobData, departments, onPublish, isL
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Calendar size={18} color="#667eea" />
                   <div>
-                    <div style={{ fontSize: 12, color: '#6B7280' }}>Son Başvuru</div>
+                    <div style={{ fontSize: 12, color: '#6B7280' }}>{t('jobPreview.deadline')}</div>
                     <div style={{ fontSize: 14, fontWeight: 600, color: '#1F2937' }}>
-                      {new Date(jobData.deadline).toLocaleDateString('tr-TR')}
+                      {new Date(jobData.deadline).toLocaleDateString(locale)}
                     </div>
                   </div>
                 </div>
@@ -248,7 +234,7 @@ const JobPreviewModal = ({ isOpen, onClose, jobData, departments, onPublish, isL
               gap: 8
             }}>
               <Briefcase size={20} color="#667eea" />
-              İş Tanımı
+              {t('jobPreview.description')}
             </h3>
             <div 
               dangerouslySetInnerHTML={{ __html: jobData.description }}
@@ -276,7 +262,7 @@ const JobPreviewModal = ({ isOpen, onClose, jobData, departments, onPublish, isL
               gap: 8
             }}>
               <GraduationCap size={20} color="#667eea" />
-              Aranan Nitelikler
+              {t('jobPreview.requirements')}
             </h3>
             <div 
               dangerouslySetInnerHTML={{ __html: jobData.requirements }}
@@ -301,7 +287,7 @@ const JobPreviewModal = ({ isOpen, onClose, jobData, departments, onPublish, isL
                 color: '#1F2937',
                 marginBottom: 12
               }}>
-                Anahtar Kelimeler
+                {t('jobPreview.keywords')}
               </h3>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {(typeof jobData.keywords === 'string' ? 
@@ -335,7 +321,7 @@ const JobPreviewModal = ({ isOpen, onClose, jobData, departments, onPublish, isL
                 color: '#1F2937',
                 marginBottom: 12
               }}>
-                Dil Gereksinimleri
+                {t('jobPreview.languages')}
               </h3>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
                 {Object.entries(languages).map(([name, level], idx) => (
@@ -367,7 +353,7 @@ const JobPreviewModal = ({ isOpen, onClose, jobData, departments, onPublish, isL
                 color: '#1F2937',
                 marginBottom: 12
               }}>
-                Tercih Edilen Bölümler
+                {t('jobPreview.preferredMajors')}
               </h3>
               <p style={{
                 fontSize: 14,
@@ -409,7 +395,7 @@ const JobPreviewModal = ({ isOpen, onClose, jobData, departments, onPublish, isL
               transition: 'all 0.2s'
             }}
           >
-            {viewOnly ? 'Kapat' : 'Geri Dön'}
+            {viewOnly ? t('jobPreview.close') : t('jobPreview.goBack')}
           </button>
           {!viewOnly && <button
             onClick={onPublish}
@@ -452,12 +438,12 @@ const JobPreviewModal = ({ isOpen, onClose, jobData, departments, onPublish, isL
                   borderRadius: '50%',
                   animation: 'spin 0.6s linear infinite'
                 }} />
-                Yayınlanıyor...
+                {t('jobPreview.publishing')}
               </>
             ) : (
               <>
                 <Eye size={18} />
-                İlanı Kaydet
+                {t('jobPreview.saveJob')}
               </>
             )}
           </button>}

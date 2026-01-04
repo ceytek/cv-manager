@@ -82,6 +82,10 @@ from app.graphql.types import (
     LikertSessionWithAnswersType,
     InterviewAnswerWithQuestionType,
     InterviewSessionWithAnswersType,
+    # AI Analysis types
+    AIAnalysisCategoryType,
+    AIInterviewAnalysisType,
+    AIAnalysisResponse,
     # Rejection template types
     RejectionTemplateType,
     RejectionTemplateInput,
@@ -579,6 +583,7 @@ class Query:
 
             # Prefetch application counts per job
             from app.models.application import Application, ApplicationStatus
+            from app.models.candidate import Candidate
             from sqlalchemy import func
             counts = (
                 db.query(Application.job_id, func.count(Application.id))
@@ -588,6 +593,31 @@ class Query:
                 .all()
             )
             count_map = {jid: cnt for jid, cnt in counts}
+            
+            # Prefetch recent applicants (first 2) for each job
+            from sqlalchemy.orm import aliased
+            recent_applicants_map = {}
+            for j in jobs:
+                recent_apps = (
+                    db.query(Application, Candidate)
+                    .join(Candidate, Application.candidate_id == Candidate.id)
+                    .filter(Application.job_id == j.id)
+                    .filter(Application.company_id == company_id)
+                    .filter(Application.status != ApplicationStatus.PENDING)
+                    .order_by(Application.created_at.desc())
+                    .limit(2)
+                    .all()
+                )
+                initials = []
+                for app, candidate in recent_apps:
+                    if candidate and candidate.name:
+                        # Get initials from name (e.g., "Furkan Avcıoğlu" -> "FA")
+                        parts = candidate.name.strip().split()
+                        if len(parts) >= 2:
+                            initials.append(f"{parts[0][0].upper()}{parts[-1][0].upper()}")
+                        elif len(parts) == 1:
+                            initials.append(f"{parts[0][0].upper()}{parts[0][1].upper() if len(parts[0]) > 1 else parts[0][0].upper()}")
+                recent_applicants_map[j.id] = initials
 
             # Preload departments map
             from app.models.department import Department
@@ -630,6 +660,7 @@ class Query:
                     created_at=j.created_at.isoformat(),
                     updated_at=j.updated_at.isoformat(),
                     analysis_count=count_map.get(j.id, 0),
+                    recent_applicants=recent_applicants_map.get(j.id, []),
                     department=(
                         DepartmentType(
                             id=dep_map[j.department_id].id,
@@ -1239,7 +1270,8 @@ class Query:
                     count=record.count,
                     created_at=record.created_at.isoformat(),
                     period_start=record.period_start.isoformat(),
-                    period_end=record.period_end.isoformat()
+                    period_end=record.period_end.isoformat(),
+                    metadata=record.usage_metadata  # Contains candidate_name, session_id, etc.
                 ))
             
             return result
@@ -1417,9 +1449,11 @@ class Query:
                     func.sum(UsageTracking.count).label("total"),
                     func.sum(case((UsageTracking.resource_type == "cv_upload", UsageTracking.count), else_=0)).label("cv_uploads"),
                     func.sum(case((UsageTracking.resource_type == "ai_analysis", UsageTracking.count), else_=0)).label("ai_analyses"),
+                    func.sum(case((UsageTracking.resource_type == "interview_completed", UsageTracking.count), else_=0)).label("interview_completed"),
+                    func.sum(case((UsageTracking.resource_type == "interview_ai_analysis", UsageTracking.count), else_=0)).label("interview_ai_analysis"),
                 )
                 .filter(UsageTracking.company_id == company_id)
-                .filter(UsageTracking.resource_type.in_(["cv_upload", "ai_analysis"]))
+                .filter(UsageTracking.resource_type.in_(["cv_upload", "ai_analysis", "interview_completed", "interview_ai_analysis"]))
                 .group_by(UsageTracking.period_start, UsageTracking.period_end)
                 .order_by(UsageTracking.period_start.desc())
             )
@@ -1429,7 +1463,7 @@ class Query:
 
             rows = q.all()
             result: List[UsagePeriodSummary] = []
-            for ps, pe, total, cvu, aia in rows:
+            for ps, pe, total, cvu, aia, int_comp, int_ai in rows:
                 # Build localized label like "Kasım 2025"
                 try:
                     import locale
@@ -1446,6 +1480,8 @@ class Query:
                     total_credits=int(total or 0),
                     cv_analyses=int(aia or 0),
                     cv_uploads=int(cvu or 0),
+                    interview_completed=int(int_comp or 0),
+                    interview_ai_analysis=int(int_ai or 0),
                 ))
 
             return result
@@ -3394,6 +3430,18 @@ class Mutation(CompanyMutation):
         """Accept interview agreement"""
         from app.modules.interview.resolvers import accept_interview_agreement
         return await accept_interview_agreement(info, token)
+
+    @strawberry.mutation
+    async def analyze_interview_with_ai(self, info: Info, session_id: str) -> "AIAnalysisResponse":
+        """Trigger AI analysis for a completed interview session"""
+        from app.modules.interview.resolvers import analyze_interview_with_ai
+        return await analyze_interview_with_ai(info, session_id)
+
+    @strawberry.mutation
+    async def update_browser_stt_support(self, info: Info, token: str, supported: bool) -> InterviewSessionResponse:
+        """Update browser STT support status for a session"""
+        from app.modules.interview.resolvers import update_browser_stt_support
+        return await update_browser_stt_support(info, token, supported)
 
     @strawberry.mutation
     async def submit_likert_session(self, info: Info, token: str, answers: List[LikertAnswerInput]) -> LikertSessionResponse:

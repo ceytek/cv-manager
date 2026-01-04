@@ -24,7 +24,8 @@
     "minutes": "dk",
     "deleting": "Siliniyor...",
     "show": "Göster",
-    "hide": "Gizle"
+    "hide": "Gizle",
+    "optional": "İsteğe bağlı"
   },
   "header": {
     "welcome": "Hoş Geldiniz, {{name}}!",
@@ -44,7 +45,8 @@
     "templates": "Şablonlar",
     "settings": "Ayarlar",
     "newJobButton": "Yeni İş İlanı Oluştur",
-    "userRole": "İK Uzmanı"
+    "userRole": "İK Uzmanı",
+    "departmentTooltip": "Başlamak için önce bir departman oluşturun"
   },
   "templates": {
     "interviewTemplates": "Mülakat Şablonları",
@@ -76,19 +78,24 @@
     "noDescription": "Açıklama yok",
     "unknownDepartment": "Bilinmiyor",
     "locale": "tr-TR",
-    "jobsWidget": "Akışlar",
+    "jobsWidget": "İş İlanları",
     "candidates": "aday",
     "noJobs": "Henüz iş ilanı yok",
-    "jobTitle": "İş İlanı",
+    "jobTitle": "Pozisyon",
     "applicants": "Başvuran",
     "showing": "Gösterilen",
     "recentActivities": "Son İşlemler",
     "activity": "İşlem",
     "time": "Zaman",
     "noActivities": "Henüz işlem yok",
-    "minutesAgo": "dk önce",
-    "hoursAgo": "saat önce",
-    "daysAgo": "gün önce"
+    "minutesAgo": "dk",
+    "hoursAgo": "sa",
+    "daysAgo": "gün",
+    "activeJobs": "Aktif",
+    "allActivities": "Tümü",
+    "department": "Departman",
+    "candidate": "Aday",
+    "status": "Durum"
   },
   "settings": {
     "changePassword": "Şifre Değiştir",
@@ -286,10 +293,12 @@
     "status": "DURUM",
     "operations": "İŞLEMLER",
     "noJobs": "Hiç ilan yok",
+    "noApplications": "Başvuru yok",
     "statusActive": "Aktif",
     "statusDraft": "Taslak",
     "statusClosed": "Kapalı",
-    "statusArchived": "Arşiv"
+    "statusArchived": "Arşiv",
+    "aiPoweredEvaluation": "AI-Powered Evaluation"
   },
   "candidateDetail": {
     "breadcrumb": "Adaylar / {{name}}",
@@ -362,7 +371,13 @@
       "rejected": "Reddedildi"
     },
     "viewHistory": "Geçmişi Görüntüle",
-    "downloadCV": "CV İndir"
+    "downloadCV": "CV İndir",
+    "noCVAvailable": "CV mevcut değil",
+    "listView": "Liste",
+    "gridView": "Kart",
+    "compatibility": "UYUMLULUK",
+    "timeline": "Timeline",
+    "analysis": "Analiz"
   },
   "candidateHistory": {
     "title": "Aday Geçmişi",
@@ -512,7 +527,9 @@
     },
     "uploadedInSession": "Bu Oturumda Yüklenenler",
     "clearList": "Listeyi Temizle",
-    "download": "İndir"
+    "download": "İndir",
+    "uploadNewCV": "Yeni CV Yükle",
+    "backToList": "Listeye Dön"
   },
   "cvUploader": {
     "uploadComplete": "Yükleme Tamamlandı!",
@@ -593,7 +610,9 @@
   },
   "jobsPage": {
     "title": "İş İlanları Yönetimi",
-    "searchPlaceholder": "İlan adı veya departmana göre ara",
+    "pageTitle": "İş İlanları Yönetimi",
+    "pageSubtitle": "Aktif iş ilanlarını yönetin ve yeni pozisyonlar oluşturun.",
+    "searchPlaceholder": "İlan başlığı, departman veya anahtar kelime ara...",
     "filterActive": "Aktif",
     "filterDraft": "Taslak",
     "filterClosed": "Kapalı",
@@ -603,20 +622,31 @@
     "statusClosed": "Kapalı",
     "statusArchived": "Arşivlenmiş",
     "applications": "Başvuru",
+    "applicants": "Başvuru",
+    "noApplicants": "Henüz başvuru yok",
     "lastDate": "Son:",
     "remoteOffice": "🏢 Ofis",
     "remoteRemote": "🌐 Remote",
     "remoteHybrid": "🔀 Hybrid",
     "noJobsFound": "İlan bulunamadı",
     "selectOrCreate": "Bir ilanı seçin veya yeni bir ilan oluşturun",
+    "createNewJob": "Yeni İlan Oluştur",
     "createManualJob": "Manuel İlan Oluştur",
-    "createAIJob": "AI ile İlan Oluştur",
+    "createAIJob": "AI ile Oluştur",
+    "editJob": "İlanı Düzenle",
     "preview": "Önizle",
     "interview": "Mülakat",
     "likertTest": "Likert Test",
+    "fullTime": "Tam Zamanlı",
+    "partTime": "Yarı Zamanlı",
+    "contract": "Sözleşmeli",
+    "intern": "Stajyer",
     "loading": "Yükleniyor...",
     "error": "Hata: {{message}}",
-    "unknownDepartment": "Bilinmiyor"
+    "unknownDepartment": "Bilinmiyor",
+    "listView": "Liste",
+    "gridView": "Kart",
+    "view": "Görüntüle"
   },
   "jobForm": {
     "editJob": "İlanı Düzenle",
@@ -664,8 +694,11 @@
     "languageBusiness": "İş Düzeyi",
     "languageNative": "Anadil",
     "languagePlaceholder": "Örn: İngilizce, Almanca",
+    "selectLanguage": "-- Dil Seçin --",
     "addLanguage": "+ Ekle",
     "languageAlreadyAdded": "Bu dil zaten eklenmiş",
+    "richTextHint": "Kalın, italik ve liste eklemek için araç çubuğunu kullanabilirsiniz",
+    "richTextHintRequirements": "Madde işaretli liste için araç çubuğundaki liste butonunu kullanabilirsiniz",
     "salaryRange": "Maaş Aralığı (Opsiyonel)",
     "salaryMin": "Min",
     "salaryMax": "Max",
@@ -677,6 +710,7 @@
     "statusClosed": "Kapalı",
     "statusArchived": "Arşivlenmiş",
     "publish": "İlanı Yayınla",
+    "preview": "Önizle",
     "cancel": "Vazgeç",
     "errorTitleRequired": "İlan başlığı en az 3 karakter olmalıdır",
     "errorDepartmentRequired": "Departman seçimi zorunludur",
@@ -734,8 +768,10 @@
     "languageName": "Dil",
     "languageNamePlaceholder": "Örn: İngilizce",
     "languageLevel": "Seviye",
+    "selectLanguage": "-- Dil Seçin --",
     "addLanguage": "+ Ekle",
     "languageAlreadyAdded": "Bu dil zaten eklenmiş",
+    "languageHint": "Dil ve seviye seçerek ekleyin",
     "additionalNotes": "Ek Notlar (İsteğe Bağlı)",
     "notesPlaceholder": "Ek gereksinimler veya bilgiler ekleyin...",
     "notesNote": "Uzaktan çalışma politikası, özel gereksinimler veya yan haklar gibi bilgileri ekleyin",
@@ -782,6 +818,27 @@
       "submitFailed": "Başvuru gönderilemedi, lütfen tekrar deneyin"
     }
   },
+  "jobPreview": {
+    "title": "İlan Önizlemesi",
+    "subtitle": "İlanı yayınlamadan önce son bir kez kontrol edin",
+    "department": "Departman",
+    "location": "Lokasyon",
+    "employmentType": "Çalışma Türü",
+    "experience": "Deneyim",
+    "salaryRange": "Maaş Aralığı",
+    "deadline": "Son Başvuru",
+    "description": "İş Tanımı",
+    "requirements": "Aranan Nitelikler",
+    "keywords": "Anahtar Kelimeler",
+    "languages": "Dil Gereksinimleri",
+    "preferredMajors": "Tercih Edilen Bölümler",
+    "notSpecified": "Belirtilmemiş",
+    "upTo": "'e kadar",
+    "goBack": "Geri Dön",
+    "close": "Kapat",
+    "saveJob": "İlanı Kaydet",
+    "publishing": "Yayınlanıyor..."
+  },
   "job": {
     "fullTime": "Tam Zamanlı",
     "partTime": "Yarı Zamanlı",
@@ -800,5 +857,31 @@
     "advanced": "İleri",
     "business": "İş",
     "native": "Anadil"
+  },
+  "usageHistoryPage": {
+    "noRecordsInPeriod": "Bu dönemde kayıt bulunamadı",
+    "noCvAnalysis": "CV analizi işlemi yapılmadı",
+    "noCvUpload": "CV yükleme işlemi yapılmadı",
+    "activityLog": "İşlem Geçmişi",
+    "trackUsage": "Seçili dönemdeki kullanımınızı takip edin.",
+    "cvAnalyses": "CV Analizleri",
+    "cvUploads": "CV Yüklemeleri",
+    "interviewCompleted": "Mülakat Tamamlandı",
+    "interviewAIAnalysis": "Mülakat AI Analizi",
+    "count": "ADET",
+    "descCvAnalysis": "AI destekli iş eşleştirme analizi",
+    "descCvUpload": "Sisteme CV yükleme",
+    "descInterviewCompleted": "Aday mülakatı tamamladı",
+    "descInterviewAI": "AI mülakat analizi yapıldı",
+    "noRecords_cv_analyses": "CV analizi işlemi yapılmadı",
+    "noRecords_cv_uploads": "CV yükleme işlemi yapılmadı",
+    "noRecords_interview_completed": "Tamamlanmış mülakat yok",
+    "noRecords_interview_ai_analysis": "AI mülakat analizi yapılmadı",
+    "viewAnalysis": "Analizi Görüntüle",
+    "totalCredits": "Toplam",
+    "cvAnalysisShort": "CV Analiz",
+    "cvUploadShort": "CV Yükle",
+    "interviewShort": "Mülakat",
+    "aiAnalysisShort": "AI Analiz"
   }
 }

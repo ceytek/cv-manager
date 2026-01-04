@@ -1,6 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from strawberry.fastapi import GraphQLRouter
+import os
+import uuid
 
 from app.api.routes import auth
 from app.api.routes import public
@@ -184,6 +187,14 @@ graphql_app = GraphQLRouter(
 app.include_router(graphql_app, prefix="")
 
 
+# Ensure uploads directory exists for interview videos
+UPLOAD_DIR = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'interview_videos')
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# Serve static files for uploaded videos
+app.mount("/uploads", StaticFiles(directory=os.path.join(os.path.dirname(__file__), '..', 'uploads')), name="uploads")
+
+
 @app.get("/")
 def read_root():
     """Root endpoint"""
@@ -194,3 +205,39 @@ def read_root():
 def health_check():
     """Health check endpoint"""
     return {"status": "ok"}
+
+
+@app.post("/upload-interview-video")
+async def upload_interview_video(
+    video: UploadFile = File(...),
+    token: str = Form(...),
+    questionId: str = Form(...)
+):
+    """
+    Upload interview video for a specific question.
+    Returns the URL where the video can be accessed.
+    """
+    try:
+        # Generate unique filename
+        file_extension = video.filename.split('.')[-1] if '.' in video.filename else 'webm'
+        unique_filename = f"{token}_{questionId}_{uuid.uuid4().hex[:8]}.{file_extension}"
+        file_path = os.path.join(UPLOAD_DIR, unique_filename)
+        
+        # Save the file
+        content = await video.read()
+        with open(file_path, 'wb') as f:
+            f.write(content)
+        
+        # Return the URL (relative to the server)
+        video_url = f"/uploads/interview_videos/{unique_filename}"
+        
+        return {
+            "success": True,
+            "videoUrl": video_url,
+            "filename": unique_filename
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }

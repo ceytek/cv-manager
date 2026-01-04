@@ -13,6 +13,7 @@ from app.services.cv_parser import cv_parser_service
 from app.services.job_matcher_service import get_job_matcher_service
 from app.services.compare_service import get_compare_service
 from app.services.job_generator_service import get_job_generator_service
+from app.services.interview_analyzer_service import get_interview_analyzer_service
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -96,6 +97,27 @@ class GenerateJobRequest(BaseModel):
 
 class GenerateJobResponse(BaseModel):
     """Response model for AI job description generation"""
+    success: bool
+    data: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
+
+
+class QuestionAnswer(BaseModel):
+    """Question-Answer pair for interview analysis"""
+    question: str
+    answer: str
+    order: int = 0
+
+
+class AnalyzeInterviewRequest(BaseModel):
+    """Request model for interview analysis"""
+    job_context: Dict[str, Any]
+    questions_answers: List[QuestionAnswer]
+    language: str = "tr"
+
+
+class AnalyzeInterviewResponse(BaseModel):
+    """Response model for interview analysis"""
     success: bool
     data: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
@@ -333,6 +355,78 @@ async def generate_job_description(request: GenerateJobRequest):
     
     except Exception as e:
         return GenerateJobResponse(
+            success=False,
+            error=str(e)
+        )
+
+
+# ============================================
+# Interview Analysis Endpoint
+# ============================================
+
+@app.post("/analyze-interview", response_model=AnalyzeInterviewResponse)
+async def analyze_interview(request: AnalyzeInterviewRequest):
+    """
+    Analyze interview responses using AI.
+    
+    Evaluates candidate's interview answers across 5 categories:
+    - Content Relevance
+    - Communication Skills
+    - Learning & Impact
+    - Problem Solving
+    - Teamwork
+    
+    Args:
+        request: Contains job_context, questions_answers, and language
+        
+    Returns:
+        AI analysis with overall score, category scores, and detailed feedback
+    """
+    try:
+        # Validate required fields
+        if not request.job_context:
+            raise HTTPException(status_code=400, detail="job_context is required")
+        
+        if not request.questions_answers:
+            raise HTTPException(status_code=400, detail="questions_answers is required")
+        
+        # Get analyzer service
+        analyzer_service = get_interview_analyzer_service()
+        
+        # Convert to dict format expected by service
+        qa_list = [
+            {
+                "question": qa.question,
+                "answer": qa.answer,
+                "order": qa.order
+            }
+            for qa in request.questions_answers
+        ]
+        
+        # Perform analysis
+        analysis_result = await analyzer_service.analyze_interview(
+            job_context=request.job_context,
+            questions_answers=qa_list,
+            language=request.language
+        )
+        
+        # Check for errors in result
+        if "error" in analysis_result and analysis_result.get("overall_score", 0) == 0:
+            return AnalyzeInterviewResponse(
+                success=False,
+                error=analysis_result.get("error", "Unknown error")
+            )
+        
+        return AnalyzeInterviewResponse(
+            success=True,
+            data=analysis_result
+        )
+        
+    except HTTPException:
+        raise
+    
+    except Exception as e:
+        return AnalyzeInterviewResponse(
             success=False,
             error=str(e)
         )

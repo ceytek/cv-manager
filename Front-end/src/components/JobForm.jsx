@@ -9,9 +9,10 @@ import { useMutation } from '@apollo/client/react';
 import { CREATE_JOB_MUTATION, UPDATE_JOB_MUTATION, JOBS_QUERY } from '../graphql/jobs';
 import { useTranslation } from 'react-i18next';
 import JobPreviewModal from './JobForm/JobPreviewModal';
+import SimpleRichTextEditor from './SimpleRichTextEditor';
 
-const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel }) => {
-  const { t } = useTranslation();
+const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel, isModal = false }) => {
+  const { t, i18n } = useTranslation();
   const isEditing = !!job;
   
   const [formData, setFormData] = useState({
@@ -38,13 +39,24 @@ const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel }) => {
   // Language state - kullanıcı dostu UI için
   const [languages, setLanguages] = useState([]);
   const [newLanguage, setNewLanguage] = useState({ name: '', level: 'basic' });
+  
+  // Predefined language options
+  const languageOptions = [
+    { value: 'turkish', labelTr: 'Türkçe', labelEn: 'Turkish' },
+    { value: 'english', labelTr: 'İngilizce', labelEn: 'English' },
+    { value: 'german', labelTr: 'Almanca', labelEn: 'German' },
+    { value: 'russian', labelTr: 'Rusça', labelEn: 'Russian' }
+  ];
+  
+  // Get language label based on current language
+  const getLanguageLabel = (lang) => {
+    return i18n.language === 'en' ? lang.labelEn : lang.labelTr;
+  };
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [showPreview, setShowPreview] = useState(false);
   const [previewData, setPreviewData] = useState(null);
-  const [editingDescription, setEditingDescription] = useState(false);
-  const [editingRequirements, setEditingRequirements] = useState(false);
 
   // Load job data if editing
   useEffect(() => {
@@ -124,16 +136,20 @@ const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel }) => {
 
   // Language handlers
   const handleAddLanguage = () => {
-    if (!newLanguage.name.trim()) return;
+    if (!newLanguage.name) return;
     
     // Check if language already exists
-    if (languages.some(l => l.name.toLowerCase() === newLanguage.name.toLowerCase())) {
+    if (languages.some(l => l.name === newLanguage.name)) {
       setError(t('jobForm.languageAlreadyAdded'));
       setTimeout(() => setError(''), 2000);
       return;
     }
     
-    setLanguages([...languages, { name: newLanguage.name.trim(), level: newLanguage.level }]);
+    // Get the display name based on current language
+    const selectedLang = languageOptions.find(l => l.value === newLanguage.name);
+    const displayName = selectedLang ? getLanguageLabel(selectedLang) : newLanguage.name;
+    
+    setLanguages([...languages, { name: newLanguage.name, displayName, level: newLanguage.level }]);
     setNewLanguage({ name: '', level: 'basic' });
   };
 
@@ -234,10 +250,12 @@ const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel }) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <h2 style={{ fontSize: 22, fontWeight: 600, marginBottom: 8 }}>
-        {isEditing ? t('jobForm.editJob') : t('jobForm.createJob')}
-      </h2>
+    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20, width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+      {!isModal && (
+        <h2 style={{ fontSize: 22, fontWeight: 600, marginBottom: 8 }}>
+          {isEditing ? t('jobForm.editJob') : t('jobForm.createJob')}
+        </h2>
+      )}
 
       {error && <div style={{ padding: 12, background: '#FEE2E2', color: '#991B1B', borderRadius: 8, fontSize: 14 }}>{error}</div>}
       {success && <div style={{ padding: 12, background: '#D1FAE5', color: '#065F46', borderRadius: 8, fontSize: 14 }}>{success}</div>}
@@ -320,184 +338,30 @@ const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel }) => {
         </div>
       </div>
 
-      {/* İş Tanımı */}
+      {/* İş Tanımı - Rich Text Editor */}
       <div>
-        <label style={{ display: 'block', marginBottom: 6, fontSize: 14, fontWeight: 500 }}>{t('jobForm.description')} *</label>
-        
-        {/* Preview Mode - Only show if AI data exists and not editing */}
-        {aiData && !editingDescription ? (
-          <div>
-            <div style={{
-              border: '2px solid #E5E7EB',
-              borderRadius: 12,
-              padding: 20,
-              background: '#FFFFFF',
-              marginBottom: 12,
-              minHeight: 200
-            }}>
-              <div 
-                dangerouslySetInnerHTML={{ __html: formData.description }}
-                style={{ 
-                  fontSize: 15, 
-                  lineHeight: 1.7, 
-                  color: '#374151',
-                  '& p': { marginBottom: 12 },
-                  '& ul': { marginLeft: 20, marginBottom: 12 },
-                  '& li': { marginBottom: 8 }
-                }}
-              />
-            </div>
-            <button
-              type="button"
-              onClick={() => setEditingDescription(true)}
-              style={{
-                padding: '8px 16px',
-                border: '1px solid #667eea',
-                borderRadius: 8,
-                background: 'white',
-                color: '#667eea',
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.background = '#667eea';
-                e.target.style.color = 'white';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.background = 'white';
-                e.target.style.color = '#667eea';
-              }}
-            >
-              ✏️ HTML Kodunu Düzenle
-            </button>
-          </div>
-        ) : (
-          <div>
-            <textarea
-              value={formData.description}
-              onChange={(e) => handleChange('description', e.target.value)}
-              placeholder={t('jobForm.descriptionPlaceholder')}
-              className="text-input"
-              rows={8}
-              required
-              style={{ fontFamily: 'inherit', fontSize: 14 }}
-            />
-            <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4 }}>
-              HTML formatında yazabilirsiniz (örn: &lt;p&gt;, &lt;ul&gt;, &lt;li&gt;, &lt;strong&gt;)
-            </div>
-            {aiData && editingDescription && (
-              <button
-                type="button"
-                onClick={() => setEditingDescription(false)}
-                style={{
-                  padding: '6px 12px',
-                  border: '1px solid #10B981',
-                  borderRadius: 6,
-                  background: 'white',
-                  color: '#10B981',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  marginTop: 8
-                }}
-              >
-                ✓ Önizlemeye Dön
-              </button>
-            )}
-          </div>
-        )}
+        <SimpleRichTextEditor
+          label={t('jobForm.description')}
+          required
+          value={formData.description}
+          onChange={(val) => handleChange('description', val)}
+          placeholder={t('jobForm.descriptionPlaceholder')}
+          minHeight={180}
+          hint={t('jobForm.richTextHint')}
+        />
       </div>
 
-      {/* Aranan Nitelikler */}
+      {/* Aranan Nitelikler - Rich Text Editor */}
       <div>
-        <label style={{ display: 'block', marginBottom: 6, fontSize: 14, fontWeight: 500 }}>{t('jobForm.requirements')} *</label>
-        
-        {/* Preview Mode - Only show if AI data exists and not editing */}
-        {aiData && !editingRequirements ? (
-          <div>
-            <div style={{
-              border: '2px solid #E5E7EB',
-              borderRadius: 12,
-              padding: 20,
-              background: '#FFFFFF',
-              marginBottom: 12,
-              minHeight: 200
-            }}>
-              <div 
-                dangerouslySetInnerHTML={{ __html: formData.requirements }}
-                style={{ 
-                  fontSize: 15, 
-                  lineHeight: 1.7, 
-                  color: '#374151',
-                  '& p': { marginBottom: 12 },
-                  '& ul': { marginLeft: 20, marginBottom: 12 },
-                  '& li': { marginBottom: 8 }
-                }}
-              />
-            </div>
-            <button
-              type="button"
-              onClick={() => setEditingRequirements(true)}
-              style={{
-                padding: '8px 16px',
-                border: '1px solid #667eea',
-                borderRadius: 8,
-                background: 'white',
-                color: '#667eea',
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.background = '#667eea';
-                e.target.style.color = 'white';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.background = 'white';
-                e.target.style.color = '#667eea';
-              }}
-            >
-              ✏️ HTML Kodunu Düzenle
-            </button>
-          </div>
-        ) : (
-          <div>
-            <textarea
-              value={formData.requirements}
-              onChange={(e) => handleChange('requirements', e.target.value)}
-              placeholder={t('jobForm.requirementsPlaceholder')}
-              className="text-input"
-              rows={8}
-              required
-              style={{ fontFamily: 'inherit', fontSize: 14 }}
-            />
-            <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4 }}>
-              HTML formatında yazabilirsiniz. Gereksinimler madde madde &lt;ul&gt;&lt;li&gt; ile listeleyin.
-            </div>
-            {aiData && editingRequirements && (
-              <button
-                type="button"
-                onClick={() => setEditingRequirements(false)}
-                style={{
-                  padding: '6px 12px',
-                  border: '1px solid #10B981',
-                  borderRadius: 6,
-                  background: 'white',
-                  color: '#10B981',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  marginTop: 8
-                }}
-              >
-                ✓ Önizlemeye Dön
-              </button>
-            )}
-          </div>
-        )}
+        <SimpleRichTextEditor
+          label={t('jobForm.requirements')}
+          required
+          value={formData.requirements}
+          onChange={(val) => handleChange('requirements', val)}
+          placeholder={t('jobForm.requirementsPlaceholder')}
+          minHeight={180}
+          hint={t('jobForm.richTextHintRequirements')}
+        />
       </div>
 
       {/* Anahtar Kelimeler */}
@@ -537,67 +401,78 @@ const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel }) => {
         </div>
       </div>
 
-      {/* Dil Gereksinimleri */}
+      {/* Dil Gereksinimleri - Selectbox */}
       <div>
         <label style={{ display: 'block', marginBottom: 8, fontSize: 14, fontWeight: 500 }}>{t('jobForm.languageRequirements')}</label>
         
         {/* Existing Languages */}
         {languages.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
-            {languages.map((lang, index) => (
-              <div
-                key={index}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '6px 12px',
-                  background: '#EFF6FF',
-                  border: '1px solid #BFDBFE',
-                  borderRadius: 20,
-                  fontSize: 13,
-                }}
-              >
-                <span style={{ fontWeight: 500 }}>{lang.name}</span>
-                <span style={{ color: '#6B7280' }}>•</span>
-                <span style={{ color: '#3B82F6' }}>
-                  {lang.level === 'basic' && t('jobForm.languageBasic')}
-                  {lang.level === 'intermediate' && t('jobForm.languageIntermediate')}
-                  {lang.level === 'advanced' && t('jobForm.languageAdvanced')}
-                  {lang.level === 'business' && t('jobForm.languageBusiness')}
-                  {lang.level === 'native' && t('jobForm.languageNative')}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => handleRemoveLanguage(index)}
+            {languages.map((lang, index) => {
+              const langOption = languageOptions.find(l => l.value === lang.name);
+              const displayName = langOption ? getLanguageLabel(langOption) : lang.name;
+              return (
+                <div
+                  key={index}
                   style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: '#EF4444',
-                    cursor: 'pointer',
-                    fontSize: 16,
-                    padding: 0,
-                    marginLeft: 4,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '6px 12px',
+                    background: '#EFF6FF',
+                    border: '1px solid #BFDBFE',
+                    borderRadius: 20,
+                    fontSize: 13,
                   }}
                 >
-                  ×
-                </button>
-              </div>
-            ))}
+                  <span style={{ fontWeight: 500 }}>{displayName}</span>
+                  <span style={{ color: '#6B7280' }}>•</span>
+                  <span style={{ color: '#3B82F6' }}>
+                    {lang.level === 'basic' && t('jobForm.languageBasic')}
+                    {lang.level === 'intermediate' && t('jobForm.languageIntermediate')}
+                    {lang.level === 'advanced' && t('jobForm.languageAdvanced')}
+                    {lang.level === 'business' && t('jobForm.languageBusiness')}
+                    {lang.level === 'native' && t('jobForm.languageNative')}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveLanguage(index)}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#EF4444',
+                      cursor: 'pointer',
+                      fontSize: 16,
+                      padding: 0,
+                      marginLeft: 4,
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
 
-        {/* Add New Language */}
+        {/* Add New Language - Now with Selectbox */}
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr auto', gap: 8, alignItems: 'end' }}>
           <div>
-            <input
-              type="text"
+            <select
               value={newLanguage.name}
               onChange={(e) => setNewLanguage({ ...newLanguage, name: e.target.value })}
-              placeholder={t('jobForm.languagePlaceholder')}
               className="text-input"
-              onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddLanguage())}
-            />
+            >
+              <option value="">{t('jobForm.selectLanguage')}</option>
+              {languageOptions
+                .filter(lang => !languages.some(l => l.name === lang.value))
+                .map(lang => (
+                  <option key={lang.value} value={lang.value}>
+                    {getLanguageLabel(lang)}
+                  </option>
+                ))
+              }
+            </select>
           </div>
           <div>
             <select
@@ -615,15 +490,16 @@ const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel }) => {
           <button
             type="button"
             onClick={handleAddLanguage}
+            disabled={!newLanguage.name}
             style={{
               padding: '10px 16px',
-              background: '#10B981',
+              background: newLanguage.name ? '#10B981' : '#D1D5DB',
               color: 'white',
               border: 'none',
               borderRadius: 8,
               fontSize: 14,
               fontWeight: 500,
-              cursor: 'pointer',
+              cursor: newLanguage.name ? 'pointer' : 'not-allowed',
               whiteSpace: 'nowrap',
             }}
           >
@@ -636,9 +512,9 @@ const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel }) => {
       <div>
         <label style={{ display: 'block', marginBottom: 6, fontSize: 14, fontWeight: 500 }}>
           {t('jobForm.salaryRange')} 
-          <span style={{ color: '#9CA3AF', fontSize: 12, marginLeft: 8 }}>(İsteğe bağlı)</span>
+          <span style={{ color: '#9CA3AF', fontSize: 12, marginLeft: 8 }}>({t('common.optional')})</span>
         </label>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 80px', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 80px', gap: 12, width: '100%' }}>
           <input 
             type="number" 
             value={formData.salaryMin} 
@@ -692,7 +568,7 @@ const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel }) => {
       {/* Buttons */}
       <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
         <button type="submit" className="btn-primary" style={{ flex: 1 }}>
-          👁️ Önizle
+          👁️ {t('jobForm.preview')}
         </button>
         <button type="button" onClick={onCancel} className="btn-secondary">
           {t('jobForm.cancel')}

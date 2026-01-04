@@ -1,8 +1,8 @@
 """
 Interview Models - AI Interview System
 """
-from sqlalchemy import Column, String, Integer, Boolean, Text, DateTime, ForeignKey, Enum as SQLEnum
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, String, Integer, Boolean, Text, DateTime, ForeignKey, Enum as SQLEnum, Numeric
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import uuid
@@ -34,6 +34,10 @@ class InterviewTemplate(Base):
     use_global_timer = Column(Boolean, default=False)  # True = global timer, False = per-question timer
     total_duration = Column(Integer, nullable=True)  # Total duration in seconds when use_global_timer is True
     is_active = Column(Boolean, default=True)
+    
+    # AI and Voice options
+    ai_analysis_enabled = Column(Boolean, default=False)  # AI will analyze answers after completion
+    voice_response_enabled = Column(Boolean, default=False)  # Candidates can respond using voice (STT)
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -105,6 +109,11 @@ class InterviewSession(Base):
     # Agreement
     agreement_accepted_at = Column(DateTime, nullable=True)
     
+    # AI Analysis Results
+    ai_analysis = Column(JSONB, nullable=True)  # JSON containing analysis categories and scores
+    ai_overall_score = Column(Numeric(3, 2), nullable=True)  # Overall score 1-5
+    browser_stt_supported = Column(Boolean, nullable=True)  # Whether browser supported STT
+    
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
@@ -131,6 +140,9 @@ class InterviewAnswer(Base):
     
     # Status
     status = Column(String(50), nullable=False, default='submitted')
+    
+    # Question text snapshot (preserved even if template changes)
+    question_text = Column(Text, nullable=True)
     
     # Answer Content
     answer_text = Column(Text, nullable=True)

@@ -1,11 +1,11 @@
 /**
- * Jobs Page - Sol Panel: Liste & Kartlar
- * Tamamen modüler yapı - User/Department'tan bağımsız
+ * Jobs Page - İş İlanları Yönetimi
+ * 3. resim tasarımına göre düzenlendi
  */
 import React, { useEffect, useState } from 'react';
 import { useQuery } from '@apollo/client/react';
 import { JOBS_QUERY } from '../graphql/jobs';
-import { Search, MapPin, Users, Calendar, Sparkles, FileText, Eye, Video, ListChecks, Edit2 } from 'lucide-react';
+import { Search, MapPin, Users, Calendar, Sparkles, FileText, Eye, Video, ListChecks, Edit2, Trash2, Briefcase, Clock, Building2, X, List, LayoutGrid } from 'lucide-react';
 import JobForm from './JobForm';
 import AIJobCreator from './JobForm/AIJobCreator';
 import JobPreviewModal from './JobForm/JobPreviewModal';
@@ -17,8 +17,9 @@ const JobsPage = ({ departments = [], initialCreate = false }) => {
   const { t } = useTranslation();
   const [activeFilter, setActiveFilter] = useState('active');
   const [searchTerm, setSearchTerm] = useState('');
+  const [viewMode, setViewMode] = useState('list'); // 'list' or 'grid'
   const [selectedJob, setSelectedJob] = useState(null);
-  const [isCreating, setIsCreating] = useState(false);
+  const [showJobFormModal, setShowJobFormModal] = useState(false);
   const [showAICreator, setShowAICreator] = useState(false);
   const [aiGeneratedData, setAiGeneratedData] = useState(null);
   const [previewJob, setPreviewJob] = useState(null);
@@ -26,18 +27,17 @@ const JobsPage = ({ departments = [], initialCreate = false }) => {
   const [interviewSettingsJob, setInterviewSettingsJob] = useState(null);
   const [likertSettingsJob, setLikertSettingsJob] = useState(null);
 
-  // When initialCreate is true, just show the selection screen (not opening form directly)
+  // When initialCreate is true, show job form modal
   useEffect(() => {
     if (initialCreate) {
-      setSelectedJob(null);
-      setIsCreating(false); // Changed from true to false - show selection instead
+      setShowJobFormModal(true);
     }
   }, [initialCreate]);
 
   // Fetch jobs
   const { data, loading, error, refetch } = useQuery(JOBS_QUERY, {
     variables: {
-      includeInactive: false,
+      includeInactive: activeFilter === 'archived',
       status: activeFilter === 'all' ? null : activeFilter,
       searchTerm: searchTerm || null,
     },
@@ -54,14 +54,16 @@ const JobsPage = ({ departments = [], initialCreate = false }) => {
     { id: 'archived', label: t('jobsPage.filterArchived'), count: jobs.filter(j => j.status === 'archived').length },
   ];
 
-  const handleJobClick = (job) => {
+  const handleEditJob = (job, e) => {
+    e?.stopPropagation();
     setSelectedJob(job);
-    setIsCreating(false);
+    setShowJobFormModal(true);
   };
 
   const handleCreateNew = () => {
     setSelectedJob(null);
-    setIsCreating(true);
+    setAiGeneratedData(null);
+    setShowJobFormModal(true);
   };
 
   const handleCreateWithAI = () => {
@@ -70,31 +72,27 @@ const JobsPage = ({ departments = [], initialCreate = false }) => {
 
   const handleAIGenerate = (formData) => {
     console.log('AI Generated Job Data:', formData);
-    
-    // Store AI-generated data
     setAiGeneratedData(formData);
-    
-    // Open manual form with AI data pre-filled
     setSelectedJob(null);
-    setIsCreating(true);
+    setShowJobFormModal(true);
     setShowAICreator(false);
   };
 
   const handleFormSuccess = () => {
     refetch();
-    setIsCreating(false);
+    setShowJobFormModal(false);
     setSelectedJob(null);
-    setAiGeneratedData(null); // Clear AI data after successful save
+    setAiGeneratedData(null);
   };
 
   const handleFormCancel = () => {
-    setIsCreating(false);
+    setShowJobFormModal(false);
     setSelectedJob(null);
-    setAiGeneratedData(null); // Clear AI data on cancel
+    setAiGeneratedData(null);
   };
 
   const handlePreview = (job, e) => {
-    e.stopPropagation(); // Prevent card click
+    e?.stopPropagation();
     setPreviewJob(job);
     setShowPreview(true);
   };
@@ -108,281 +106,795 @@ const JobsPage = ({ departments = [], initialCreate = false }) => {
   // Status badge helper
   const getStatusBadge = (status) => {
     const badges = {
-      active: { label: t('jobsPage.statusActive'), class: 'green' },
-      draft: { label: t('jobsPage.statusDraft'), class: 'yellow' },
-      closed: { label: t('jobsPage.statusClosed'), class: 'red' },
-      archived: { label: t('jobsPage.statusArchived'), class: 'status-badge' },
+      active: { label: t('jobsPage.statusActive'), bg: '#DCFCE7', color: '#16A34A' },
+      draft: { label: t('jobsPage.statusDraft'), bg: '#FEF3C7', color: '#D97706' },
+      closed: { label: t('jobsPage.statusClosed'), bg: '#FEE2E2', color: '#DC2626' },
+      archived: { label: t('jobsPage.statusArchived'), bg: '#F3F4F6', color: '#6B7280' },
     };
     const badge = badges[status] || badges.draft;
-    return <span className={`status-badge ${badge.class}`}>{badge.label}</span>;
+    return (
+      <span style={{
+        padding: '4px 12px',
+        borderRadius: 20,
+        fontSize: 12,
+        fontWeight: 500,
+        background: badge.bg,
+        color: badge.color,
+      }}>
+        {badge.label}
+      </span>
+    );
   };
 
-  // Remote policy icon
-  const getRemotePolicyIcon = (policy) => {
-    if (policy === 'remote') return t('jobsPage.remoteRemote');
-    if (policy === 'hybrid') return t('jobsPage.remoteHybrid');
-    return t('jobsPage.remoteOffice');
+  // Remote policy display
+  const getRemotePolicyDisplay = (policy) => {
+    if (policy === 'remote') return { icon: '🌐', label: 'Remote' };
+    if (policy === 'hybrid') return { icon: '🔀', label: 'Hybrid' };
+    return { icon: '🏢', label: 'Office' };
   };
 
-  if (loading) return <div className="flex items-center justify-center h-64">{t('jobsPage.loading')}</div>;
-  if (error) return <div className="flex items-center justify-center h-64 text-red-600">{t('jobsPage.error', { message: error.message })}</div>;
+  // Employment type display
+  const getEmploymentType = (type) => {
+    const types = {
+      'full-time': t('jobsPage.fullTime', 'Tam Zamanlı'),
+      'part-time': t('jobsPage.partTime', 'Yarı Zamanlı'),
+      'contract': t('jobsPage.contract', 'Sözleşmeli'),
+      'intern': t('jobsPage.intern', 'Stajyer'),
+    };
+    return types[type] || type;
+  };
+
+  // Generate avatar colors for applicants
+  const avatarColors = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444', '#EC4899'];
+
+  if (loading && jobs.length === 0) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '50vh' }}>
+        <div style={{ textAlign: 'center', color: '#6B7280' }}>
+          <div className="spinner" style={{ marginBottom: 16 }}></div>
+          {t('jobsPage.loading')}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '50vh' }}>
+        <div style={{ textAlign: 'center', color: '#DC2626' }}>
+          {t('jobsPage.error', { message: error.message })}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: 24, height: 'calc(100vh - 120px)' }}>
-      {/* Sol Panel: Liste */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, overflow: 'hidden' }}>
-        {/* Arama ve Filtreler */}
-        <div style={{ background: 'white', borderRadius: 12, padding: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-          <h2 style={{ fontSize: 20, fontWeight: 600, marginBottom: 16 }}>{t('jobsPage.title')}</h2>
-          
-          {/* Arama */}
-          <div style={{ position: 'relative', marginBottom: 16 }}>
-            <Search size={18} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }} />
+    <div style={{ padding: '0 0 24px 0' }}>
+      {/* Header */}
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'flex-start',
+        marginBottom: 24,
+      }}>
+        <div>
+          <h1 style={{ fontSize: 28, fontWeight: 700, color: '#1F2937', marginBottom: 8 }}>
+            {t('jobsPage.pageTitle', 'İş İlanları Yönetimi')}
+          </h1>
+          <p style={{ color: '#6B7280', fontSize: 14 }}>
+            {t('jobsPage.pageSubtitle', 'Aktif iş ilanlarını yönetin ve yeni pozisyonlar oluşturun.')}
+          </p>
+        </div>
+        
+        <div style={{ display: 'flex', gap: 12 }}>
+          {/* Create New Job Button */}
+          <button
+            onClick={handleCreateNew}
+            style={{
+              padding: '12px 20px',
+              background: 'white',
+              border: '2px solid #3B82F6',
+              borderRadius: 10,
+              color: '#3B82F6',
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = '#EFF6FF'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+          >
+            <FileText size={18} />
+            {t('jobsPage.createNewJob', 'Create New Job')}
+          </button>
+
+          {/* Create with AI Button */}
+          <button
+            onClick={handleCreateWithAI}
+            style={{
+              padding: '12px 20px',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              border: 'none',
+              borderRadius: 10,
+              color: 'white',
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              transition: 'all 0.2s',
+              boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 6px 16px rgba(102, 126, 234, 0.4)'}
+            onMouseLeave={(e) => e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)'}
+          >
+            <Sparkles size={18} />
+            {t('jobsPage.createAIJob', 'Create with AI')}
+          </button>
+        </div>
+      </div>
+
+      {/* Filters & Search Row */}
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+        marginBottom: 24,
+        gap: 24,
+      }}>
+        {/* Filter Buttons */}
+        <div style={{ display: 'flex', gap: 8 }}>
+          {filters.map(f => (
+            <button
+              key={f.id}
+              onClick={() => setActiveFilter(f.id)}
+              style={{
+                padding: '10px 20px',
+                borderRadius: 25,
+                border: activeFilter === f.id ? '2px solid #3B82F6' : '2px solid transparent',
+                background: activeFilter === f.id ? '#EFF6FF' : '#F9FAFB',
+                color: activeFilter === f.id ? '#3B82F6' : '#6B7280',
+                fontSize: 14,
+                fontWeight: 500,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              {f.label}
+              {f.count > 0 && (
+                <span style={{
+                  background: activeFilter === f.id ? '#3B82F6' : '#E5E7EB',
+                  color: activeFilter === f.id ? 'white' : '#6B7280',
+                  padding: '2px 8px',
+                  borderRadius: 12,
+                  fontSize: 12,
+                  fontWeight: 600,
+                }}>
+                  {f.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {/* Search Input */}
+          <div style={{ position: 'relative', width: 320 }}>
+            <Search size={18} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }} />
             <input
               type="text"
-              placeholder={t('jobsPage.searchPlaceholder')}
+              placeholder={t('jobsPage.searchPlaceholder', 'İlan başlığı, departman veya anahtar kelime ara...')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               style={{
                 width: '100%',
-                paddingLeft: 40,
-                padding: '10px 12px',
+                padding: '12px 16px 12px 44px',
                 border: '1px solid #E5E7EB',
-                borderRadius: 8,
+                borderRadius: 10,
                 fontSize: 14,
+                background: '#F9FAFB',
+                outline: 'none',
               }}
             />
           </div>
-
-          {/* Filtre Butonları */}
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {filters.map(f => (
-              <button
-                key={f.id}
-                onClick={() => setActiveFilter(f.id)}
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: 20,
-                  border: 'none',
-                  background: activeFilter === f.id ? '#3B82F6' : '#F3F4F6',
-                  color: activeFilter === f.id ? 'white' : '#6B7280',
-                  fontSize: 13,
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                }}
-              >
-                {f.label} {f.count > 0 && `(${f.count})`}
-              </button>
-            ))}
+          
+          {/* View Mode Toggle */}
+          <div style={{ display: 'flex', gap: 4, background: '#F3F4F6', borderRadius: 8, padding: 4 }}>
+            <button
+              onClick={() => setViewMode('list')}
+              style={{
+                padding: '8px 12px',
+                background: viewMode === 'list' ? 'white' : 'transparent',
+                border: 'none',
+                borderRadius: 6,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: 13,
+                fontWeight: 500,
+                color: viewMode === 'list' ? '#111827' : '#6B7280',
+                boxShadow: viewMode === 'list' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                transition: 'all 0.15s',
+              }}
+            >
+              <List size={16} />
+              {t('jobsPage.listView', 'Liste')}
+            </button>
+            <button
+              onClick={() => setViewMode('grid')}
+              style={{
+                padding: '8px 12px',
+                background: viewMode === 'grid' ? 'white' : 'transparent',
+                border: 'none',
+                borderRadius: 6,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: 13,
+                fontWeight: 500,
+                color: viewMode === 'grid' ? '#111827' : '#6B7280',
+                boxShadow: viewMode === 'grid' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                transition: 'all 0.15s',
+              }}
+            >
+              <LayoutGrid size={16} />
+              {t('jobsPage.gridView', 'Kart')}
+            </button>
           </div>
         </div>
+      </div>
 
-        {/* İlan Kartları */}
-        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {jobs.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: 40, color: '#6B7280' }}>
-              <p>{t('jobsPage.noJobsFound')}</p>
-            </div>
-          ) : (
-            jobs.map(job => (
+      {/* Job Cards */}
+      {jobs.length === 0 ? (
+        <div style={{ 
+          textAlign: 'center', 
+          padding: 60, 
+          background: 'white',
+          borderRadius: 16,
+          border: '1px solid #E5E7EB',
+        }}>
+          <Briefcase size={48} color="#D1D5DB" style={{ marginBottom: 16 }} />
+          <p style={{ color: '#6B7280', fontSize: 16 }}>{t('jobsPage.noJobsFound')}</p>
+        </div>
+      ) : viewMode === 'grid' ? (
+        /* ============ GRID VIEW ============ */
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }}>
+          {jobs.map(job => {
+            const remotePolicy = getRemotePolicyDisplay(job.remotePolicy);
+            const applicantCount = job.analysisCount || 0;
+            
+            return (
               <div
                 key={job.id}
-                onClick={() => handleJobClick(job)}
                 style={{
                   background: 'white',
-                  borderRadius: 12,
-                  padding: 16,
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                  cursor: 'pointer',
-                  border: selectedJob?.id === job.id ? '2px solid #3B82F6' : '2px solid transparent',
+                  borderRadius: 16,
+                  border: '1px solid #E5E7EB',
+                  overflow: 'hidden',
                   transition: 'all 0.2s',
-                  position: 'relative'
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.1)';
+                  e.currentTarget.style.borderColor = '#3B82F6';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)';
+                  e.currentTarget.style.borderColor = '#E5E7EB';
+                  e.currentTarget.style.transform = 'translateY(0)';
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 8 }}>
-                  <h3 style={{ fontSize: 16, fontWeight: 600, color: '#1F2937' }}>{job.title}</h3>
-                  {getStatusBadge(job.status)}
-                </div>
-                
-                <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 12 }}>{getDepartmentName(job.departmentId)}</p>
-                
-                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 12, color: '#6B7280' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <Users size={14} /> {/* Başvuru sayısı gelecek */} 0 {t('jobsPage.applications')}
-                  </span>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <MapPin size={14} /> {job.location}
-                  </span>
-                  {job.deadline && (
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <Calendar size={14} /> {t('jobsPage.lastDate')} {new Date(job.deadline).toLocaleDateString('tr-TR')}
-                    </span>
-                  )}
-                </div>
-                
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div style={{ fontSize: 11, color: '#9CA3AF' }}>
-                      {getRemotePolicyIcon(job.remotePolicy)}
+                {/* Card Header with Status */}
+                <div style={{ 
+                  padding: '16px 20px', 
+                  borderBottom: '1px solid #F3F4F6',
+                  background: '#FAFAFA',
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    {getStatusBadge(job.status)}
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      <button
+                        onClick={(e) => handleEditJob(job, e)}
+                        style={{
+                          padding: 6,
+                          background: 'transparent',
+                          border: 'none',
+                          borderRadius: 6,
+                          cursor: 'pointer',
+                          color: '#6B7280',
+                        }}
+                      >
+                        <Edit2 size={14} />
+                      </button>
                     </div>
-                    {/* Edit icon next to status */}
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleJobClick(job); }}
-                      title={t('common.edit')}
-                      style={{ padding: '4px', background: 'transparent', border: 'none', cursor: 'pointer', borderRadius: 4 }}
-                    >
-                      <Edit2 size={14} color="#6B7280" />
-                    </button>
+                  </div>
+                </div>
+                
+                {/* Card Body */}
+                <div style={{ padding: 20 }}>
+                  <h3 style={{ 
+                    fontSize: 16, 
+                    fontWeight: 600, 
+                    color: '#1F2937', 
+                    margin: 0, 
+                    marginBottom: 8,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {job.title}
+                  </h3>
+                  
+                  <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 16 }}>
+                    {getDepartmentName(job.departmentId)}
+                  </p>
+                  
+                  {/* Info Tags */}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+                    <span style={{ 
+                      padding: '4px 10px', 
+                      background: '#F3F4F6', 
+                      borderRadius: 6, 
+                      fontSize: 11, 
+                      color: '#6B7280',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4,
+                    }}>
+                      <MapPin size={12} /> {job.location || '-'}
+                    </span>
+                    <span style={{ 
+                      padding: '4px 10px', 
+                      background: '#F3F4F6', 
+                      borderRadius: 6, 
+                      fontSize: 11, 
+                      color: '#6B7280',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4,
+                    }}>
+                      <Briefcase size={12} /> {getEmploymentType(job.employmentType)}
+                    </span>
                   </div>
                   
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {/* Applicants */}
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'space-between',
+                    paddingTop: 16,
+                    borderTop: '1px solid #F3F4F6',
+                  }}>
+                    {applicantCount > 0 ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ display: 'flex' }}>
+                          {(job.recentApplicants || []).slice(0, 2).map((initials, i) => (
+                            <div
+                              key={i}
+                              style={{
+                                width: 28,
+                                height: 28,
+                                borderRadius: '50%',
+                                background: avatarColors[i % avatarColors.length],
+                                border: '2px solid white',
+                                marginLeft: i > 0 ? -8 : 0,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: 'white',
+                                fontSize: 9,
+                                fontWeight: 600,
+                              }}
+                            >
+                              {initials}
+                            </div>
+                          ))}
+                          {applicantCount > 2 && (
+                            <div style={{
+                              width: 28,
+                              height: 28,
+                              borderRadius: '50%',
+                              background: '#F3F4F6',
+                              border: '2px solid white',
+                              marginLeft: -8,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: '#6B7280',
+                              fontSize: 9,
+                              fontWeight: 600,
+                            }}>
+                              +{applicantCount - 2}
+                            </div>
+                          )}
+                        </div>
+                        <span style={{ fontSize: 13, color: '#374151', fontWeight: 500 }}>
+                          {applicantCount} {t('jobsPage.applicants', 'Başvuru')}
+                        </span>
+                      </div>
+                    ) : (
+                      <span style={{ fontSize: 12, color: '#9CA3AF' }}>
+                        {t('jobsPage.noApplicants', 'Henüz başvuru yok')}
+                      </span>
+                    )}
+                    
                     <button
                       onClick={(e) => handlePreview(job, e)}
                       style={{
+                        padding: '6px 12px',
+                        background: '#3B82F6',
+                        border: 'none',
+                        borderRadius: 6,
+                        color: 'white',
+                        fontSize: 12,
+                        fontWeight: 500,
+                        cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
                         gap: 4,
-                        padding: '4px 10px',
-                        background: '#F3F4F6',
-                        border: 'none',
-                        borderRadius: 6,
-                        color: '#6B7280',
-                        fontSize: 12,
-                        cursor: 'pointer',
-                        transition: 'all 0.2s'
                       }}
                     >
                       <Eye size={14} />
-                      {t('jobsPage.preview')}
-                    </button>
-                    
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setInterviewSettingsJob(job); }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 4,
-                        padding: '4px 10px',
-                        background: job.interviewEnabled ? '#D1FAE5' : '#F3F4F6',
-                        border: 'none',
-                        borderRadius: 6,
-                        color: job.interviewEnabled ? '#059669' : '#6B7280',
-                        fontSize: 12,
-                        cursor: 'pointer',
-                        transition: 'all 0.2s'
-                      }}
-                    >
-                      <Video size={14} />
-                      {t('jobsPage.interview') || 'Mülakat'}
-                    </button>
-                    
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setLikertSettingsJob(job); }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 4,
-                        padding: '4px 10px',
-                        background: job.likertEnabled ? '#F3E8FF' : '#F3F4F6',
-                        border: 'none',
-                        borderRadius: 6,
-                        color: job.likertEnabled ? '#7C3AED' : '#6B7280',
-                        fontSize: 12,
-                        cursor: 'pointer',
-                        transition: 'all 0.2s'
-                      }}
-                    >
-                      <ListChecks size={14} />
-                      Likert
+                      {t('jobsPage.view', 'Görüntüle')}
                     </button>
                   </div>
                 </div>
+                
+                {/* Card Footer Actions */}
+                <div style={{ 
+                  display: 'flex', 
+                  borderTop: '1px solid #F3F4F6',
+                }}>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setInterviewSettingsJob(job); }}
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      background: job.interviewEnabled ? '#EFF6FF' : 'transparent',
+                      border: 'none',
+                      borderRight: '1px solid #F3F4F6',
+                      color: job.interviewEnabled ? '#2563EB' : '#6B7280',
+                      fontSize: 12,
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    <Video size={14} />
+                    Interview
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setLikertSettingsJob(job); }}
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      background: job.likertEnabled ? '#FDF2F8' : 'transparent',
+                      border: 'none',
+                      color: job.likertEnabled ? '#DB2777' : '#6B7280',
+                      fontSize: 12,
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    <ListChecks size={14} />
+                    Likert
+                  </button>
+                </div>
               </div>
-            ))
-          )}
+            );
+          })}
         </div>
-      </div>
-
-      {/* Sağ Panel: Form */}
-      <div style={{ background: 'white', borderRadius: 12, padding: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflowY: 'auto' }}>
-        {!isCreating && !selectedJob ? (
-          <div style={{ textAlign: 'center', paddingTop: 80 }}>
-            <p style={{ color: '#6B7280', marginBottom: 32, fontSize: 15 }}>{t('jobsPage.selectOrCreate')}</p>
+      ) : (
+        /* ============ LIST VIEW ============ */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {jobs.map(job => {
+            const remotePolicy = getRemotePolicyDisplay(job.remotePolicy);
+            const applicantCount = job.analysisCount || 0;
             
-            {/* İki Buton: Manuel ve AI ile İlan Oluştur */}
-            <div style={{ display: 'flex', gap: 16, justifyContent: 'center', alignItems: 'center' }}>
-              {/* Manuel İlan Oluştur */}
-              <button
-                onClick={handleCreateNew}
+            return (
+              <div
+                key={job.id}
                 style={{
-                  padding: '14px 28px',
                   background: 'white',
-                  border: '2px solid #3B82F6',
-                  borderRadius: 12,
-                  color: '#3B82F6',
-                  fontSize: 15,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  transition: 'all 0.2s'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.background = '#EFF6FF';
-                  e.target.style.transform = 'translateY(-2px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.background = 'white';
-                  e.target.style.transform = 'translateY(0)';
-                }}
-              >
-                <FileText size={20} />
-                {t('jobsPage.createManualJob')}
-              </button>
-
-              {/* AI ile İlan Oluştur */}
-              <button
-                onClick={handleCreateWithAI}
-                style={{
-                  padding: '14px 28px',
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  border: 'none',
-                  borderRadius: 12,
-                  color: 'white',
-                  fontSize: 15,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
+                  borderRadius: 16,
+                  padding: 24,
+                  border: '1px solid #E5E7EB',
                   transition: 'all 0.2s',
-                  boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
                 }}
                 onMouseEnter={(e) => {
-                  e.target.style.transform = 'translateY(-2px)';
-                  e.target.style.boxShadow = '0 6px 16px rgba(102, 126, 234, 0.4)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
+                  e.currentTarget.style.borderColor = '#3B82F6';
                 }}
                 onMouseLeave={(e) => {
-                  e.target.style.transform = 'translateY(0)';
-                  e.target.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
+                  e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)';
+                  e.currentTarget.style.borderColor = '#E5E7EB';
                 }}
               >
-                <Sparkles size={20} />
-                {t('jobsPage.createAIJob')}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  {/* Left: Job Info */}
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                      <h3 style={{ fontSize: 18, fontWeight: 600, color: '#1F2937', margin: 0 }}>
+                        {job.title}
+                      </h3>
+                      {getStatusBadge(job.status)}
+                    </div>
+                    
+                    <p style={{ fontSize: 14, color: '#6B7280', marginBottom: 16 }}>
+                      {getDepartmentName(job.departmentId)}
+                    </p>
+                    
+                    <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', fontSize: 13, color: '#6B7280' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span>{remotePolicy.icon}</span> {remotePolicy.label}
+                      </span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <MapPin size={14} /> {job.location}
+                      </span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <Briefcase size={14} /> {getEmploymentType(job.employmentType)}
+                      </span>
+                      {job.deadline && (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <Calendar size={14} /> Son: {new Date(job.deadline).toLocaleDateString('tr-TR')}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right: Applicants & Actions */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+                    {/* Applicants */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      {applicantCount > 0 ? (
+                        <>
+                          <div style={{ display: 'flex' }}>
+                            {/* Show real applicant initials (max 2) */}
+                            {(job.recentApplicants || []).slice(0, 2).map((initials, i) => (
+                              <div
+                                key={i}
+                                style={{
+                                  width: 32,
+                                  height: 32,
+                                  borderRadius: '50%',
+                                  background: i === 0 ? '#6B7280' : '#3B82F6',
+                                  border: '2px solid white',
+                                  marginLeft: i > 0 ? -8 : 0,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  color: 'white',
+                                  fontSize: 10,
+                                  fontWeight: 600,
+                                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                                }}
+                              >
+                                {initials}
+                              </div>
+                            ))}
+                            {/* Show +X for remaining */}
+                            {applicantCount > 2 && (
+                              <div style={{
+                                width: 32,
+                                height: 32,
+                                borderRadius: '50%',
+                                background: '#F59E0B',
+                                border: '2px solid white',
+                                marginLeft: -8,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: 'white',
+                                fontSize: 10,
+                                fontWeight: 600,
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                              }}>
+                                +{applicantCount - 2}
+                              </div>
+                            )}
+                          </div>
+                          <span style={{ fontSize: 14, color: '#374151', fontWeight: 500 }}>
+                            {applicantCount} {t('jobsPage.applicants', 'Başvuru')}
+                          </span>
+                        </>
+                      ) : (
+                        <span style={{ fontSize: 13, color: '#9CA3AF', display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <Users size={16} /> {t('jobsPage.noApplicants', 'Henüz başvuru yok')}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button
+                        onClick={(e) => handlePreview(job, e)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          padding: '8px 14px',
+                          background: '#F3F4F6',
+                          border: 'none',
+                          borderRadius: 8,
+                          color: '#374151',
+                          fontSize: 13,
+                          fontWeight: 500,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <Eye size={16} />
+                        {t('jobsPage.preview', 'Preview')}
+                      </button>
+                      
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setInterviewSettingsJob(job); }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          padding: '8px 14px',
+                          background: job.interviewEnabled ? '#DBEAFE' : '#F3F4F6',
+                          border: job.interviewEnabled ? '1px solid #3B82F6' : 'none',
+                          borderRadius: 8,
+                          color: job.interviewEnabled ? '#2563EB' : '#374151',
+                          fontSize: 13,
+                          fontWeight: 500,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <Video size={16} />
+                        {t('jobsPage.interview', 'Interview')}
+                      </button>
+                      
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setLikertSettingsJob(job); }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          padding: '8px 14px',
+                          background: job.likertEnabled ? '#FDF2F8' : '#F3F4F6',
+                          border: job.likertEnabled ? '1px solid #EC4899' : 'none',
+                          borderRadius: 8,
+                          color: job.likertEnabled ? '#DB2777' : '#374151',
+                          fontSize: 13,
+                          fontWeight: 500,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <ListChecks size={16} />
+                        Likert
+                      </button>
+
+                      {/* Edit Button */}
+                      <button
+                        onClick={(e) => handleEditJob(job, e)}
+                        style={{
+                          padding: '8px',
+                          background: '#F3F4F6',
+                          border: 'none',
+                          borderRadius: 8,
+                          color: '#6B7280',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s'
+                        }}
+                        title={t('common.edit', 'Düzenle')}
+                      >
+                        <Edit2 size={16} />
+                      </button>
+
+                      {/* Delete Button */}
+                      <button
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          padding: '8px',
+                          background: '#F3F4F6',
+                          border: 'none',
+                          borderRadius: 8,
+                          color: '#6B7280',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s'
+                        }}
+                        title={t('common.delete', 'Sil')}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Job Form Modal */}
+      {showJobFormModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: 24,
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: 16,
+            width: '100%',
+            maxWidth: 800,
+            maxHeight: '90vh',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+          }}>
+            {/* Modal Header */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '20px 24px',
+              borderBottom: '1px solid #E5E7EB',
+            }}>
+              <h2 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>
+                {selectedJob ? t('jobsPage.editJob', 'İlanı Düzenle') : t('jobsPage.createNewJob', 'Yeni İlan Oluştur')}
+              </h2>
+              <button
+                onClick={handleFormCancel}
+                style={{
+                  padding: 8,
+                  background: '#F3F4F6',
+                  border: 'none',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                }}
+              >
+                <X size={20} color="#6B7280" />
               </button>
             </div>
+            
+            {/* Modal Body */}
+            <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: 24 }}>
+              <JobForm
+                job={selectedJob}
+                aiData={aiGeneratedData}
+                departments={departments}
+                onSuccess={handleFormSuccess}
+                onCancel={handleFormCancel}
+                isModal={true}
+              />
+            </div>
           </div>
-        ) : (
-          <JobForm
-            job={selectedJob}
-            aiData={aiGeneratedData} // Pass AI-generated data to form
-            departments={departments}
-            onSuccess={handleFormSuccess}
-            onCancel={handleFormCancel}
-          />
-        )}
-      </div>
+        </div>
+      )}
 
       {/* AI Job Creator Modal */}
       <AIJobCreator
@@ -402,7 +914,6 @@ const JobsPage = ({ departments = [], initialCreate = false }) => {
           jobData={previewJob}
           departments={departments}
           onPublish={() => {
-            // Preview modal sadece görüntüleme için, publish fonksiyonu yok
             setShowPreview(false);
             setPreviewJob(null);
           }}

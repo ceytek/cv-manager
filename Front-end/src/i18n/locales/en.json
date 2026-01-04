@@ -24,7 +24,8 @@
     "minutes": "min",
     "deleting": "Deleting...",
     "show": "Show",
-    "hide": "Hide"
+    "hide": "Hide",
+    "optional": "Optional"
   },
   "header": {
     "welcome": "Welcome, {{name}}!",
@@ -44,7 +45,8 @@
     "templates": "Templates",
     "settings": "Settings",
     "newJobButton": "Create New Job Posting",
-    "userRole": "HR Specialist"
+    "userRole": "HR Specialist",
+    "departmentTooltip": "Create a department first to get started"
   },
   "templates": {
     "interviewTemplates": "Interview Templates",
@@ -76,19 +78,24 @@
     "noDescription": "No description",
     "unknownDepartment": "Unknown",
     "locale": "en-US",
-    "jobsWidget": "Job Flows",
+    "jobsWidget": "Job Listings",
     "candidates": "candidates",
     "noJobs": "No job postings yet",
-    "jobTitle": "Job Title",
+    "jobTitle": "Position",
     "applicants": "Applicants",
     "showing": "Showing",
     "recentActivities": "Recent Activities",
     "activity": "Activity",
     "time": "Time",
     "noActivities": "No activities yet",
-    "minutesAgo": "min ago",
-    "hoursAgo": "hours ago",
-    "daysAgo": "days ago"
+    "minutesAgo": "min",
+    "hoursAgo": "hr",
+    "daysAgo": "day",
+    "activeJobs": "Active",
+    "allActivities": "All",
+    "department": "Department",
+    "candidate": "Candidate",
+    "status": "Status"
   },
   "settings": {
     "changePassword": "Change Password",
@@ -286,10 +293,12 @@
     "status": "STATUS",
     "operations": "OPERATIONS",
     "noJobs": "No jobs found",
+    "noApplications": "No applications",
     "statusActive": "Active",
     "statusDraft": "Draft",
     "statusClosed": "Closed",
-    "statusArchived": "Archived"
+    "statusArchived": "Archived",
+    "aiPoweredEvaluation": "AI-Powered Evaluation"
   },
   "candidateDetail": {
     "breadcrumb": "Candidates / {{name}}",
@@ -362,7 +371,13 @@
       "rejected": "Rejected"
     },
     "viewHistory": "View History",
-    "downloadCV": "Download CV"
+    "downloadCV": "Download CV",
+    "noCVAvailable": "CV not available",
+    "listView": "List",
+    "gridView": "Card",
+    "compatibility": "COMPATIBILITY",
+    "timeline": "Timeline",
+    "analysis": "Analysis"
   },
   "candidateHistory": {
     "title": "Candidate History",
@@ -512,7 +527,9 @@
     },
     "uploadedInSession": "Uploaded This Session",
     "clearList": "Clear List",
-    "download": "Download"
+    "download": "Download",
+    "uploadNewCV": "Upload New CV",
+    "backToList": "Back to List"
   },
   "cvUploader": {
     "uploadComplete": "Upload Complete!",
@@ -593,7 +610,9 @@
   },
   "jobsPage": {
     "title": "Job Management",
-    "searchPlaceholder": "Search by job title or department",
+    "pageTitle": "Job Management",
+    "pageSubtitle": "Manage active job listings and create new positions.",
+    "searchPlaceholder": "Search by job title, department or keyword...",
     "filterActive": "Active",
     "filterDraft": "Draft",
     "filterClosed": "Closed",
@@ -603,20 +622,31 @@
     "statusClosed": "Closed",
     "statusArchived": "Archived",
     "applications": "Applications",
+    "applicants": "Applications",
+    "noApplicants": "No applications yet",
     "lastDate": "Due:",
     "remoteOffice": "🏢 Office",
     "remoteRemote": "🌐 Remote",
     "remoteHybrid": "🔀 Hybrid",
     "noJobsFound": "No jobs found",
     "selectOrCreate": "Select a job or create a new one",
+    "createNewJob": "Create New Job",
     "createManualJob": "Create New Job",
     "createAIJob": "Create with AI",
+    "editJob": "Edit Job",
     "preview": "Preview",
     "interview": "Interview",
     "likertTest": "Likert Test",
+    "fullTime": "Full Time",
+    "partTime": "Part Time",
+    "contract": "Contract",
+    "intern": "Intern",
     "loading": "Loading...",
     "error": "Error: {{message}}",
-    "unknownDepartment": "Unknown"
+    "unknownDepartment": "Unknown",
+    "listView": "List",
+    "gridView": "Card",
+    "view": "View"
   },
   "jobForm": {
     "editJob": "Edit Job",
@@ -664,8 +694,11 @@
     "languageBusiness": "Business Level",
     "languageNative": "Native",
     "languagePlaceholder": "E.g: English, German",
+    "selectLanguage": "-- Select Language --",
     "addLanguage": "+ Add",
     "languageAlreadyAdded": "This language has already been added",
+    "richTextHint": "Use the toolbar to add bold, italic and lists",
+    "richTextHintRequirements": "Use the list button in the toolbar to add bullet points",
     "salaryRange": "Salary Range (Optional)",
     "salaryMin": "Min",
     "salaryMax": "Max",
@@ -677,6 +710,7 @@
     "statusClosed": "Closed",
     "statusArchived": "Archived",
     "publish": "Publish Job",
+    "preview": "Preview",
     "cancel": "Cancel",
     "errorTitleRequired": "Job title must be at least 3 characters",
     "errorDepartmentRequired": "Department selection is required",
@@ -734,8 +768,10 @@
     "languageName": "Language",
     "languageNamePlaceholder": "E.g: English",
     "languageLevel": "Level",
+    "selectLanguage": "-- Select Language --",
     "addLanguage": "+ Add",
     "languageAlreadyAdded": "This language has already been added",
+    "languageHint": "Select language and level to add",
     "additionalNotes": "Additional Notes (Optional)",
     "notesPlaceholder": "Include any additional requirements or information...",
     "notesNote": "Include information such as remote policy, specific requirements, or benefits",
@@ -782,6 +818,27 @@
       "submitFailed": "Application could not be submitted, please try again"
     }
   },
+  "jobPreview": {
+    "title": "Job Preview",
+    "subtitle": "Review the job posting before publishing",
+    "department": "Department",
+    "location": "Location",
+    "employmentType": "Employment Type",
+    "experience": "Experience",
+    "salaryRange": "Salary Range",
+    "deadline": "Application Deadline",
+    "description": "Job Description",
+    "requirements": "Requirements",
+    "keywords": "Keywords",
+    "languages": "Language Requirements",
+    "preferredMajors": "Preferred Majors",
+    "notSpecified": "Not specified",
+    "upTo": "up to",
+    "goBack": "Go Back",
+    "close": "Close",
+    "saveJob": "Save Job",
+    "publishing": "Publishing..."
+  },
   "job": {
     "fullTime": "Full Time",
     "partTime": "Part Time",
@@ -800,5 +857,31 @@
     "advanced": "Advanced",
     "business": "Business",
     "native": "Native"
+  },
+  "usageHistoryPage": {
+    "noRecordsInPeriod": "No records found in this period",
+    "noCvAnalysis": "No CV analysis was performed",
+    "noCvUpload": "No CV upload was performed",
+    "activityLog": "Activity Log",
+    "trackUsage": "Track your usage for the selected period.",
+    "cvAnalyses": "CV Analyses",
+    "cvUploads": "CV Uploads",
+    "interviewCompleted": "Interview Completed",
+    "interviewAIAnalysis": "Interview AI Analysis",
+    "count": "COUNT",
+    "descCvAnalysis": "AI-powered job matching analysis",
+    "descCvUpload": "CV upload to system",
+    "descInterviewCompleted": "Candidate completed interview",
+    "descInterviewAI": "AI interview analysis performed",
+    "noRecords_cv_analyses": "No CV analysis was performed",
+    "noRecords_cv_uploads": "No CV upload was performed",
+    "noRecords_interview_completed": "No completed interviews",
+    "noRecords_interview_ai_analysis": "No AI interview analyses",
+    "viewAnalysis": "View Analysis",
+    "totalCredits": "Total",
+    "cvAnalysisShort": "CV Analysis",
+    "cvUploadShort": "CV Upload",
+    "interviewShort": "Interview",
+    "aiAnalysisShort": "AI Analysis"
   }
 }

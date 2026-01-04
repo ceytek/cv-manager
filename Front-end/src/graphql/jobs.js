@@ -53,6 +53,7 @@ export const JOBS_QUERY = gql`
       createdAt
       updatedAt
       analysisCount
+      recentApplicants
     }
   }
 `;
@@ -107,6 +108,7 @@ export const JOB_QUERY = gql`
       createdAt
       updatedAt
       analysisCount
+      recentApplicants
     }
   }
 `;

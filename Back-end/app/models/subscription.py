@@ -27,6 +27,8 @@ class ResourceType(str, enum.Enum):
     AI_ANALYSIS = "ai_analysis"
     USER_ACCOUNT = "user_account"
     API_CALL = "api_call"
+    INTERVIEW_COMPLETED = "interview_completed"
+    INTERVIEW_AI_ANALYSIS = "interview_ai_analysis"
 
 
 class SubscriptionPlan(Base):

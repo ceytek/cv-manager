@@ -49,19 +49,20 @@ import AgreementTemplatesPage from './AgreementTemplatesPage';
 import RejectionTemplatesPage from './RejectionTemplatesPage';
 
 const Dashboard = ({ currentUser, onLogout }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [activeMenu, setActiveMenu] = useState('dashboard');
   const [showAddUser, setShowAddUser] = useState(false);
   const [settingsMenu, setSettingsMenu] = useState(null);
   const [templatesMenu, setTemplatesMenu] = useState(null);
-  const [cvEvalInitialView, setCvEvalInitialView] = useState('welcome');
+  const [cvEvalInitialView, setCvEvalInitialView] = useState('jobs');
   const [cvEvalInitialJob, setCvEvalInitialJob] = useState(null);
   const [cvEvalInitialApplication, setCvEvalInitialApplication] = useState(null);
-  const [cvInitialView, setCvInitialView] = useState('welcome');
+  const [cvInitialView, setCvInitialView] = useState('list');
   const [jobsInitialCreate, setJobsInitialCreate] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [jobsListPage, setJobsListPage] = useState(0); // Pagination for jobs widget
   const [activitiesPage, setActivitiesPage] = useState(0); // Pagination for activities widget
+  const [tooltipDismissed, setTooltipDismissed] = useState(false);
 
   // Derive a safe display name
   const displayName = (currentUser?.fullName?.trim()) 
@@ -87,6 +88,13 @@ const Dashboard = ({ currentUser, onLogout }) => {
     variables: { includeInactive: false },
   });
   const departments = departmentsData?.departments || [];
+
+  // Show department tooltip only if no departments exist
+  const showDepartmentTooltip = departments.length === 0 && !tooltipDismissed;
+
+  const dismissDepartmentTooltip = () => {
+    setTooltipDismissed(true);
+  };
 
   // Fetch recent jobs (auto-refresh every 10 seconds)
   const { data: jobsData } = useQuery(JOBS_QUERY, {
@@ -192,7 +200,7 @@ const Dashboard = ({ currentUser, onLogout }) => {
 
         <nav className="sidebar-nav">
           {menuItems.map(item => (
-            <div key={item.id}>
+            <div key={item.id} style={{ position: 'relative' }}>
               <button
                 className={`nav-item ${activeMenu === item.id ? 'active' : ''}`}
                 onClick={() => {
@@ -217,6 +225,10 @@ const Dashboard = ({ currentUser, onLogout }) => {
                     if (item.id === 'jobs') {
                       setJobsInitialCreate(false);
                     }
+                    // Dismiss tooltip when clicking departments
+                    if (item.id === 'departments' && showDepartmentTooltip) {
+                      dismissDepartmentTooltip();
+                    }
                     setActiveMenu(item.id);
                     setSettingsMenu(null);
                     setTemplatesMenu(null);
@@ -226,6 +238,68 @@ const Dashboard = ({ currentUser, onLogout }) => {
                 <item.icon size={20} />
                 <span>{item.label}</span>
               </button>
+              
+              {/* Department tooltip - show only once for new users */}
+              {item.id === 'departments' && showDepartmentTooltip && isAdmin && (
+                <div style={{
+                  position: 'fixed',
+                  left: 270,
+                  top: 205,
+                  background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
+                  color: 'white',
+                  padding: '14px 18px',
+                  borderRadius: 10,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  whiteSpace: 'nowrap',
+                  boxShadow: '0 8px 24px rgba(59, 130, 246, 0.35)',
+                  zIndex: 9999,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  animation: 'pulse 2s infinite',
+                }}>
+                  {/* Arrow pointing left */}
+                  <div style={{
+                    position: 'absolute',
+                    left: -8,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    width: 0,
+                    height: 0,
+                    borderTop: '8px solid transparent',
+                    borderBottom: '8px solid transparent',
+                    borderRight: '8px solid #3B82F6',
+                  }} />
+                  <span style={{ fontSize: 16 }}>👆</span>
+                  <span>{t('sidebar.departmentTooltip', 'Create a department first to get started')}</span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      dismissDepartmentTooltip();
+                    }}
+                    style={{
+                      background: 'rgba(255,255,255,0.25)',
+                      border: 'none',
+                      color: 'white',
+                      width: 22,
+                      height: 22,
+                      borderRadius: '50%',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 12,
+                      marginLeft: 4,
+                      transition: 'background 0.2s',
+                    }}
+                    onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.4)'}
+                    onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.25)'}
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
               
               {/* Templates Submenu */}
               {item.id === 'templates' && activeMenu === 'templates' && (
@@ -428,8 +502,8 @@ const Dashboard = ({ currentUser, onLogout }) => {
             {/* Left Side: Jobs Table Widget */}
             <div style={{
               background: 'white',
-              borderRadius: 16,
-              boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+              borderRadius: 12,
+              boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
               border: '1px solid #E5E7EB',
               overflow: 'hidden',
               display: 'flex',
@@ -439,29 +513,57 @@ const Dashboard = ({ currentUser, onLogout }) => {
               <div style={{ 
                 display: 'flex', 
                 justifyContent: 'space-between', 
-                alignItems: 'center', 
-                padding: '16px 20px',
+                alignItems: 'center',
+                padding: '16px 24px',
                 borderBottom: '1px solid #E5E7EB',
               }}>
-                <h3 style={{ 
-                  margin: 0, 
-                  fontSize: 16, 
-                  fontWeight: 600, 
-                  color: '#1F2937' 
-                }}>
-                  {t('dashboard.jobsWidget', 'Akışlar')}
-                </h3>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <h3 style={{ 
+                    margin: 0, 
+                    fontSize: 18, 
+                    fontWeight: 600, 
+                    color: '#111827' 
+                  }}>
+                    {t('dashboard.jobsWidget', 'İş İlanları')}
+                  </h3>
+                  <span style={{
+                    padding: '4px 12px',
+                    background: '#E0F2FE',
+                    border: '1px solid #7DD3FC',
+                    borderRadius: 16,
+                    color: '#0369A1',
+                    fontSize: 12,
+                    fontWeight: 500,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}>
+                    {t('dashboard.activeJobs', 'Aktif')}
+                    <span style={{
+                      background: '#0369A1',
+                      color: 'white',
+                      padding: '1px 6px',
+                      borderRadius: 10,
+                      fontSize: 10,
+                      fontWeight: 600,
+                    }}>{jobsData?.jobs?.filter(j => j.isActive !== false).length || 0}</span>
+                  </span>
+                </div>
                 <button
                   onClick={() => setActiveMenu('jobs')}
                   style={{
-                    padding: '4px 12px',
-                    background: 'transparent',
+                    padding: '6px 14px',
+                    background: '#F3F4F6',
                     border: 'none',
-                    color: '#3B82F6',
+                    borderRadius: 8,
+                    color: '#374151',
                     fontSize: 13,
                     fontWeight: 500,
                     cursor: 'pointer',
+                    transition: 'all 0.15s',
                   }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = '#E5E7EB'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = '#F3F4F6'}
                 >
                   {t('dashboard.viewAll')} →
                 </button>
@@ -472,24 +574,23 @@ const Dashboard = ({ currentUser, onLogout }) => {
                 {/* Table Header */}
                 <div style={{
                   display: 'grid',
-                  gridTemplateColumns: '1fr auto',
-                  padding: '12px 20px',
-                  background: '#F9FAFB',
+                  gridTemplateColumns: '2fr 1fr 100px',
+                  padding: '12px 24px',
+                  background: '#FAFAFA',
                   borderBottom: '1px solid #E5E7EB',
                   fontSize: 12,
-                  fontWeight: 600,
+                  fontWeight: 500,
                   color: '#6B7280',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
                 }}>
-                  <span>{t('dashboard.jobTitle', 'İş İlanı')}</span>
+                  <span>{t('dashboard.jobTitle', 'İlan')}</span>
+                  <span>{t('dashboard.department', 'Departman')}</span>
                   <span style={{ textAlign: 'right' }}>{t('dashboard.applicants', 'Başvuran')}</span>
                 </div>
 
                 {/* Table Body - Fixed height for 5 rows */}
                 <div style={{ 
-                  minHeight: 350, // Match activities widget height
-                  maxHeight: 350,
+                  minHeight: 300,
+                  maxHeight: 300,
                   overflowY: 'auto',
                 }}>
                   {(jobsData?.jobs || [])
@@ -504,39 +605,119 @@ const Dashboard = ({ currentUser, onLogout }) => {
                         }}
                         style={{
                           display: 'grid',
-                          gridTemplateColumns: '1fr auto',
+                          gridTemplateColumns: '2fr 1fr 100px',
                           alignItems: 'center',
-                          padding: '14px 20px',
+                          padding: '16px 24px',
                           borderBottom: idx < arr.length - 1 ? '1px solid #F3F4F6' : 'none',
                           cursor: 'pointer',
                           transition: 'background 0.15s',
-                          minHeight: 50,
                         }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = '#F9FAFB'}
+                        onMouseEnter={(e) => e.currentTarget.style.background = '#FAFAFA'}
                         onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                       >
-                        <span style={{ 
-                          color: '#3B82F6', 
-                          fontWeight: 500, 
-                          fontSize: 14,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                          paddingRight: 16,
+                        {/* Job Title */}
+                        <div>
+                          <div style={{ 
+                            color: '#111827', 
+                            fontWeight: 500, 
+                            fontSize: 14,
+                            marginBottom: 2,
+                          }}>
+                            {job.title}
+                          </div>
+                          <div style={{ 
+                            color: '#9CA3AF', 
+                            fontSize: 12,
+                          }}>
+                            {job.location || '-'}
+                          </div>
+                        </div>
+                        
+                        {/* Department */}
+                        <div style={{ 
+                          color: '#6B7280', 
+                          fontSize: 13,
                         }}>
-                          {job.title}
-                        </span>
+                          {job.department?.name || '-'}
+                        </div>
+                        
+                        {/* Applicants with avatars */}
                         <div style={{ 
                           display: 'flex', 
                           alignItems: 'center', 
-                          gap: 6,
-                          color: '#F59E0B',
-                          fontSize: 14,
+                          justifyContent: 'flex-end',
+                          gap: 8,
                         }}>
-                          <Users size={16} />
-                          <span style={{ fontWeight: 500 }}>
-                            {job.analysisCount || 0} {t('dashboard.candidates', 'aday')}
-                          </span>
+                          {(job.analysisCount || 0) > 0 ? (
+                            <>
+                              <div style={{ display: 'flex' }}>
+                                {(job.recentApplicants || []).slice(0, 2).map((initials, i) => {
+                                  const colors = ['#6366F1', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
+                                  const colorIndex = initials ? (initials.charCodeAt(0) + (initials.charCodeAt(1) || 0)) % colors.length : 0;
+                                  return (
+                                    <div
+                                      key={i}
+                                      style={{
+                                        width: 26,
+                                        height: 26,
+                                        borderRadius: '50%',
+                                        background: colors[colorIndex],
+                                        border: '2px solid white',
+                                        marginLeft: i > 0 ? -8 : 0,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        color: 'white',
+                                        fontSize: 9,
+                                        fontWeight: 600,
+                                        zIndex: 2 - i,
+                                      }}
+                                    >
+                                      {initials}
+                                    </div>
+                                  );
+                                })}
+                                {(job.analysisCount || 0) > 2 && (
+                                  <div style={{
+                                    width: 26,
+                                    height: 26,
+                                    borderRadius: '50%',
+                                    background: '#F3F4F6',
+                                    border: '2px solid white',
+                                    marginLeft: -8,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: '#6B7280',
+                                    fontSize: 9,
+                                    fontWeight: 600,
+                                  }}>
+                                    +{(job.analysisCount || 0) - 2}
+                                  </div>
+                                )}
+                              </div>
+                              <span style={{
+                                padding: '4px 10px',
+                                background: '#F0FDF4',
+                                color: '#15803D',
+                                borderRadius: 6,
+                                fontSize: 12,
+                                fontWeight: 500,
+                              }}>
+                                {job.analysisCount}
+                              </span>
+                            </>
+                          ) : (
+                            <span style={{
+                              padding: '4px 10px',
+                              background: '#F9FAFB',
+                              color: '#9CA3AF',
+                              borderRadius: 6,
+                              fontSize: 12,
+                            }}>
+                              0
+                            </span>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -610,55 +791,73 @@ const Dashboard = ({ currentUser, onLogout }) => {
             {/* Right Side: Recent Activities Widget */}
             <div style={{
               background: 'white',
-              borderRadius: 16,
-              boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+              borderRadius: 12,
+              boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
               border: '1px solid #E5E7EB',
               display: 'flex',
               flexDirection: 'column',
-              minHeight: 380,
             }}>
               {/* Header */}
               <div style={{ 
                 display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center', 
-                padding: '16px 20px',
+                alignItems: 'center',
+                gap: 12,
+                padding: '16px 24px',
                 borderBottom: '1px solid #E5E7EB',
               }}>
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: 8,
+                <h3 style={{ 
+                  margin: 0, 
+                  fontSize: 18, 
                   fontWeight: 600, 
-                  fontSize: 16,
                   color: '#111827',
                 }}>
-                  <Activity size={20} color="#3B82F6" />
                   {t('dashboard.recentActivities', 'Son İşlemler')}
-                </div>
+                </h3>
+                <span style={{
+                  padding: '4px 12px',
+                  background: '#FEF3C7',
+                  border: '1px solid #FCD34D',
+                  borderRadius: 16,
+                  color: '#92400E',
+                  fontSize: 12,
+                  fontWeight: 500,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}>
+                  {t('dashboard.allActivities', 'Tümü')}
+                  <span style={{
+                    background: '#92400E',
+                    color: 'white',
+                    padding: '1px 6px',
+                    borderRadius: 10,
+                    fontSize: 10,
+                    fontWeight: 600,
+                  }}>{allActivities.length}</span>
+                </span>
               </div>
 
               {/* Table Header */}
               <div style={{ 
                 display: 'grid',
-                gridTemplateColumns: '1fr auto',
-                padding: '10px 20px',
-                background: '#F9FAFB',
+                gridTemplateColumns: '2fr 1fr 80px',
+                padding: '12px 24px',
+                background: '#FAFAFA',
                 borderBottom: '1px solid #E5E7EB',
-                fontWeight: 600,
                 fontSize: 12,
+                fontWeight: 500,
                 color: '#6B7280',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px',
               }}>
-                <span>{t('dashboard.activity', 'İşlem')}</span>
-                <span>{t('dashboard.time', 'Zaman')}</span>
+                <span>{t('dashboard.candidate', 'Aday')}</span>
+                <span>{t('dashboard.status', 'Durum')}</span>
+                <span style={{ textAlign: 'right' }}>{t('dashboard.time', 'Zaman')}</span>
               </div>
 
               {/* Activities List */}
               <div style={{ 
                 flex: 1,
-                height: 350, 
+                minHeight: 300, 
+                maxHeight: 300,
                 overflowY: 'auto',
               }}>
                 {allActivities
@@ -673,41 +872,34 @@ const Dashboard = ({ currentUser, onLogout }) => {
                     const diffDays = Math.floor(diffMs / 86400000);
                     let timeAgo;
                     if (diffMins < 60) {
-                      timeAgo = `${diffMins} ${t('dashboard.minutesAgo', 'dk önce')}`;
+                      timeAgo = `${diffMins} ${t('dashboard.minutesAgo', 'dk')}`;
                     } else if (diffHours < 24) {
-                      timeAgo = `${diffHours} ${t('dashboard.hoursAgo', 'saat önce')}`;
+                      timeAgo = `${diffHours} ${t('dashboard.hoursAgo', 'sa')}`;
                     } else {
-                      timeAgo = `${diffDays} ${t('dashboard.daysAgo', 'gün önce')}`;
+                      timeAgo = `${diffDays} ${t('dashboard.daysAgo', 'gün')}`;
                     }
 
-                    // Get action name based on language
-                    const actionName = localStorage.getItem('i18nextLng')?.startsWith('en') 
+                    // Get action name based on current language
+                    const isEnglish = i18n.language?.startsWith('en');
+                    const actionName = isEnglish 
                       ? activity.actionNameEn 
                       : activity.actionNameTr;
 
-                    // Get color for the action
-                    const colorMap = {
-                      blue: '#3B82F6',
-                      green: '#10B981',
-                      red: '#EF4444',
-                      orange: '#F59E0B',
-                      purple: '#8B5CF6',
-                      gray: '#6B7280',
+                    // Get background color for status badge
+                    const statusColors = {
+                      blue: { bg: '#EFF6FF', text: '#1D4ED8', border: '#BFDBFE' },
+                      green: { bg: '#F0FDF4', text: '#15803D', border: '#BBF7D0' },
+                      red: { bg: '#FEF2F2', text: '#B91C1C', border: '#FECACA' },
+                      orange: { bg: '#FFF7ED', text: '#C2410C', border: '#FED7AA' },
+                      purple: { bg: '#FAF5FF', text: '#7C3AED', border: '#DDD6FE' },
+                      gray: { bg: '#F9FAFB', text: '#4B5563', border: '#E5E7EB' },
                     };
-                    const color = colorMap[activity.color] || '#6B7280';
+                    const statusStyle = statusColors[activity.color] || statusColors.gray;
 
                     // Generate avatar color from candidate name (consistent per person)
                     const avatarColors = [
-                      '#3B82F6', // Blue
-                      '#10B981', // Green
-                      '#F59E0B', // Orange
-                      '#8B5CF6', // Purple
-                      '#EF4444', // Red
-                      '#EC4899', // Pink
-                      '#14B8A6', // Teal
-                      '#F97316', // Deep Orange
-                      '#6366F1', // Indigo
-                      '#84CC16', // Lime
+                      '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444', 
+                      '#EC4899', '#14B8A6', '#F97316', '#6366F1', '#84CC16',
                     ];
                     const nameHash = activity.candidateName
                       .split('')
@@ -718,41 +910,38 @@ const Dashboard = ({ currentUser, onLogout }) => {
                       <div
                         key={activity.id}
                         onClick={() => {
-                          // Find job from jobsData
                           const job = jobsData?.jobs?.find(j => j.id === activity.jobId);
                           if (job) {
                             setCvEvalInitialJob(job);
                             setCvEvalInitialView('job-details');
                             setActiveMenu('cv-evaluation');
                           } else {
-                            // Fallback: just go to analysis page
                             setCvEvalInitialView('analysis');
                             setActiveMenu('cv-evaluation');
                           }
                         }}
                         style={{
                           display: 'grid',
-                          gridTemplateColumns: '1fr auto',
+                          gridTemplateColumns: '2fr 1fr 80px',
                           alignItems: 'center',
-                          padding: '14px 20px',
+                          padding: '14px 24px',
                           borderBottom: idx < arr.length - 1 ? '1px solid #F3F4F6' : 'none',
                           cursor: 'pointer',
                           transition: 'background 0.15s',
-                          minHeight: 70,
                         }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = '#F9FAFB'}
+                        onMouseEnter={(e) => e.currentTarget.style.background = '#FAFAFA'}
                         onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                       >
+                        {/* Candidate Info */}
                         <div style={{ 
                           display: 'flex',
                           alignItems: 'center',
                           gap: 12,
                           overflow: 'hidden',
                         }}>
-                          {/* Avatar */}
                           <div style={{
-                            width: 40,
-                            height: 40,
+                            width: 36,
+                            height: 36,
                             borderRadius: '50%',
                             background: avatarColor,
                             display: 'flex',
@@ -760,7 +949,7 @@ const Dashboard = ({ currentUser, onLogout }) => {
                             justifyContent: 'center',
                             color: 'white',
                             fontWeight: 600,
-                            fontSize: 14,
+                            fontSize: 12,
                             flexShrink: 0,
                           }}>
                             {activity.candidateName
@@ -770,52 +959,52 @@ const Dashboard = ({ currentUser, onLogout }) => {
                               .toUpperCase()
                               .slice(0, 2)}
                           </div>
-                          {/* Name & Email & Action */}
-                          <div style={{ 
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: 2,
-                            overflow: 'hidden',
-                            flex: 1,
-                          }}>
-                            <span style={{ 
-                              fontWeight: 600, 
-                              fontSize: 14,
+                          <div style={{ overflow: 'hidden' }}>
+                            <div style={{ 
+                              fontWeight: 500, 
+                              fontSize: 13,
                               color: '#111827',
                               overflow: 'hidden',
                               textOverflow: 'ellipsis',
                               whiteSpace: 'nowrap',
                             }}>
                               {activity.candidateName}
-                            </span>
-                            <span style={{ 
+                            </div>
+                            <div style={{ 
                               fontSize: 12,
-                              color: '#6B7280',
+                              color: '#9CA3AF',
                               overflow: 'hidden',
                               textOverflow: 'ellipsis',
                               whiteSpace: 'nowrap',
                             }}>
-                              {activity.candidateEmail || '-'}
-                            </span>
-                            <span style={{ 
-                              fontSize: 11,
-                              color: color,
-                              fontWeight: 500,
-                            }}>
-                              {actionName}
-                            </span>
+                              @{(activity.candidateEmail || '').split('@')[0] || '-'}
+                            </div>
                           </div>
                         </div>
+                        
+                        {/* Status Badge */}
+                        <div>
+                          <span style={{
+                            padding: '4px 10px',
+                            background: statusStyle.bg,
+                            color: statusStyle.text,
+                            border: `1px solid ${statusStyle.border}`,
+                            borderRadius: 6,
+                            fontSize: 11,
+                            fontWeight: 500,
+                            whiteSpace: 'nowrap',
+                          }}>
+                            {actionName}
+                          </span>
+                        </div>
+                        
+                        {/* Time */}
                         <div style={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          gap: 4,
+                          textAlign: 'right',
                           color: '#9CA3AF',
                           fontSize: 12,
-                          flexShrink: 0,
                         }}>
-                          <Clock size={12} />
-                          <span>{timeAgo}</span>
+                          {timeAgo}
                         </div>
                       </div>
                     );

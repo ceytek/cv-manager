@@ -5,6 +5,7 @@ import strawberry
 from datetime import datetime
 from typing import Optional, List
 from strawberry.file_uploads import Upload
+from strawberry.scalars import JSON
 
 
 @strawberry.type
@@ -190,6 +191,9 @@ class JobType:
 
     # Derived metrics
     analysis_count: Optional[int] = strawberry.field(name="analysisCount", default=None)
+    
+    # Recent applicants preview (first 2 applicants' initials)
+    recent_applicants: Optional[List[str]] = strawberry.field(name="recentApplicants", default=None)
 
     # Nested
     department: Optional['DepartmentType'] = None
@@ -641,6 +645,7 @@ class UsageHistoryItem:
     created_at: str = strawberry.field(name="createdAt")
     period_start: str = strawberry.field(name="periodStart")
     period_end: str = strawberry.field(name="periodEnd")
+    metadata: Optional[JSON] = None  # Contains candidate_name, session_id, etc.
 
 
 @strawberry.type
@@ -696,6 +701,8 @@ class UsagePeriodSummary:
     total_credits: int = strawberry.field(name="totalCredits")
     cv_analyses: int = strawberry.field(name="cvAnalyses")
     cv_uploads: int = strawberry.field(name="cvUploads")
+    interview_completed: int = strawberry.field(name="interviewCompleted", default=0)
+    interview_ai_analysis: int = strawberry.field(name="interviewAIAnalysis", default=0)
 
 
 # ============================================
@@ -738,6 +745,8 @@ class InterviewTemplateType:
     use_global_timer: bool = strawberry.field(name="useGlobalTimer", default=False)
     total_duration: Optional[int] = strawberry.field(name="totalDuration", default=None)
     is_active: bool = strawberry.field(name="isActive", default=True)
+    ai_analysis_enabled: bool = strawberry.field(name="aiAnalysisEnabled", default=False)
+    voice_response_enabled: bool = strawberry.field(name="voiceResponseEnabled", default=False)
     question_count: int = strawberry.field(name="questionCount", default=0)
     questions: List[InterviewQuestionType] = strawberry.field(default_factory=list)
     created_at: Optional[str] = strawberry.field(name="createdAt", default=None)
@@ -776,6 +785,8 @@ class InterviewTemplateInput:
     duration_per_question: int = strawberry.field(name="durationPerQuestion", default=120)
     use_global_timer: bool = strawberry.field(name="useGlobalTimer", default=False)
     total_duration: Optional[int] = strawberry.field(name="totalDuration", default=None)
+    ai_analysis_enabled: bool = strawberry.field(name="aiAnalysisEnabled", default=False)
+    voice_response_enabled: bool = strawberry.field(name="voiceResponseEnabled", default=False)
     questions: List['InterviewQuestionInput'] = strawberry.field(default_factory=list)
 
 
@@ -898,6 +909,15 @@ class InterviewJobType:
 
 
 @strawberry.type
+class InterviewTemplateMinimalType:
+    """Minimal template type for session view (voice/AI options)"""
+    id: str
+    name: str
+    voice_response_enabled: bool = strawberry.field(name="voiceResponseEnabled", default=False)
+    ai_analysis_enabled: bool = strawberry.field(name="aiAnalysisEnabled", default=False)
+
+
+@strawberry.type
 class InterviewSessionFullType:
     """Full interview session type with nested objects for candidate view"""
     id: str
@@ -913,6 +933,7 @@ class InterviewSessionFullType:
     invitation_email: Optional[str] = strawberry.field(name="invitationEmail", default=None)
     created_at: Optional[str] = strawberry.field(name="createdAt", default=None)
     agreement_accepted_at: Optional[str] = strawberry.field(name="agreementAcceptedAt", default=None)
+    template: Optional[InterviewTemplateMinimalType] = None
     job: Optional[InterviewJobType] = None
     candidate: Optional[InterviewCandidateType] = None
     questions: List[InterviewQuestionType] = strawberry.field(default_factory=list)
@@ -936,6 +957,8 @@ class InterviewAnswerWithQuestionType:
     question_text: str = strawberry.field(name="questionText")
     question_order: int = strawberry.field(name="questionOrder")
     answer_text: Optional[str] = strawberry.field(name="answerText", default=None)
+    video_url: Optional[str] = strawberry.field(name="videoUrl", default=None)
+    duration_seconds: Optional[int] = strawberry.field(name="durationSeconds", default=None)
     created_at: Optional[str] = strawberry.field(name="createdAt", default=None)
 
 
@@ -954,6 +977,40 @@ class InterviewSessionWithAnswersType:
     job: Optional["InterviewJobType"] = None
     candidate: Optional["InterviewCandidateType"] = None
     answers: List[InterviewAnswerWithQuestionType] = strawberry.field(default_factory=list)
+    # AI Analysis fields
+    ai_analysis: Optional[JSON] = strawberry.field(name="aiAnalysis", default=None)
+    ai_overall_score: Optional[float] = strawberry.field(name="aiOverallScore", default=None)
+    browser_stt_supported: Optional[bool] = strawberry.field(name="browserSttSupported", default=None)
+
+
+# ============================================
+# AI Analysis Types
+# ============================================
+
+@strawberry.type
+class AIAnalysisCategoryType:
+    """AI analysis category with score and feedback"""
+    category: str
+    category_en: str = strawberry.field(name="categoryEn")
+    score: float
+    feedback: List[str] = strawberry.field(default_factory=list)
+
+
+@strawberry.type
+class AIInterviewAnalysisType:
+    """Full AI analysis result for an interview"""
+    overall_score: float = strawberry.field(name="overallScore")
+    categories: List[AIAnalysisCategoryType] = strawberry.field(default_factory=list)
+    summary: Optional[str] = None
+    analyzed_at: Optional[str] = strawberry.field(name="analyzedAt", default=None)
+
+
+@strawberry.type
+class AIAnalysisResponse:
+    """Response for AI analysis mutation"""
+    success: bool
+    message: Optional[str] = None
+    analysis: Optional[AIInterviewAnalysisType] = None
 
 
 # ============================================

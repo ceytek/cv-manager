@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery } from '@apollo/client/react';
-import { X, Plus, Trash2, Globe, Clock, Timer } from 'lucide-react';
+import { X, Plus, Trash2, Globe, Clock, Timer, Sparkles, Mic } from 'lucide-react';
 import { CREATE_INTERVIEW_TEMPLATE, UPDATE_INTERVIEW_TEMPLATE, GET_INTERVIEW_TEMPLATE } from '../graphql/interviewTemplates';
 
 const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template }) => {
@@ -19,6 +19,8 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
   const [useGlobalTimer, setUseGlobalTimer] = useState(false);
   const [totalDuration, setTotalDuration] = useState(1800); // 30 minutes default
   const [durationPerQuestion, setDurationPerQuestion] = useState(120);
+  const [aiAnalysisEnabled, setAiAnalysisEnabled] = useState(false);
+  const [voiceResponseEnabled, setVoiceResponseEnabled] = useState(false);
   const [questions, setQuestions] = useState([]);
   const [newQuestion, setNewQuestion] = useState('');
   const [saving, setSaving] = useState(false);
@@ -65,6 +67,8 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
       setUseGlobalTimer(t.useGlobalTimer || false);
       setTotalDuration(t.totalDuration || 1800);
       setDurationPerQuestion(t.durationPerQuestion || 120);
+      setAiAnalysisEnabled(t.aiAnalysisEnabled || false);
+      setVoiceResponseEnabled(t.voiceResponseEnabled || false);
       setQuestions(t.questions?.map(q => ({
         id: q.id,
         text: q.questionText,
@@ -80,6 +84,8 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
       setUseGlobalTimer(false);
       setTotalDuration(1800);
       setDurationPerQuestion(120);
+      setAiAnalysisEnabled(false);
+      setVoiceResponseEnabled(false);
       setQuestions([]);
     }
   }, [templateData, template]);
@@ -139,6 +145,8 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
         durationPerQuestion: parseInt(durationPerQuestion) || 120,
         useGlobalTimer,
         totalDuration: useGlobalTimer ? parseInt(totalDuration) : null,
+        aiAnalysisEnabled,
+        voiceResponseEnabled,
         questions: questions.map((q, i) => ({
           questionText: q.text,
           questionOrder: i + 1,
@@ -310,6 +318,95 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
                 </select>
               </div>
             )}
+          </div>
+
+          {/* AI Analysis & Voice Response Options */}
+          <div style={{ marginBottom: '20px', display: 'flex', gap: '16px' }}>
+            {/* AI Analysis Option */}
+            <div style={{ flex: 1, padding: '16px', background: '#F0FDF4', borderRadius: '12px', border: '1px solid #BBF7D0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Sparkles size={18} color="#22C55E" />
+                  <span style={{ fontWeight: '600', fontSize: '14px', color: '#166534' }}>
+                    {isEnglish ? 'AI Analysis' : 'AI Analiz'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAiAnalysisEnabled(!aiAnalysisEnabled)}
+                  style={{
+                    width: '48px',
+                    height: '24px',
+                    borderRadius: '12px',
+                    background: aiAnalysisEnabled ? '#22C55E' : '#D1D5DB',
+                    border: 'none',
+                    cursor: 'pointer',
+                    position: 'relative',
+                    transition: 'background 0.2s',
+                  }}
+                >
+                  <span style={{
+                    position: 'absolute',
+                    width: '20px',
+                    height: '20px',
+                    borderRadius: '50%',
+                    background: 'white',
+                    top: '2px',
+                    left: aiAnalysisEnabled ? '26px' : '2px',
+                    transition: 'left 0.2s',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                  }} />
+                </button>
+              </div>
+              <p style={{ margin: 0, fontSize: '12px', color: '#166534' }}>
+                {isEnglish 
+                  ? 'AI will analyze candidate answers and provide scores'
+                  : 'AI cevapları analiz edip puan verecek'}
+              </p>
+            </div>
+
+            {/* Voice Response Option */}
+            <div style={{ flex: 1, padding: '16px', background: '#EFF6FF', borderRadius: '12px', border: '1px solid #BFDBFE' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Mic size={18} color="#3B82F6" />
+                  <span style={{ fontWeight: '600', fontSize: '14px', color: '#1E40AF' }}>
+                    {isEnglish ? 'Voice Response' : 'Sesli Yanıt'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setVoiceResponseEnabled(!voiceResponseEnabled)}
+                  style={{
+                    width: '48px',
+                    height: '24px',
+                    borderRadius: '12px',
+                    background: voiceResponseEnabled ? '#3B82F6' : '#D1D5DB',
+                    border: 'none',
+                    cursor: 'pointer',
+                    position: 'relative',
+                    transition: 'background 0.2s',
+                  }}
+                >
+                  <span style={{
+                    position: 'absolute',
+                    width: '20px',
+                    height: '20px',
+                    borderRadius: '50%',
+                    background: 'white',
+                    top: '2px',
+                    left: voiceResponseEnabled ? '26px' : '2px',
+                    transition: 'left 0.2s',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                  }} />
+                </button>
+              </div>
+              <p style={{ margin: 0, fontSize: '12px', color: '#1E40AF' }}>
+                {isEnglish 
+                  ? 'Candidates can respond using voice (Speech-to-Text)'
+                  : 'Adaylar sesli yanıt verebilir (Konuşma-Metin)'}
+              </p>
+            </div>
           </div>
 
           {/* Intro Text */}

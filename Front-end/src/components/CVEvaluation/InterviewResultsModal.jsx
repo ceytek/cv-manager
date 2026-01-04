@@ -1,21 +1,36 @@
 /**
  * Interview Results Modal
- * Displays interview results and answers for HR view
+ * Displays interview results with video player and AI analysis for HR view
  */
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useQuery } from '@apollo/client/react';
-import { X, CheckCircle2, Video, Clock, MessageSquare } from 'lucide-react';
-import { GET_INTERVIEW_SESSION_BY_APPLICATION } from '../../graphql/interview';
+import { useQuery, useMutation } from '@apollo/client/react';
+import { 
+  X, CheckCircle2, Video, Clock, MessageSquare, 
+  ChevronLeft, ChevronRight, Search, Sparkles, Play,
+  AlertCircle, Mic, MicOff
+} from 'lucide-react';
+import { GET_INTERVIEW_SESSION_BY_APPLICATION, ANALYZE_INTERVIEW_WITH_AI } from '../../graphql/interview';
+import { API_BASE_URL } from '../../config/api';
 
 const InterviewResultsModal = ({ isOpen, onClose, applicationId, candidateName, jobTitle }) => {
   const { t, i18n } = useTranslation();
   const isEnglish = i18n.language === 'en';
   
-  const { data, loading, error } = useQuery(GET_INTERVIEW_SESSION_BY_APPLICATION, {
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showAIAnalysis, setShowAIAnalysis] = useState(false);
+  
+  const { data, loading, error, refetch } = useQuery(GET_INTERVIEW_SESSION_BY_APPLICATION, {
     variables: { applicationId },
     skip: !applicationId || !isOpen,
     fetchPolicy: 'network-only',
+  });
+
+  const [analyzeWithAI, { loading: analyzing }] = useMutation(ANALYZE_INTERVIEW_WITH_AI, {
+    onCompleted: () => {
+      refetch();
+    },
   });
 
   if (!isOpen) return null;
@@ -23,6 +38,14 @@ const InterviewResultsModal = ({ isOpen, onClose, applicationId, candidateName, 
   const session = data?.interviewSessionByApplication;
   const template = session?.template;
   const answers = session?.answers || [];
+  const sortedAnswers = [...answers].sort((a, b) => a.questionOrder - b.questionOrder);
+  const currentAnswer = sortedAnswers[currentQuestionIndex];
+  
+  // AI Analysis data
+  const aiAnalysis = session?.aiAnalysis;
+  const aiOverallScore = session?.aiOverallScore;
+  const aiAnalysisEnabled = template?.aiAnalysisEnabled;
+  const browserSttSupported = session?.browserSttSupported;
 
   // Calculate duration
   const duration = session?.startedAt && session?.completedAt
@@ -60,11 +83,57 @@ const InterviewResultsModal = ({ isOpen, onClose, applicationId, candidateName, 
     }
   };
 
+  const getScoreEmoji = (score) => {
+    if (score >= 4) return '😊';
+    if (score >= 3) return '🙂';
+    if (score >= 2) return '😐';
+    return '😟';
+  };
+
+  const getScoreColor = (score) => {
+    if (score >= 4) return '#10B981';
+    if (score >= 3) return '#84CC16';
+    if (score >= 2) return '#F59E0B';
+    return '#EF4444';
+  };
+
+  // Filter transcript by search term
+  const highlightText = (text, term) => {
+    if (!term || !text) return text;
+    const regex = new RegExp(`(${term})`, 'gi');
+    const parts = text.split(regex);
+    return parts.map((part, i) => 
+      regex.test(part) ? <mark key={i} style={{ background: '#FEF3C7' }}>{part}</mark> : part
+    );
+  };
+
+  const handleAnalyze = async () => {
+    if (!session?.id) return;
+    try {
+      await analyzeWithAI({ variables: { sessionId: session.id } });
+      setShowAIAnalysis(true);
+    } catch (err) {
+      console.error('AI Analysis error:', err);
+    }
+  };
+
+  const goToPrevious = () => {
+    if (currentQuestionIndex > 0) {
+      setCurrentQuestionIndex(currentQuestionIndex - 1);
+    }
+  };
+
+  const goToNext = () => {
+    if (currentQuestionIndex < sortedAnswers.length - 1) {
+      setCurrentQuestionIndex(currentQuestionIndex + 1);
+    }
+  };
+
   return (
     <div style={{
       position: 'fixed',
       inset: 0,
-      background: 'rgba(0,0,0,0.5)',
+      background: 'rgba(0,0,0,0.6)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -74,9 +143,9 @@ const InterviewResultsModal = ({ isOpen, onClose, applicationId, candidateName, 
       <div style={{
         background: 'white',
         borderRadius: 16,
-        width: '90%',
-        maxWidth: 900,
-        maxHeight: '90vh',
+        width: '95%',
+        maxWidth: 1200,
+        maxHeight: '95vh',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
@@ -84,7 +153,7 @@ const InterviewResultsModal = ({ isOpen, onClose, applicationId, candidateName, 
       }}>
         {/* Header */}
         <div style={{
-          padding: '24px 28px',
+          padding: '20px 28px',
           background: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)',
           color: 'white',
           display: 'flex',
@@ -100,19 +169,39 @@ const InterviewResultsModal = ({ isOpen, onClose, applicationId, candidateName, 
               </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            style={{
-              background: 'rgba(255,255,255,0.2)',
-              border: 'none',
-              borderRadius: 8,
-              padding: 8,
-              cursor: 'pointer',
-              display: 'flex',
-            }}
-          >
-            <X size={20} color="white" />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {/* Browser STT Support Indicator */}
+            {browserSttSupported !== null && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                background: 'rgba(255,255,255,0.2)',
+                padding: '6px 12px',
+                borderRadius: 20,
+                fontSize: 12,
+              }}>
+                {browserSttSupported ? <Mic size={14} /> : <MicOff size={14} />}
+                {browserSttSupported 
+                  ? (isEnglish ? 'Voice supported' : 'Sesli yanıt desteklendi')
+                  : (isEnglish ? 'Voice not supported' : 'Sesli yanıt desteklenmedi')
+                }
+              </div>
+            )}
+            <button
+              onClick={onClose}
+              style={{
+                background: 'rgba(255,255,255,0.2)',
+                border: 'none',
+                borderRadius: 8,
+                padding: 8,
+                cursor: 'pointer',
+                display: 'flex',
+              }}
+            >
+              <X size={20} color="white" />
+            </button>
+          </div>
         </div>
 
         {/* Content */}
@@ -147,189 +236,338 @@ const InterviewResultsModal = ({ isOpen, onClose, applicationId, candidateName, 
                 gap: 16,
                 marginBottom: 24,
               }}>
-                <div style={{
-                  background: '#F9FAFB',
-                  borderRadius: 12,
-                  padding: 20,
-                  textAlign: 'center',
-                }}>
-                  <CheckCircle2 size={24} style={{ color: getStatusColor(session.status), marginBottom: 8 }} />
-                  <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 4 }}>{isEnglish ? 'Status' : 'Durum'}</div>
-                  <div style={{
-                    fontSize: 16,
-                    fontWeight: 700,
-                    color: getStatusColor(session.status),
-                  }}>
+                <div style={{ background: '#F9FAFB', borderRadius: 12, padding: 16, textAlign: 'center' }}>
+                  <CheckCircle2 size={20} style={{ color: getStatusColor(session.status), marginBottom: 8 }} />
+                  <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 4 }}>{isEnglish ? 'Status' : 'Durum'}</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: getStatusColor(session.status) }}>
                     {getStatusLabel(session.status)}
                   </div>
                 </div>
-
-                <div style={{
-                  background: '#F9FAFB',
-                  borderRadius: 12,
-                  padding: 20,
-                  textAlign: 'center',
-                }}>
-                  <MessageSquare size={24} style={{ color: '#3B82F6', marginBottom: 8 }} />
-                  <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 4 }}>{isEnglish ? 'Questions' : 'Sorular'}</div>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: '#1F2937' }}>
-                    {answers.length}
-                  </div>
+                <div style={{ background: '#F9FAFB', borderRadius: 12, padding: 16, textAlign: 'center' }}>
+                  <MessageSquare size={20} style={{ color: '#3B82F6', marginBottom: 8 }} />
+                  <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 4 }}>{isEnglish ? 'Questions' : 'Sorular'}</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#1F2937' }}>{sortedAnswers.length}</div>
                 </div>
-
-                <div style={{
-                  background: '#F9FAFB',
-                  borderRadius: 12,
-                  padding: 20,
-                  textAlign: 'center',
-                }}>
-                  <Clock size={24} style={{ color: '#F59E0B', marginBottom: 8 }} />
-                  <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 4 }}>{isEnglish ? 'Duration' : 'Süre'}</div>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: '#1F2937' }}>
+                <div style={{ background: '#F9FAFB', borderRadius: 12, padding: 16, textAlign: 'center' }}>
+                  <Clock size={20} style={{ color: '#F59E0B', marginBottom: 8 }} />
+                  <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 4 }}>{isEnglish ? 'Duration' : 'Süre'}</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#1F2937' }}>
                     {duration ? `${duration} ${isEnglish ? 'min' : 'dk'}` : '-'}
                   </div>
                 </div>
-
-                <div style={{
-                  background: '#F9FAFB',
-                  borderRadius: 12,
-                  padding: 20,
-                  textAlign: 'center',
-                }}>
-                  <Video size={24} style={{ color: '#8B5CF6', marginBottom: 8 }} />
-                  <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 4 }}>{isEnglish ? 'Language' : 'Dil'}</div>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: '#1F2937' }}>
-                    {template?.language === 'en' ? 'English' : 'Türkçe'}
+                <div style={{ background: '#F9FAFB', borderRadius: 12, padding: 16, textAlign: 'center' }}>
+                  <Sparkles size={20} style={{ color: aiOverallScore ? getScoreColor(aiOverallScore) : '#9CA3AF', marginBottom: 8 }} />
+                  <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 4 }}>{isEnglish ? 'AI Score' : 'AI Puanı'}</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: aiOverallScore ? getScoreColor(aiOverallScore) : '#9CA3AF' }}>
+                    {aiOverallScore ? `${aiOverallScore.toFixed(1)} ${getScoreEmoji(aiOverallScore)}` : '-'}
                   </div>
                 </div>
               </div>
 
-              {/* Template & Date Info */}
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: 16,
-                marginBottom: 24,
-              }}>
-                <div style={{
-                  background: '#EFF6FF',
-                  borderRadius: 12,
-                  padding: 16,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                }}>
-                  <span style={{ fontSize: 20 }}>📁</span>
-                  <div>
-                    <span style={{ color: '#1E40AF', fontWeight: 600 }}>{isEnglish ? 'Template: ' : 'Şablon: '}</span>
-                    <span style={{ color: '#1F2937' }}>{template?.name || '-'}</span>
-                  </div>
-                </div>
-
-                <div style={{
-                  background: '#D1FAE5',
-                  borderRadius: 12,
-                  padding: 16,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                }}>
-                  <span style={{ fontSize: 20 }}>📅</span>
-                  <div>
-                    <span style={{ color: '#065F46', fontWeight: 600 }}>{t('interviewResults.completedAt')}: </span>
-                    <span style={{ color: '#1F2937' }}>{formatDate(session.completedAt)}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Timeline */}
-              <div style={{
-                background: '#F9FAFB',
-                borderRadius: 12,
-                padding: 20,
-                marginBottom: 24,
-              }}>
-                <h4 style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 600, color: '#1F2937' }}>
-                  {isEnglish ? 'Timeline' : 'Zaman Çizelgesi'}
-                </h4>
-                <div style={{ display: 'flex', gap: 24 }}>
-                  {session.invitationSentAt && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#3B82F6' }} />
-                      <span style={{ fontSize: 13, color: '#6B7280' }}>{isEnglish ? 'Invitation Sent' : 'Davet Gönderildi'}: {formatDate(session.invitationSentAt)}</span>
+              {/* Question Navigation & Video Section */}
+              {sortedAnswers.length > 0 && (
+                <div style={{ marginBottom: 24 }}>
+                  {/* Question Header with Navigation */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: 16,
+                  }}>
+                    <div style={{ color: '#8B5CF6', fontSize: 14, fontWeight: 600 }}>
+                      {isEnglish ? 'Question' : 'Soru'}: {currentQuestionIndex + 1}/{sortedAnswers.length}
                     </div>
-                  )}
-                  {session.startedAt && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#F59E0B' }} />
-                      <span style={{ fontSize: 13, color: '#6B7280' }}>{isEnglish ? 'Started' : 'Başladı'}: {formatDate(session.startedAt)}</span>
-                    </div>
-                  )}
-                  {session.completedAt && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#10B981' }} />
-                      <span style={{ fontSize: 13, color: '#6B7280' }}>{isEnglish ? 'Completed' : 'Tamamlandı'}: {formatDate(session.completedAt)}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Answers */}
-              <div>
-                <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 700, color: '#1F2937' }}>
-                  {isEnglish ? 'Interview Answers' : 'Mülakat Cevapları'}
-                </h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  {answers.map((answer, index) => (
-                    <div key={answer.id} style={{
-                      background: '#F9FAFB',
-                      borderRadius: 12,
-                      overflow: 'hidden',
-                    }}>
-                      {/* Question Header */}
-                      <div style={{
-                        background: '#EFF6FF',
-                        padding: '12px 20px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 12,
-                        borderBottom: '1px solid #DBEAFE',
-                      }}>
-                        <span style={{
-                          width: 28,
-                          height: 28,
-                          borderRadius: '50%',
-                          background: '#3B82F6',
-                          color: 'white',
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button
+                        onClick={goToPrevious}
+                        disabled={currentQuestionIndex === 0}
+                        style={{
                           display: 'flex',
                           alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: 12,
-                          fontWeight: 700,
-                        }}>
-                          {index + 1}
-                        </span>
-                        <span style={{ fontSize: 14, fontWeight: 600, color: '#1E40AF' }}>
-                          {answer.questionText}
-                        </span>
-                      </div>
-                      
-                      {/* Answer Content */}
-                      <div style={{ padding: 20 }}>
-                        <p style={{
-                          margin: 0,
-                          fontSize: 14,
-                          color: '#374151',
-                          lineHeight: 1.7,
-                          whiteSpace: 'pre-wrap',
-                        }}>
-                          {answer.answerText || <em style={{ color: '#9CA3AF' }}>{t('interviewResults.noAnswer')}</em>}
-                        </p>
+                          gap: 4,
+                          padding: '8px 16px',
+                          background: currentQuestionIndex === 0 ? '#F3F4F6' : 'white',
+                          border: '1px solid #8B5CF6',
+                          borderRadius: 8,
+                          color: currentQuestionIndex === 0 ? '#9CA3AF' : '#8B5CF6',
+                          cursor: currentQuestionIndex === 0 ? 'not-allowed' : 'pointer',
+                          fontSize: 13,
+                          fontWeight: 500,
+                        }}
+                      >
+                        <ChevronLeft size={16} />
+                        {isEnglish ? 'Previous' : 'Önceki'}
+                      </button>
+                      <button
+                        onClick={goToNext}
+                        disabled={currentQuestionIndex === sortedAnswers.length - 1}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          padding: '8px 16px',
+                          background: currentQuestionIndex === sortedAnswers.length - 1 ? '#F3F4F6' : '#8B5CF6',
+                          border: 'none',
+                          borderRadius: 8,
+                          color: currentQuestionIndex === sortedAnswers.length - 1 ? '#9CA3AF' : 'white',
+                          cursor: currentQuestionIndex === sortedAnswers.length - 1 ? 'not-allowed' : 'pointer',
+                          fontSize: 13,
+                          fontWeight: 500,
+                        }}
+                      >
+                        {isEnglish ? 'Next' : 'Sonraki'}
+                        <ChevronRight size={16} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Question Text */}
+                  <h3 style={{
+                    margin: '0 0 16px',
+                    fontSize: 18,
+                    fontWeight: 600,
+                    color: '#1F2937',
+                    lineHeight: 1.5,
+                  }}>
+                    {currentAnswer?.questionText}
+                  </h3>
+
+                  {/* Video Player */}
+                  {currentAnswer?.videoUrl ? (
+                    <div style={{
+                      background: '#111827',
+                      borderRadius: 12,
+                      overflow: 'hidden',
+                      marginBottom: 16,
+                      aspectRatio: '16/9',
+                      maxHeight: 400,
+                    }}>
+                      <video
+                        key={currentAnswer.videoUrl}
+                        controls
+                        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                        src={`${API_BASE_URL}${currentAnswer.videoUrl}`}
+                      >
+                        {isEnglish ? 'Your browser does not support video playback.' : 'Tarayıcınız video oynatmayı desteklemiyor.'}
+                      </video>
+                    </div>
+                  ) : (
+                    <div style={{
+                      background: '#F3F4F6',
+                      borderRadius: 12,
+                      padding: 48,
+                      textAlign: 'center',
+                      marginBottom: 16,
+                    }}>
+                      <Play size={48} color="#9CA3AF" style={{ marginBottom: 12 }} />
+                      <p style={{ color: '#6B7280', margin: 0 }}>
+                        {isEnglish ? 'No video recording available' : 'Video kaydı mevcut değil'}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Transcript */}
+                  <div style={{ background: '#F9FAFB', borderRadius: 12, padding: 20 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                      <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: '#1F2937' }}>
+                        {isEnglish ? 'Transcript' : 'Transkript'}
+                      </h4>
+                      <div style={{ position: 'relative' }}>
+                        <Search size={16} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }} />
+                        <input
+                          type="text"
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          placeholder={isEnglish ? 'Search in transcript...' : 'Bu cevapta ara'}
+                          style={{
+                            padding: '8px 12px 8px 32px',
+                            border: '1px solid #E5E7EB',
+                            borderRadius: 8,
+                            fontSize: 13,
+                            width: 200,
+                          }}
+                        />
                       </div>
                     </div>
-                  ))}
+                    <p style={{
+                      margin: 0,
+                      fontSize: 14,
+                      color: '#374151',
+                      lineHeight: 1.8,
+                      whiteSpace: 'pre-wrap',
+                      textAlign: 'justify',
+                    }}>
+                      {currentAnswer?.answerText 
+                        ? highlightText(currentAnswer.answerText, searchTerm)
+                        : <em style={{ color: '#9CA3AF' }}>{t('interviewResults.noAnswer')}</em>
+                      }
+                    </p>
+                    {currentAnswer?.durationSeconds && (
+                      <p style={{ margin: '12px 0 0', fontSize: 12, color: '#9CA3AF' }}>
+                        ({Math.floor(currentAnswer.durationSeconds / 60)}:{(currentAnswer.durationSeconds % 60).toString().padStart(2, '0')} {isEnglish ? 'video recording ends after waiting time' : 'bekleme süresinin ardından video kaydı sona erer'})
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* AI Analysis Section */}
+              {aiAnalysisEnabled && (
+                <div style={{
+                  background: 'linear-gradient(135deg, #F0FDF4 0%, #ECFDF5 100%)',
+                  borderRadius: 12,
+                  padding: 24,
+                  border: '1px solid #BBF7D0',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                    <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#166534', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Sparkles size={20} />
+                      {isEnglish ? 'AI Interview Analysis' : 'Bu Mülakatın Yapay Zeka Analizi'}
+                    </h3>
+                    {!aiAnalysis && (
+                      <button
+                        onClick={handleAnalyze}
+                        disabled={analyzing || session.status !== 'completed'}
+                        style={{
+                          padding: '10px 20px',
+                          background: analyzing ? '#9CA3AF' : '#22C55E',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: 8,
+                          fontSize: 14,
+                          fontWeight: 600,
+                          cursor: analyzing || session.status !== 'completed' ? 'not-allowed' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                        }}
+                      >
+                        {analyzing ? (
+                          <>
+                            <div style={{
+                              width: 16,
+                              height: 16,
+                              border: '2px solid white',
+                              borderTopColor: 'transparent',
+                              borderRadius: '50%',
+                              animation: 'spin 1s linear infinite',
+                            }} />
+                            {isEnglish ? 'Analyzing...' : 'Analiz ediliyor...'}
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles size={16} />
+                            {isEnglish ? 'Analyze with AI' : 'AI Analizini Gör'}
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+
+                  {aiAnalysis ? (
+                    <>
+                      {/* Overall Score */}
+                      <div style={{
+                        background: 'white',
+                        borderRadius: 12,
+                        padding: 24,
+                        textAlign: 'center',
+                        marginBottom: 24,
+                      }}>
+                        <div style={{ fontSize: 14, color: '#6B7280', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                          <Sparkles size={14} />
+                          {isEnglish ? 'AI Score' : 'Yapay Zeka Skoru'}
+                          <span style={{ 
+                            width: 16, 
+                            height: 16, 
+                            borderRadius: '50%', 
+                            border: '1px solid #9CA3AF',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: 10,
+                            color: '#9CA3AF',
+                            cursor: 'help',
+                          }} title={isEnglish ? 'Score out of 5' : '5 üzerinden puan'}>ⓘ</span>
+                        </div>
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          background: '#F9FAFB',
+                          padding: '12px 24px',
+                          borderRadius: 30,
+                        }}>
+                          <span style={{ fontSize: 28, fontWeight: 700, color: getScoreColor(aiOverallScore) }}>
+                            {aiOverallScore?.toFixed(1)}
+                          </span>
+                          <span style={{ fontSize: 24 }}>{getScoreEmoji(aiOverallScore)}</span>
+                        </div>
+                        {aiAnalysis.summary && (
+                          <p style={{ margin: '16px 0 0', fontSize: 14, color: '#374151', lineHeight: 1.6 }}>
+                            {aiAnalysis.summary}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Category Scores */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                        {aiAnalysis.categories?.map((cat, index) => (
+                          <div key={index} style={{
+                            background: 'white',
+                            borderRadius: 12,
+                            padding: 20,
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                              <h4 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: '#1F2937' }}>
+                                {isEnglish ? cat.categoryEn : cat.category}
+                              </h4>
+                              <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                background: '#F9FAFB',
+                                padding: '4px 12px',
+                                borderRadius: 20,
+                              }}>
+                                <span style={{ fontSize: 14, fontWeight: 700, color: getScoreColor(cat.score) }}>
+                                  {cat.score}
+                                </span>
+                                <span>{getScoreEmoji(cat.score)}</span>
+                              </div>
+                            </div>
+                            <ul style={{ margin: 0, paddingLeft: 20, color: '#4B5563', fontSize: 14, lineHeight: 1.8 }}>
+                              {cat.feedback?.map((item, i) => (
+                                <li key={i}>{item}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  ) : session.status !== 'completed' ? (
+                    <div style={{ textAlign: 'center', padding: 24 }}>
+                      <AlertCircle size={32} color="#F59E0B" style={{ marginBottom: 12 }} />
+                      <p style={{ color: '#92400E', margin: 0 }}>
+                        {isEnglish 
+                          ? 'AI analysis will be available after the interview is completed.'
+                          : 'AI analizi mülakat tamamlandıktan sonra kullanılabilir olacaktır.'
+                        }
+                      </p>
+                    </div>
+                  ) : (
+                    <div style={{ textAlign: 'center', padding: 24 }}>
+                      <Sparkles size={32} color="#22C55E" style={{ marginBottom: 12 }} />
+                      <p style={{ color: '#166534', margin: 0 }}>
+                        {isEnglish 
+                          ? 'Click "Analyze with AI" to get a detailed evaluation of the interview.'
+                          : '"AI Analizini Gör" butonuna tıklayarak detaylı değerlendirme alabilirsiniz.'
+                        }
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
             </>
           )}
         </div>
@@ -369,4 +607,3 @@ const InterviewResultsModal = ({ isOpen, onClose, applicationId, candidateName, 
 };
 
 export default InterviewResultsModal;
-
