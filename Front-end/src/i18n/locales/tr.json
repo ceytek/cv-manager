@@ -294,6 +294,8 @@
     "operations": "İŞLEMLER",
     "noJobs": "Hiç ilan yok",
     "noApplications": "Başvuru yok",
+    "applicant": "Başvuru",
+    "view": "Görüntüle",
     "statusActive": "Aktif",
     "statusDraft": "Taslak",
     "statusClosed": "Kapalı",

@@ -294,6 +294,8 @@
     "operations": "OPERATIONS",
     "noJobs": "No jobs found",
     "noApplications": "No applications",
+    "applicant": "Applications",
+    "view": "View",
     "statusActive": "Active",
     "statusDraft": "Draft",
     "statusClosed": "Closed",

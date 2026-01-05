@@ -32,7 +32,7 @@ const refreshToken = async () => {
   if (!refresh) return null;
   
   try {
-    const response = await fetch(`${API_URL}/api/refresh`, {
+    const response = await fetch(`${API_URL}/api/auth/refresh`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
