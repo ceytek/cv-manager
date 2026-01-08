@@ -29,7 +29,7 @@ const LoginPage = ({ onLogin }) => {
 
     const companyCodeUpper = companyCode.toUpperCase();
     if (!/^[A-Z0-9]{6}$/.test(companyCodeUpper)) {
-      setError('Şirket kodu 6 karakter olmalıdır (örn: ABC123)');
+      setError(t('login.companyCodeError'));
       setLoading(false);
       return;
     }
@@ -60,11 +60,11 @@ const LoginPage = ({ onLogin }) => {
           <h1 className="login-title">{t('login.hrsmartWelcome')}</h1>
           <form onSubmit={handleSubmit}>
             <div className="input-group">
-              <label htmlFor="companyCode">Şirket Kodu</label>
+              <label htmlFor="companyCode">{t('login.companyCode')}</label>
               <input
                 type="text"
                 id="companyCode"
-                placeholder="ŞİRKET KODU (ÖRN: ABC123)"
+                placeholder={t('login.companyCodePlaceholder')}
                 value={companyCode}
                 onChange={(e) => setCompanyCode(e.target.value.toUpperCase())}
                 maxLength={6}
