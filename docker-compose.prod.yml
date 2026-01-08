@@ -71,14 +71,14 @@ services:
       - MAIL_PASSWORD=${MAIL_PASSWORD}
       - MAIL_FROM=${MAIL_FROM}
       - MAIL_FROM_NAME=${MAIL_FROM_NAME:-HRSmart}
-      - FRONTEND_URL=${FRONTEND_URL:-http://185.92.2.38:3000}
+      - FRONTEND_URL=${FRONTEND_URL:-https://test.hrsmart.co}
       - MAILTRAP_API_TOKEN=${MAILTRAP_API_TOKEN:-}
       - ADMIN_EMAIL=${ADMIN_EMAIL:-}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
     volumes:
       - uploads_data:/app/uploads
     ports:
-      - "0.0.0.0:8000:8000"
+      - "127.0.0.1:8000:8000"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -95,14 +95,14 @@ services:
       context: ./Front-end
       dockerfile: Dockerfile
       args:
-        VITE_GRAPHQL_URL: "http://185.92.2.38:8000/graphql"
-        VITE_WS_URL: "ws://185.92.2.38:8000/graphql"
+        VITE_GRAPHQL_URL: "https://test.hrsmart.co/graphql"
+        VITE_WS_URL: "wss://test.hrsmart.co/graphql"
     container_name: hrsmart-frontend
     restart: unless-stopped
     depends_on:
       - backend
     ports:
-      - "0.0.0.0:3000:80"
+      - "0.0.0.0:80:80"
     networks:
       - hrsmart-network
 

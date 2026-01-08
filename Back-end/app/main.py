@@ -167,6 +167,7 @@ app.add_middleware(
         "http://localhost:5174",
         "http://localhost:3000",
         "http://185.92.2.38:3000",
+        "https://test.hrsmart.co",
         settings.FRONTEND_URL,
     ],
     allow_credentials=True,

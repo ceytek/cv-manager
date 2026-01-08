@@ -89,7 +89,19 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(generatedLink);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(generatedLink);
+      } else {
+        // Fallback for HTTP connections
+        const textArea = document.createElement('textarea');
+        textArea.value = generatedLink;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-9999px';
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {

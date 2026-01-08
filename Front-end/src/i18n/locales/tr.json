@@ -653,6 +653,11 @@
   "jobForm": {
     "editJob": "İlanı Düzenle",
     "createJob": "Yeni İş İlanı Oluştur",
+    "sectionBasicInfo": "Temel Bilgiler",
+    "sectionLocationWork": "Lokasyon & Çalışma Bilgileri",
+    "sectionJobDetails": "İş Detayları",
+    "sectionEducationLanguage": "Eğitim & Dil Gereksinimleri",
+    "sectionSalaryDates": "Maaş & Tarih Bilgileri",
     "jobTitle": "İlan Başlığı",
     "jobTitlePlaceholder": "Örn: Kıdemli Yazılım Geliştirici",
     "department": "Departman",

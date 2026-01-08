@@ -653,6 +653,11 @@
   "jobForm": {
     "editJob": "Edit Job",
     "createJob": "Create New Job",
+    "sectionBasicInfo": "Basic Information",
+    "sectionLocationWork": "Location & Work Details",
+    "sectionJobDetails": "Job Details",
+    "sectionEducationLanguage": "Education & Language Requirements",
+    "sectionSalaryDates": "Salary & Dates",
     "jobTitle": "Job Title",
     "jobTitlePlaceholder": "E.g: Senior Software Developer",
     "department": "Department",

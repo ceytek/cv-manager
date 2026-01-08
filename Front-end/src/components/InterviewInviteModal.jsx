@@ -89,11 +89,41 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(generatedLink);
+      // Try modern clipboard API first
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(generatedLink);
+      } else {
+        // Fallback for HTTP (non-secure) connections
+        const textArea = document.createElement('textarea');
+        textArea.value = generatedLink;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-9999px';
+        textArea.style.top = '-9999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Copy failed:', err);
+      // Last resort fallback
+      try {
+        const textArea = document.createElement('textarea');
+        textArea.value = generatedLink;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-9999px';
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch (e) {
+        alert('Kopyalama başarısız. Lütfen linki manuel olarak seçip kopyalayın.');
+      }
     }
   };
 

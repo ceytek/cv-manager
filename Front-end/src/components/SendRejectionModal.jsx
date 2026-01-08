@@ -82,9 +82,20 @@ const SendRejectionModal = ({ isOpen, onClose, candidate, application, jobId, jo
     }
   };
 
-  // Copy to clipboard
+  // Copy to clipboard with fallback for HTTP
   const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text);
+    } else {
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-9999px';
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+    }
   };
 
   if (!isOpen) return null;

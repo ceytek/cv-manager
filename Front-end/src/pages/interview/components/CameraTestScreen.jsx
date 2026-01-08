@@ -14,7 +14,8 @@ const translations = {
     waiting: 'Kamera bekleniyor...',
     checkingPermissions: 'İzinler kontrol ediliyor...',
     permissionDenied: 'Kamera izni reddedildi. Lütfen tarayıcı ayarlarından izin verin.',
-    notFound: 'Kamera bulunamadı. Lütfen bir kamera bağlı olduğundan emin olun.'
+    notFound: 'Kamera bulunamadı. Lütfen bir kamera bağlı olduğundan emin olun.',
+    httpsRequired: 'Kamera erişimi için güvenli bağlantı (HTTPS) gereklidir. Lütfen sistem yöneticinize başvurun veya localhost üzerinden deneyin.'
   },
   en: {
     title: 'Camera and Microphone Test',
@@ -29,7 +30,8 @@ const translations = {
     waiting: 'Waiting for camera...',
     checkingPermissions: 'Checking permissions...',
     permissionDenied: 'Camera permission denied. Please allow access in browser settings.',
-    notFound: 'Camera not found. Please make sure a camera is connected.'
+    notFound: 'Camera not found. Please make sure a camera is connected.',
+    httpsRequired: 'Secure connection (HTTPS) is required for camera access. Please contact your system administrator or try from localhost.'
   }
 };
 
@@ -55,6 +57,13 @@ const CameraTestScreen = ({ language = 'tr', onReady, onBack }) => {
   const initCamera = async () => {
     setLoading(true);
     setError(null);
+    
+    // Check if mediaDevices is available (requires HTTPS or localhost)
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setError(t.httpsRequired);
+      setLoading(false);
+      return;
+    }
     
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({

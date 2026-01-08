@@ -28,7 +28,19 @@ const ContactCard = ({ candidate, onClose, position }) => {
   // Copy to clipboard function
   const copyToClipboard = async (text, fieldName) => {
     try {
-      await navigator.clipboard.writeText(text);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        // Fallback for HTTP connections
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-9999px';
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
       setCopiedField(fieldName);
       setTimeout(() => setCopiedField(null), 2000);
     } catch (err) {
