@@ -57,7 +57,6 @@ const LoginPage = ({ onLogin }) => {
             alt="HRSMART Logo"
             className="logo-image"
           />
-          <h1 className="login-title">{t('login.hrsmartWelcome')}</h1>
           <form onSubmit={handleSubmit}>
             <div className="input-group">
               <label htmlFor="companyCode">{t('login.companyCode')}</label>
