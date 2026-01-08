@@ -242,9 +242,12 @@
     "verificationCode": "Doğrulama Kodu",
     "codePlaceholder": "6 haneli kod",
     "newPassword": "Yeni Şifre",
+    "confirmPassword": "Yeni Şifre (Tekrar)",
     "resetPassword": "Şifreyi Sıfırla",
     "updating": "Güncelleniyor...",
-    "codeSent": "Eğer kayıtlıysa, e-posta adresine bir kod gönderdik.",
+    "emailNotFound": "Bu e-posta sistemde bulunamadı",
+    "passwordMismatch": "Şifreler eşleşmiyor",
+    "passwordMinLength": "Şifre en az 6 karakter olmalıdır",
     "passwordUpdated": "Şifren başarıyla güncellendi. Giriş yapabilirsin."
   },
   "cvEvaluation": {

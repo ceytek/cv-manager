@@ -242,9 +242,12 @@
     "verificationCode": "Verification Code",
     "codePlaceholder": "6-digit code",
     "newPassword": "New Password",
+    "confirmPassword": "Confirm New Password",
     "resetPassword": "Reset Password",
     "updating": "Updating...",
-    "codeSent": "If registered, we sent a code to your email address.",
+    "emailNotFound": "Email not found in the system",
+    "passwordMismatch": "Passwords do not match",
+    "passwordMinLength": "Password must be at least 6 characters",
     "passwordUpdated": "Your password has been successfully updated. You can now login."
   },
   "cvEvaluation": {

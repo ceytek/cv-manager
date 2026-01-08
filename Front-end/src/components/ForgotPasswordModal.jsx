@@ -8,6 +8,7 @@ const ForgotPasswordModal = ({ isOpen, onClose }) => {
   const [email, setEmail] = useState('');
   const [token, setToken] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -18,17 +19,35 @@ const ForgotPasswordModal = ({ isOpen, onClose }) => {
     setError(''); setMessage(''); setLoading(true);
     try {
       await authService.forgotPassword(email);
-      setMessage(t('forgotPasswordModal.codeSent'));
       setStep(2);
     } catch (e) {
-      setError(e.message);
+      // Check if email not found error
+      if (e.message?.includes('EMAIL_NOT_FOUND') || e.message?.includes('404')) {
+        setError(t('forgotPasswordModal.emailNotFound'));
+      } else {
+        setError(e.message);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const handleReset = async () => {
-    setError(''); setMessage(''); setLoading(true);
+    setError(''); setMessage(''); 
+    
+    // Check password match
+    if (newPassword !== confirmPassword) {
+      setError(t('forgotPasswordModal.passwordMismatch'));
+      return;
+    }
+    
+    // Check password length
+    if (newPassword.length < 6) {
+      setError(t('forgotPasswordModal.passwordMinLength'));
+      return;
+    }
+    
+    setLoading(true);
     try {
       await authService.resetPassword(email, token, newPassword);
       setMessage(t('forgotPasswordModal.passwordUpdated'));
@@ -60,16 +79,18 @@ const ForgotPasswordModal = ({ isOpen, onClose }) => {
         ) : (
           <>
             <label style={styles.label}>{t('forgotPasswordModal.email')}</label>
-            <input style={styles.input} type="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled />
+            <input type="email" value={email} disabled style={{...styles.input, background: '#F3F4F6'}} />
             <label style={styles.label}>{t('forgotPasswordModal.verificationCode')}</label>
             <input style={styles.input} value={token} onChange={(e) => setToken(e.target.value)} placeholder={t('forgotPasswordModal.codePlaceholder')} />
             <label style={styles.label}>{t('forgotPasswordModal.newPassword')}</label>
             <input style={styles.input} type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="••••••••" />
+            <label style={styles.label}>{t('forgotPasswordModal.confirmPassword')}</label>
+            <input style={styles.input} type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" />
             {error && <div style={styles.error}>{error}</div>}
             {message && <div style={styles.info}>{message}</div>}
             <div style={styles.row}>
               <button style={styles.secondary} onClick={onClose}>{t('common.close')}</button>
-              <button style={styles.primary} onClick={handleReset} disabled={loading || !token || !newPassword}>
+              <button style={styles.primary} onClick={handleReset} disabled={loading || !token || !newPassword || !confirmPassword}>
                 {loading ? t('forgotPasswordModal.updating') : t('forgotPasswordModal.resetPassword')}
               </button>
             </div>

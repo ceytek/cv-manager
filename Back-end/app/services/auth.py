@@ -156,8 +156,10 @@ class AuthService:
         # Get user
         user = AuthService.get_user_by_email(db, email)
         if not user:
-            # Don't reveal if email exists or not
-            return {"message": "Eğer bu email kayıtlıysa, şifre sıfırlama kodu gönderildi"}
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="EMAIL_NOT_FOUND"
+            )
         
         # Generate reset token
         reset_token = generate_reset_token()
