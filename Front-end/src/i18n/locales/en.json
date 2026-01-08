@@ -230,6 +230,20 @@
     "loggingIn": "Logging in...",
     "hrsmartWelcome": "Welcome to HRSMART AI CV Evaluation Application"
   },
+  "forgotPasswordModal": {
+    "title": "Forgot Password",
+    "email": "Email",
+    "emailPlaceholder": "example@mail.com",
+    "sendCode": "Send Code",
+    "sending": "Sending...",
+    "verificationCode": "Verification Code",
+    "codePlaceholder": "6-digit code",
+    "newPassword": "New Password",
+    "resetPassword": "Reset Password",
+    "updating": "Updating...",
+    "codeSent": "If registered, we sent a code to your email address.",
+    "passwordUpdated": "Your password has been successfully updated. You can now login."
+  },
   "cvEvaluation": {
     "welcomeTitle": "Welcome to CV Evaluation Tool",
     "welcomeSubtitle": "Select the next step to get started.",

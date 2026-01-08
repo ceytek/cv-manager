@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import authService from '../services/authService';
 
 const ForgotPasswordModal = ({ isOpen, onClose }) => {
+  const { t } = useTranslation();
   const [step, setStep] = useState(1);
   const [email, setEmail] = useState('');
   const [token, setToken] = useState('');
@@ -16,7 +18,7 @@ const ForgotPasswordModal = ({ isOpen, onClose }) => {
     setError(''); setMessage(''); setLoading(true);
     try {
       await authService.forgotPassword(email);
-      setMessage('Eğer kayıtlıysa, e-posta adresine bir kod gönderdik.');
+      setMessage(t('forgotPasswordModal.codeSent'));
       setStep(2);
     } catch (e) {
       setError(e.message);
@@ -29,7 +31,7 @@ const ForgotPasswordModal = ({ isOpen, onClose }) => {
     setError(''); setMessage(''); setLoading(true);
     try {
       await authService.resetPassword(email, token, newPassword);
-      setMessage('Şifren başarıyla güncellendi. Giriş yapabilirsin.');
+      setMessage(t('forgotPasswordModal.passwordUpdated'));
       setTimeout(onClose, 1200);
     } catch (e) {
       setError(e.message);
@@ -41,34 +43,34 @@ const ForgotPasswordModal = ({ isOpen, onClose }) => {
   return (
     <div style={styles.overlay}>
       <div style={styles.modal}>
-        <h3 style={{ marginBottom: 16 }}>Şifremi Unuttum</h3>
+        <h3 style={{ marginBottom: 16 }}>{t('forgotPasswordModal.title')}</h3>
         {step === 1 ? (
           <>
-            <label style={styles.label}>E-Posta</label>
-            <input style={styles.input} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="ornek@mail.com" />
+            <label style={styles.label}>{t('forgotPasswordModal.email')}</label>
+            <input style={styles.input} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t('forgotPasswordModal.emailPlaceholder')} />
             {error && <div style={styles.error}>{error}</div>}
             {message && <div style={styles.info}>{message}</div>}
             <div style={styles.row}>
-              <button style={styles.secondary} onClick={onClose}>Vazgeç</button>
+              <button style={styles.secondary} onClick={onClose}>{t('common.cancel')}</button>
               <button style={styles.primary} onClick={handleSend} disabled={loading || !email}>
-                {loading ? 'Gönderiliyor...' : 'Kod Gönder'}
+                {loading ? t('forgotPasswordModal.sending') : t('forgotPasswordModal.sendCode')}
               </button>
             </div>
           </>
         ) : (
           <>
-            <label style={styles.label}>E-Posta</label>
+            <label style={styles.label}>{t('forgotPasswordModal.email')}</label>
             <input style={styles.input} type="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled />
-            <label style={styles.label}>Doğrulama Kodu</label>
-            <input style={styles.input} value={token} onChange={(e) => setToken(e.target.value)} placeholder="6 haneli kod" />
-            <label style={styles.label}>Yeni Şifre</label>
+            <label style={styles.label}>{t('forgotPasswordModal.verificationCode')}</label>
+            <input style={styles.input} value={token} onChange={(e) => setToken(e.target.value)} placeholder={t('forgotPasswordModal.codePlaceholder')} />
+            <label style={styles.label}>{t('forgotPasswordModal.newPassword')}</label>
             <input style={styles.input} type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="••••••••" />
             {error && <div style={styles.error}>{error}</div>}
             {message && <div style={styles.info}>{message}</div>}
             <div style={styles.row}>
-              <button style={styles.secondary} onClick={onClose}>Kapat</button>
+              <button style={styles.secondary} onClick={onClose}>{t('common.close')}</button>
               <button style={styles.primary} onClick={handleReset} disabled={loading || !token || !newPassword}>
-                {loading ? 'Güncelleniyor...' : 'Şifreyi Sıfırla'}
+                {loading ? t('forgotPasswordModal.updating') : t('forgotPasswordModal.resetPassword')}
               </button>
             </div>
           </>

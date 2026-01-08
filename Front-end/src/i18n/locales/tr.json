@@ -230,6 +230,20 @@
     "loggingIn": "Giriş yapılıyor...",
     "hrsmartWelcome": "HRSMART AI ile CV Değerlendirme Uygulamasına Hoş Geldiniz"
   },
+  "forgotPasswordModal": {
+    "title": "Şifremi Unuttum",
+    "email": "E-Posta",
+    "emailPlaceholder": "ornek@mail.com",
+    "sendCode": "Kod Gönder",
+    "sending": "Gönderiliyor...",
+    "verificationCode": "Doğrulama Kodu",
+    "codePlaceholder": "6 haneli kod",
+    "newPassword": "Yeni Şifre",
+    "resetPassword": "Şifreyi Sıfırla",
+    "updating": "Güncelleniyor...",
+    "codeSent": "Eğer kayıtlıysa, e-posta adresine bir kod gönderdik.",
+    "passwordUpdated": "Şifren başarıyla güncellendi. Giriş yapabilirsin."
+  },
   "cvEvaluation": {
     "welcomeTitle": "CV Değerlendirme Aracına Hoş Geldiniz",
     "welcomeSubtitle": "Başlamak için bir sonraki adımı seçin.",
