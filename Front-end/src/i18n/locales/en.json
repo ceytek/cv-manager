@@ -55,10 +55,14 @@
     "rejectionTemplates": "Rejection Messages"
   },
   "stats": {
-    "cvCount": "CVs in System",
-    "jobCount": "Job Listings in System",
-    "applicationCount": "Total Evaluations",
-    "departmentCount": "Departments Added"
+    "cvCount": "CVs",
+    "jobCount": "Job Listings",
+    "applicationCount": "Evaluations",
+    "departmentCount": "Departments",
+    "totalUploaded": "total uploaded",
+    "totalCreated": "total created",
+    "totalReceived": "total completed",
+    "totalActive": "total active"
   },
   "actions": {
     "cvEvaluation": "CV Evaluation",

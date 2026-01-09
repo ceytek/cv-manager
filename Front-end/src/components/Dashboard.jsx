@@ -155,10 +155,10 @@ const Dashboard = ({ currentUser, onLogout }) => {
   });
   const s = liveStats || statsData?.stats;
   const stats = [
-    { title: t('stats.cvCount'), value: s?.candidateCount ?? '—' },
-    { title: t('stats.jobCount'), value: s?.jobCount ?? '—' },
-    { title: t('stats.applicationCount'), value: s?.applicationCount ?? '—' },
-    { title: t('stats.departmentCount'), value: s?.departmentCount ?? '—' },
+    { title: t('stats.cvCount'), value: s?.candidateCount ?? '—', icon: FileText, subtitle: t('stats.totalUploaded'), color: '#3B82F6' },
+    { title: t('stats.jobCount'), value: s?.jobCount ?? '—', icon: Briefcase, subtitle: t('stats.totalCreated'), color: '#10B981' },
+    { title: t('stats.applicationCount'), value: s?.applicationCount ?? '—', icon: UserCheck, subtitle: t('stats.totalReceived'), color: '#8B5CF6' },
+    { title: t('stats.departmentCount'), value: s?.departmentCount ?? '—', icon: Layers, subtitle: t('stats.totalActive'), color: '#F59E0B' },
   ];
   const statsLoading = statsInitialLoading && !s;
 
@@ -471,15 +471,23 @@ const Dashboard = ({ currentUser, onLogout }) => {
 
         {/* Show dashboard widgets unless a settings/templates subpage is open */}
   {!(activeMenu === 'settings' && settingsMenu) && !(activeMenu === 'templates' && templatesMenu) && activeMenu !== 'users' && activeMenu !== 'departments' && activeMenu !== 'jobs' && activeMenu !== 'cvs' && activeMenu !== 'cv-evaluation' && activeMenu !== 'usage-history' && activeMenu !== 'templates' && (
-        <div className="stats-grid">
-          {stats.map((stat, index) => (
-            <div key={index} className="stat-card">
-              <div className="stat-header">
-                <span className="stat-title">{stat.title}</span>
+        <div className="stats-grid-kaggle">
+          {stats.map((stat, index) => {
+            const IconComponent = stat.icon;
+            return (
+              <div key={index} className="stat-card-kaggle">
+                <div className="stat-left-border" style={{ background: stat.color }} />
+                <div className="stat-content-kaggle">
+                  <div className="stat-header-kaggle">
+                    <IconComponent size={18} color="#6B7280" />
+                    <span className="stat-title-kaggle">{stat.title}</span>
+                  </div>
+                  <div className="stat-value-kaggle">{statsLoading ? '...' : stat.value}</div>
+                  <div className="stat-subtitle-kaggle">{stat.subtitle}</div>
+                </div>
               </div>
-              <div className="stat-value">{statsLoading ? '...' : stat.value}</div>
-            </div>
-          ))}
+            );
+          })}
         </div>
         )}
 

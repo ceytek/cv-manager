@@ -357,7 +357,73 @@
   background: #F3F4F6;
 }
 
-/* Stats grid */
+/* Stats grid - Kaggle Style */
+.stats-grid-kaggle {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  margin-bottom: 24px;
+  border-bottom: 1px solid #E5E7EB;
+}
+
+.stat-card-kaggle {
+  display: flex;
+  align-items: stretch;
+  padding: 24px 32px;
+  background: white;
+  position: relative;
+  border-right: 1px solid #F3F4F6;
+}
+
+.stat-card-kaggle:last-child {
+  border-right: none;
+}
+
+.stat-left-border {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 60%;
+  border-radius: 0 2px 2px 0;
+}
+
+.stat-content-kaggle {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-header-kaggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.stat-title-kaggle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1F2937;
+  letter-spacing: -0.01em;
+}
+
+.stat-value-kaggle {
+  font-size: 32px;
+  font-weight: 400;
+  color: #111827;
+  line-height: 1;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.stat-subtitle-kaggle {
+  font-size: 13px;
+  color: #9CA3AF;
+  font-weight: 400;
+}
+
+/* Old stats grid (fallback) */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -400,6 +466,22 @@
 
 .stat-change.negative {
   color: #EF4444;
+}
+
+/* Responsive stats grid */
+@media (max-width: 1200px) {
+  .stats-grid-kaggle {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .stat-card-kaggle:nth-child(2) {
+    border-right: none;
+  }
+  
+  .stat-card-kaggle:nth-child(1),
+  .stat-card-kaggle:nth-child(2) {
+    border-bottom: 1px solid #F3F4F6;
+  }
 }
 
 /* Action panel */

@@ -55,10 +55,14 @@
     "rejectionTemplates": "Red Mesajları"
   },
   "stats": {
-    "cvCount": "Sistemdeki CV Sayısı",
-    "jobCount": "Sistemdeki İlan Sayısı",
-    "applicationCount": "Toplam Değerlendirme Sayısı",
-    "departmentCount": "Eklenen Departman Sayısı"
+    "cvCount": "CV'ler",
+    "jobCount": "İş İlanları",
+    "applicationCount": "Değerlendirmeler",
+    "departmentCount": "Departmanlar",
+    "totalUploaded": "toplam yüklenen",
+    "totalCreated": "toplam oluşturulan",
+    "totalReceived": "toplam yapılan",
+    "totalActive": "toplam aktif"
   },
   "actions": {
     "cvEvaluation": "CV Değerlendirme",
