@@ -319,7 +319,7 @@ const ContactCard = ({ candidate, onClose, position }) => {
   );
 };
 
-const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchTerm, onRefresh, onCompare }) => {
+const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchTerm, onRefresh, onCompare, viewMode = 'table' }) => {
   const { t } = useTranslation();
   const { data, loading, error, refetch } = useQuery(CANDIDATES_QUERY, {
     variables: {
@@ -495,6 +495,268 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
 
   const canCompare = selected.length === 2;
 
+  // Get initials from name
+  const getInitials = (name) => {
+    if (!name) return '?';
+    const parts = name.trim().split(' ');
+    if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+  };
+
+  // Get avatar background color based on name
+  const getAvatarColor = (name) => {
+    const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316', '#14B8A6', '#6366F1'];
+    if (!name) return colors[0];
+    const index = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % colors.length;
+    return colors[index];
+  };
+
+  // Format relative time
+  const getRelativeTime = (isoDate) => {
+    const date = new Date(isoDate);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffMins < 60) return `${diffMins} ${t('candidateList.minutesAgo')}`;
+    if (diffHours < 24) return `${diffHours} ${t('candidateList.hoursAgo')}`;
+    if (diffDays < 7) return `${diffDays} ${t('candidateList.daysAgo')}`;
+    return date.toLocaleDateString('tr-TR');
+  };
+
+  // Card View (Kaggle Style)
+  if (viewMode === 'cards') {
+    return (
+      <div>
+        {/* Cards Grid */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+          gap: 20,
+        }}>
+          {candidates.map((candidate) => (
+            <div
+              key={candidate.id}
+              style={{
+                background: 'white',
+                borderRadius: 12,
+                border: '1px solid #E5E7EB',
+                overflow: 'hidden',
+                transition: 'all 0.2s',
+                cursor: 'pointer',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
+                e.currentTarget.style.borderColor = '#D1D5DB';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.boxShadow = 'none';
+                e.currentTarget.style.borderColor = '#E5E7EB';
+              }}
+            >
+              {/* Card Header with Avatar */}
+              <div style={{ 
+                padding: '20px 20px 16px',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 14,
+              }}>
+                {/* Avatar */}
+                <div style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: '50%',
+                  background: getAvatarColor(candidate.name),
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 20,
+                  fontWeight: 700,
+                  color: 'white',
+                  flexShrink: 0,
+                }}>
+                  {getInitials(candidate.name)}
+                </div>
+
+                {/* Name & Info */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h3 style={{
+                    margin: 0,
+                    fontSize: 16,
+                    fontWeight: 600,
+                    color: '#1F2937',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {candidate.name || t('candidateList.unnamed')}
+                  </h3>
+                  
+                  {/* Email */}
+                  {candidate.email && (
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      marginTop: 6,
+                      color: '#6B7280',
+                      fontSize: 13,
+                    }}>
+                      <Mail size={14} />
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {candidate.email}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {/* Phone */}
+                  {candidate.phone && (
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      marginTop: 4,
+                      color: '#6B7280',
+                      fontSize: 13,
+                    }}>
+                      <Phone size={14} />
+                      <span>{candidate.phone}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Menu dots */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setContactCard({
+                      open: true,
+                      candidate,
+                      position: {
+                        top: Math.min(rect.bottom + 8, window.innerHeight - 450),
+                        left: Math.min(rect.left - 280, window.innerWidth - 340),
+                      }
+                    });
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: 4,
+                    cursor: 'pointer',
+                    color: '#9CA3AF',
+                  }}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <circle cx="12" cy="5" r="2"/>
+                    <circle cx="12" cy="12" r="2"/>
+                    <circle cx="12" cy="19" r="2"/>
+                  </svg>
+                </button>
+              </div>
+
+              {/* Department & Language Tags */}
+              <div style={{
+                padding: '0 20px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                flexWrap: 'wrap',
+              }}>
+                {candidate.department?.name && (
+                  <span style={{
+                    padding: '4px 10px',
+                    borderRadius: 6,
+                    background: '#F3F4F6',
+                    color: '#4B5563',
+                    fontSize: 12,
+                    fontWeight: 500,
+                  }}>
+                    {candidate.department.name}
+                  </span>
+                )}
+                {getLanguageBadge(candidate.cvLanguage)}
+              </div>
+
+              {/* Footer */}
+              <div style={{
+                padding: '12px 20px',
+                borderTop: '1px solid #F3F4F6',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}>
+                {/* Time & File info */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: '#9CA3AF', fontSize: 12 }}>
+                  <span>{t('candidateList.uploaded')} {getRelativeTime(candidate.uploadedAt)}</span>
+                  <span>•</span>
+                  <span>{formatFileSize(candidate.cvFileSize)}</span>
+                </div>
+
+                {/* Download Button */}
+                <a
+                  href={`${API_BASE_URL}${candidate.cvFilePath}`}
+                  download={candidate.cvFileName}
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 36,
+                    height: 36,
+                    borderRadius: 8,
+                    background: '#F3F4F6',
+                    textDecoration: 'none',
+                    color: '#374151',
+                    transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#3B82F6';
+                    e.currentTarget.style.color = 'white';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = '#F3F4F6';
+                    e.currentTarget.style.color = '#374151';
+                  }}
+                  title={t('candidateList.downloadCV')}
+                >
+                  <Download size={18} />
+                </a>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Compare Footer */}
+        {candidates.length > 0 && (
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            marginTop: 32,
+            padding: '16px 0',
+            borderTop: '1px solid #E5E7EB',
+          }}>
+            <span style={{ color: '#9CA3AF', fontSize: 14 }}>
+              {t('candidateList.totalCandidates', { count: candidates.length })}
+            </span>
+          </div>
+        )}
+        
+        {/* Contact Card Popup */}
+        {contactCard.open && contactCard.candidate && (
+          <ContactCard
+            candidate={contactCard.candidate}
+            position={contactCard.position}
+            onClose={() => setContactCard({ open: false, candidate: null, position: { top: 0, left: 0 } })}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // Table View (Original)
   return (
     <div style={{ overflowX: 'auto' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>

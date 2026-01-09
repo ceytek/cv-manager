@@ -280,65 +280,136 @@ const CVPage = ({ departments, initialView = 'list' }) => {
           </button>
         </div>
 
-        {/* Filters */}
-        <div style={{ background: 'white', border: '1px solid #E5E7EB', borderRadius: 12, padding: 16, marginBottom: 16, display: 'grid', gridTemplateColumns: '1fr 220px 280px', gap: 12 }}>
-          {/* Department select (required) */}
-          <div>
-            <label style={{ display: 'block', fontSize: 12, color: '#6B7280', marginBottom: 6 }}>{t('cvManagement.selectDepartment')}</label>
-            <select value={deptId} onChange={(e) => setDeptId(e.target.value)} style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 8 }}>
-              <option value="">{t('cvManagement.selectDepartmentPlaceholder')}</option>
-              {(departments || []).map((d) => (
-                <option value={d.id} key={d.id}>{d.name}</option>
-              ))}
-            </select>
+        {/* Search & Filters Bar */}
+        <div style={{ 
+          background: 'white', 
+          borderRadius: 24, 
+          padding: '12px 20px',
+          marginBottom: 24, 
+          display: 'flex',
+          alignItems: 'center',
+          gap: 16,
+          boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+          border: '1px solid #E5E7EB',
+        }}>
+          {/* Search Input */}
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8"/>
+              <path d="m21 21-4.35-4.35"/>
+            </svg>
+            <input 
+              value={search} 
+              onChange={(e) => setSearch(e.target.value)} 
+              placeholder={t('cvManagement.searchCandidates')} 
+              style={{ 
+                flex: 1,
+                border: 'none', 
+                outline: 'none',
+                fontSize: 15,
+                color: '#1F2937',
+                background: 'transparent',
+              }} 
+            />
           </div>
-
-          {/* Language select */}
-          <div>
-            <label style={{ display: 'block', fontSize: 12, color: '#6B7280', marginBottom: 6 }}>{t('cvManagement.cvLanguage')}</label>
-            <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 8 }}>
-              <option value="">{t('cvManagement.all')}</option>
-              <option value="TR">TR</option>
-              <option value="EN">EN</option>
-              <option value="DE">DE</option>
-              <option value="FR">FR</option>
-              <option value="ES">ES</option>
-            </select>
+          
+          {/* Filters Dropdown */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, borderLeft: '1px solid #E5E7EB', paddingLeft: 16 }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2">
+              <line x1="4" y1="21" x2="4" y2="14"/>
+              <line x1="4" y1="10" x2="4" y2="3"/>
+              <line x1="12" y1="21" x2="12" y2="12"/>
+              <line x1="12" y1="8" x2="12" y2="3"/>
+              <line x1="20" y1="21" x2="20" y2="16"/>
+              <line x1="20" y1="12" x2="20" y2="3"/>
+              <line x1="1" y1="14" x2="7" y2="14"/>
+              <line x1="9" y1="8" x2="15" y2="8"/>
+              <line x1="17" y1="16" x2="23" y2="16"/>
+            </svg>
+            <span style={{ fontSize: 14, fontWeight: 500, color: '#374151' }}>{t('cvManagement.filters')}</span>
           </div>
+        </div>
 
-          {/* Search */}
-          <div>
-            <label style={{ display: 'block', fontSize: 12, color: '#6B7280', marginBottom: 6 }}>{t('cvManagement.search')}</label>
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('cvManagement.searchPlaceholder')} style={{ width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 8 }} />
+        {/* Filter Tags */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
+          <button
+            onClick={() => setDeptId('')}
+            style={{
+              padding: '8px 16px',
+              borderRadius: 20,
+              border: deptId === '' ? '2px solid #1F2937' : '1px solid #E5E7EB',
+              background: deptId === '' ? '#1F2937' : 'white',
+              color: deptId === '' ? 'white' : '#374151',
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: 'pointer',
+              transition: 'all 0.15s',
+            }}
+          >
+            {t('cvManagement.allCandidates')}
+          </button>
+          {(departments || []).map((d) => (
+            <button
+              key={d.id}
+              onClick={() => setDeptId(d.id)}
+              style={{
+                padding: '8px 16px',
+                borderRadius: 20,
+                border: deptId === d.id ? '2px solid #1F2937' : '1px solid #E5E7EB',
+                background: deptId === d.id ? '#1F2937' : 'white',
+                color: deptId === d.id ? 'white' : '#374151',
+                fontSize: 13,
+                fontWeight: 500,
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+              }}
+            >
+              {d.name}
+            </button>
+          ))}
+          
+          {/* Language Filter */}
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+            {['', 'TR', 'EN', 'DE'].map((l) => (
+              <button
+                key={l || 'all'}
+                onClick={() => setLang(l)}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: 20,
+                  border: lang === l ? '2px solid #3B82F6' : '1px solid #E5E7EB',
+                  background: lang === l ? '#EFF6FF' : 'white',
+                  color: lang === l ? '#1D4ED8' : '#6B7280',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {l || t('cvManagement.allLang')}
+              </button>
+            ))}
           </div>
         </div>
 
         {/* List or Compare */}
-        {deptId ? (
-          comparePair ? (
-            <div style={{ background: 'white', borderRadius: 12, padding: 0, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-              <CVCompareView
-                candidateId1={comparePair.a}
-                candidateId2={comparePair.b}
-                onBack={() => setComparePair(null)}
-              />
-            </div>
-          ) : (
-            <div style={{ background: 'white', borderRadius: 12, padding: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-              <h2 style={{ fontSize: 20, fontWeight: 600, color: '#1F2937', marginBottom: 16 }}>{t('cvManagement.candidateCVs')}</h2>
-              <CandidateList
-                departmentFilter={deptId}
-                statusFilter={null}
-                languageFilter={lang}
-                searchTerm={search}
-                onCompare={(a, b) => setComparePair({ a, b })}
-              />
-            </div>
-          )
-        ) : (
-          <div style={{ border: '2px dashed #E5E7EB', borderRadius: 12, padding: 24, color: '#9CA3AF', textAlign: 'center' }}>
-            {t('cvManagement.selectDepartmentPrompt')}
+        {comparePair ? (
+          <div style={{ background: 'white', borderRadius: 12, padding: 0, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+            <CVCompareView
+              candidateId1={comparePair.a}
+              candidateId2={comparePair.b}
+              onBack={() => setComparePair(null)}
+            />
           </div>
+        ) : (
+          <CandidateList
+            departmentFilter={deptId || null}
+            statusFilter={null}
+            languageFilter={lang}
+            searchTerm={search}
+            onCompare={(a, b) => setComparePair({ a, b })}
+            viewMode="cards"
+          />
         )}
       </div>
     );
