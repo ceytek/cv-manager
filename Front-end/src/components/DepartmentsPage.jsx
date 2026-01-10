@@ -24,6 +24,7 @@ const DepartmentsPage = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState(null); // { id, name }
+  const [cannotDeleteModal, setCannotDeleteModal] = useState(null); // { name }
 
   // Fetch departments (including inactive ones to show in admin list)
   const { data, loading, error: queryError, refetch } = useQuery(DEPARTMENTS_QUERY, {
@@ -147,8 +148,8 @@ const DepartmentsPage = () => {
       });
       
       if (data?.departmentHasRelatedRecords) {
-        // Has related records - show error directly
-        setError(t('departments.hasRelatedRecords'));
+        // Has related records - show warning modal
+        setCannotDeleteModal({ name: dept.name });
       } else {
         // No related records - show confirmation modal
         setDeleteConfirm({ id: dept.id, name: dept.name });
@@ -289,6 +290,51 @@ const DepartmentsPage = () => {
           ))}
         </tbody>
       </table>
+
+      {/* Cannot Delete Warning Modal */}
+      {cannotDeleteModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.4)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 50,
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: 12,
+            padding: 24,
+            maxWidth: 400,
+            width: '90%',
+            boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+          }}>
+            <h3 style={{ margin: '0 0 16px', fontSize: 18, fontWeight: 600, color: '#B91C1C' }}>
+              ⚠️ {t('departments.cannotDeleteTitle')}
+            </h3>
+            <p style={{ margin: '0 0 20px', color: '#4B5563', lineHeight: 1.5 }}>
+              <strong>"{cannotDeleteModal.name}"</strong> {t('departments.cannotDeleteMessage')}
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setCannotDeleteModal(null)}
+                style={{
+                  padding: '10px 24px',
+                  background: '#3B82F6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  fontWeight: 500,
+                }}
+              >
+                {t('common.ok')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {deleteConfirm && (
