@@ -62,7 +62,19 @@ const AgreementTemplatesPage = () => {
           <h1 style={{ fontSize: '24px', fontWeight: '700', color: '#111827', margin: 0 }}>{t('agreementTemplates.title')}</h1>
           <p style={{ fontSize: '14px', color: '#6B7280', margin: '4px 0 0' }}>{t('agreementTemplates.subtitle')}</p>
         </div>
-        <button onClick={() => { setEditingTemplate(null); setShowModal(true); }} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <button onClick={() => { setEditingTemplate(null); setShowModal(true); }} style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: 8,
+          padding: '12px 20px',
+          background: '#3B82F6',
+          color: 'white',
+          border: 'none',
+          borderRadius: 10,
+          fontSize: 14,
+          fontWeight: 600,
+          cursor: 'pointer',
+        }}>
           <Plus size={18} />{t('agreementTemplates.addNew')}
         </button>
       </div>
