@@ -545,188 +545,193 @@ const AIJobCreator = ({ isOpen, onClose, onGenerate }) => {
               </select>
             </div>
 
-            {/* Job Introduction */}
-            <div style={{
-              background: '#F8FAFC',
-              borderRadius: 12,
-              padding: 16,
-              border: '1px solid #E5E7EB',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: useIntro ? 16 : 0 }}>
-                <label style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  fontSize: 14,
-                  fontWeight: 600,
-                  color: '#374151',
-                }}>
-                  <FileText size={16} />
-                  {t('aiJobCreator.addIntro')}
-                </label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setUseIntro(!useIntro);
-                    if (useIntro) {
-                      setIntroText('');
-                      setSelectedIntroId('');
-                    }
-                  }}
-                  style={{
-                    width: 44,
-                    height: 24,
-                    borderRadius: 12,
-                    border: 'none',
-                    background: useIntro ? '#10B981' : '#D1D5DB',
-                    position: 'relative',
-                    cursor: 'pointer',
-                    transition: 'background 0.2s',
-                  }}
-                >
-                  <div style={{
-                    width: 18,
-                    height: 18,
-                    borderRadius: '50%',
-                    background: 'white',
-                    position: 'absolute',
-                    top: 3,
-                    left: useIntro ? 23 : 3,
-                    transition: 'left 0.2s',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                  }} />
-                </button>
-              </div>
-              
-              {useIntro && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {introTemplates.length > 0 && (
-                    <select
-                      value={selectedIntroId}
-                      onChange={(e) => {
-                        const id = e.target.value;
-                        setSelectedIntroId(id);
-                        if (id) {
-                          const template = introTemplates.find(t => t.id === id);
-                          if (template) {
-                            setIntroText(template.content);
-                          }
-                        }
-                      }}
-                      style={{
-                        width: '100%',
-                        padding: '10px 14px',
-                        border: '2px solid #E5E7EB',
-                        borderRadius: 10,
-                        fontSize: 14,
-                        background: 'white',
-                      }}
-                    >
-                      <option value="">{t('aiJobCreator.selectIntroTemplate')}</option>
-                      {introTemplates.map(t => (
-                        <option key={t.id} value={t.id}>{t.name}</option>
-                      ))}
-                    </select>
-                  )}
-                  <SimpleRichTextEditor
-                    value={introText}
-                    onChange={setIntroText}
-                    placeholder={t('aiJobCreator.introPlaceholder')}
-                  />
+            {/* Intro & Outro Switches - Single Row */}
+            <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 16 }}>
+              {/* Job Introduction */}
+              <div style={{
+                flex: 1,
+                background: '#F8FAFC',
+                borderRadius: 12,
+                padding: 16,
+                border: '1px solid #E5E7EB',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: useIntro ? 16 : 0 }}>
+                  <label style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: '#374151',
+                  }}>
+                    <FileText size={16} />
+                    {t('aiJobCreator.addIntro')}
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUseIntro(!useIntro);
+                      if (useIntro) {
+                        setIntroText('');
+                        setSelectedIntroId('');
+                      }
+                    }}
+                    style={{
+                      width: 44,
+                      height: 24,
+                      borderRadius: 12,
+                      border: 'none',
+                      background: useIntro ? '#10B981' : '#D1D5DB',
+                      position: 'relative',
+                      cursor: 'pointer',
+                      transition: 'background 0.2s',
+                    }}
+                  >
+                    <div style={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: '50%',
+                      background: 'white',
+                      position: 'absolute',
+                      top: 3,
+                      left: useIntro ? 23 : 3,
+                      transition: 'left 0.2s',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                    }} />
+                  </button>
                 </div>
-              )}
-            </div>
+                
+                {useIntro && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {introTemplates.length > 0 && (
+                      <select
+                        value={selectedIntroId}
+                        onChange={(e) => {
+                          const id = e.target.value;
+                          setSelectedIntroId(id);
+                          if (id) {
+                            const template = introTemplates.find(t => t.id === id);
+                            if (template) {
+                              setIntroText(template.content);
+                            }
+                          }
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '10px 14px',
+                          border: '2px solid #E5E7EB',
+                          borderRadius: 10,
+                          fontSize: 14,
+                          background: 'white',
+                        }}
+                      >
+                        <option value="">{t('aiJobCreator.selectIntroTemplate')}</option>
+                        {introTemplates.map(t => (
+                          <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                      </select>
+                    )}
+                    <SimpleRichTextEditor
+                      value={introText}
+                      onChange={setIntroText}
+                      placeholder={t('aiJobCreator.introPlaceholder')}
+                    />
+                  </div>
+                )}
+              </div>
 
-            {/* Job Outro (What we offer) */}
-            <div style={{
-              background: '#F0FDF4',
-              borderRadius: 12,
-              padding: 16,
-              border: '1px solid #BBF7D0',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: useOutro ? 16 : 0 }}>
-                <label style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  fontSize: 14,
-                  fontWeight: 600,
-                  color: '#374151',
-                }}>
-                  <span style={{ fontSize: 16 }}>🎁</span>
-                  {t('aiJobCreator.addOutro')}
-                </label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setUseOutro(!useOutro);
-                    if (useOutro) {
-                      setOutroText('');
-                      setSelectedOutroId('');
-                    }
-                  }}
-                  style={{
-                    width: 44,
-                    height: 24,
-                    borderRadius: 12,
-                    border: 'none',
-                    background: useOutro ? '#10B981' : '#D1D5DB',
-                    position: 'relative',
-                    cursor: 'pointer',
-                    transition: 'background 0.2s',
-                  }}
-                >
-                  <div style={{
-                    width: 18,
-                    height: 18,
-                    borderRadius: '50%',
-                    background: 'white',
-                    position: 'absolute',
-                    top: 3,
-                    left: useOutro ? 23 : 3,
-                    transition: 'left 0.2s',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                  }} />
-                </button>
-              </div>
-              
-              {useOutro && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {outroTemplates.length > 0 && (
-                    <select
-                      value={selectedOutroId}
-                      onChange={(e) => {
-                        const id = e.target.value;
-                        setSelectedOutroId(id);
-                        if (id) {
-                          const template = outroTemplates.find(t => t.id === id);
-                          if (template) {
-                            setOutroText(template.content);
-                          }
-                        }
-                      }}
-                      style={{
-                        width: '100%',
-                        padding: '10px 14px',
-                        border: '2px solid #BBF7D0',
-                        borderRadius: 10,
-                        fontSize: 14,
-                        background: 'white',
-                      }}
-                    >
-                      <option value="">{t('aiJobCreator.selectOutroTemplate')}</option>
-                      {outroTemplates.map(t => (
-                        <option key={t.id} value={t.id}>{t.name}</option>
-                      ))}
-                    </select>
-                  )}
-                  <SimpleRichTextEditor
-                    value={outroText}
-                    onChange={setOutroText}
-                    placeholder={t('aiJobCreator.outroPlaceholder')}
-                  />
+              {/* Job Outro (What we offer) */}
+              <div style={{
+                flex: 1,
+                background: '#F0FDF4',
+                borderRadius: 12,
+                padding: 16,
+                border: '1px solid #BBF7D0',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: useOutro ? 16 : 0 }}>
+                  <label style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: '#374151',
+                  }}>
+                    <span style={{ fontSize: 16 }}>🎁</span>
+                    {t('aiJobCreator.addOutro')}
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUseOutro(!useOutro);
+                      if (useOutro) {
+                        setOutroText('');
+                        setSelectedOutroId('');
+                      }
+                    }}
+                    style={{
+                      width: 44,
+                      height: 24,
+                      borderRadius: 12,
+                      border: 'none',
+                      background: useOutro ? '#10B981' : '#D1D5DB',
+                      position: 'relative',
+                      cursor: 'pointer',
+                      transition: 'background 0.2s',
+                    }}
+                  >
+                    <div style={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: '50%',
+                      background: 'white',
+                      position: 'absolute',
+                      top: 3,
+                      left: useOutro ? 23 : 3,
+                      transition: 'left 0.2s',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                    }} />
+                  </button>
                 </div>
-              )}
+                
+                {useOutro && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {outroTemplates.length > 0 && (
+                      <select
+                        value={selectedOutroId}
+                        onChange={(e) => {
+                          const id = e.target.value;
+                          setSelectedOutroId(id);
+                          if (id) {
+                            const template = outroTemplates.find(t => t.id === id);
+                            if (template) {
+                              setOutroText(template.content);
+                            }
+                          }
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '10px 14px',
+                          border: '2px solid #BBF7D0',
+                          borderRadius: 10,
+                          fontSize: 14,
+                          background: 'white',
+                        }}
+                      >
+                        <option value="">{t('aiJobCreator.selectOutroTemplate')}</option>
+                        {outroTemplates.map(t => (
+                          <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                      </select>
+                    )}
+                    <SimpleRichTextEditor
+                      value={outroText}
+                      onChange={setOutroText}
+                      placeholder={t('aiJobCreator.outroPlaceholder')}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Location */}
