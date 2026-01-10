@@ -8,9 +8,16 @@ import { X, Plus, Trash2, Globe, ListChecks, Clock } from 'lucide-react';
 import { CREATE_LIKERT_TEMPLATE, UPDATE_LIKERT_TEMPLATE, GET_LIKERT_TEMPLATE } from '../graphql/likert';
 
 const defaultScaleLabels = {
-  3: ['Katılmıyorum', 'Kararsızım', 'Katılıyorum'],
-  4: ['Kesinlikle Katılmıyorum', 'Katılmıyorum', 'Katılıyorum', 'Kesinlikle Katılıyorum'],
-  5: ['Strongly Disagree', 'Disagree', 'Neutral', 'Agree', 'Strongly Agree'],
+  tr: {
+    3: ['Katılmıyorum', 'Kararsızım', 'Katılıyorum'],
+    4: ['Kesinlikle Katılmıyorum', 'Katılmıyorum', 'Katılıyorum', 'Kesinlikle Katılıyorum'],
+    5: ['Kesinlikle Katılmıyorum', 'Katılmıyorum', 'Kararsızım', 'Katılıyorum', 'Kesinlikle Katılıyorum'],
+  },
+  en: {
+    3: ['Disagree', 'Neutral', 'Agree'],
+    4: ['Strongly Disagree', 'Disagree', 'Agree', 'Strongly Agree'],
+    5: ['Strongly Disagree', 'Disagree', 'Neutral', 'Agree', 'Strongly Agree'],
+  }
 };
 
 const AddEditLikertTemplateModal = ({ isOpen, onClose, onSuccess, template }) => {
@@ -20,8 +27,8 @@ const AddEditLikertTemplateModal = ({ isOpen, onClose, onSuccess, template }) =>
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [scaleType, setScaleType] = useState(5);
-  const [scaleLabels, setScaleLabels] = useState(defaultScaleLabels[5]);
   const [language, setLanguage] = useState('tr');
+  const [scaleLabels, setScaleLabels] = useState(defaultScaleLabels['tr'][5]);
   const [hasTimeLimit, setHasTimeLimit] = useState(false);
   const [timeLimit, setTimeLimit] = useState(30 * 60); // Default 30 minutes in seconds
   const [questions, setQuestions] = useState([]);
@@ -55,18 +62,19 @@ const AddEditLikertTemplateModal = ({ isOpen, onClose, onSuccess, template }) =>
         isReverseScored: q.isReverseScored || false,
       })) || []);
     } else if (!template) {
-      setName(''); setDescription(''); setScaleType(5); setScaleLabels(defaultScaleLabels[5]); setLanguage('tr'); setHasTimeLimit(false); setTimeLimit(30 * 60); setQuestions([]);
+      setName(''); setDescription(''); setScaleType(5); setLanguage('tr'); setScaleLabels(defaultScaleLabels['tr'][5]); setHasTimeLimit(false); setTimeLimit(30 * 60); setQuestions([]);
     }
   }, [templateData, template]);
   
-  // Update scale labels when scale type changes
+  // Update scale labels when scale type or language changes
   useEffect(() => {
     setScaleLabels(prev => {
       const targetLen = parseInt(scaleType);
-      if (prev.length === targetLen) return prev;
-      return defaultScaleLabels[targetLen] || defaultScaleLabels[5];
+      const langLabels = defaultScaleLabels[language] || defaultScaleLabels['tr'];
+      // Always update if language changed or length mismatch
+      return langLabels[targetLen] || langLabels[5];
     });
-  }, [scaleType]);
+  }, [scaleType, language]);
 
   const addQuestion = () => {
     setQuestions([...questions, { id: `new-${Date.now()}`, text: '', order: questions.length + 1, isReverseScored: false }]);
@@ -151,10 +159,12 @@ const AddEditLikertTemplateModal = ({ isOpen, onClose, onSuccess, template }) =>
           <div style={{ marginBottom: '20px' }}>
             <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px' }}>
               <Globe size={14} style={{ display: 'inline', marginRight: '6px' }} />
-              Test Language
+              {language === 'en' ? 'Test Language' : 'Test Dili'}
             </label>
             <p style={{ fontSize: '12px', color: '#6B7280', marginBottom: '12px' }}>
-              The selected language determines the static texts (welcome, start, complete, etc.) on the candidate's test page.
+              {language === 'en' 
+                ? 'The selected language determines the static texts (welcome, start, complete, etc.) on the candidate\'s test page.'
+                : 'Seçilen dil, adayın test sayfasındaki sabit metinleri (hoş geldiniz, başla, tamamla vb.) belirler.'}
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <button 
@@ -194,11 +204,15 @@ const AddEditLikertTemplateModal = ({ isOpen, onClose, onSuccess, template }) =>
 
           {/* Scale Settings */}
           <div style={{ marginBottom: '20px', padding: '16px', background: '#F3F4F6', borderRadius: '12px', border: '1px solid #E5E7EB' }}>
-            <h3 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: '600', color: '#8B5CF6' }}>Scale Settings</h3>
+            <h3 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: '600', color: '#8B5CF6' }}>
+              {language === 'en' ? 'Scale Settings' : 'Ölçek Ayarları'}
+            </h3>
             
             {/* Scale Type */}
             <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px' }}>Scale Type</label>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px' }}>
+                {language === 'en' ? 'Scale Type' : 'Ölçek Tipi'}
+              </label>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
                 {[3, 4, 5].map(val => (
                   <button 
@@ -216,7 +230,7 @@ const AddEditLikertTemplateModal = ({ isOpen, onClose, onSuccess, template }) =>
                       fontSize: '14px',
                     }}
                   >
-                    {val} Point
+                    {val} {language === 'en' ? 'Point' : 'Puan'}
                   </button>
                 ))}
               </div>
@@ -224,7 +238,9 @@ const AddEditLikertTemplateModal = ({ isOpen, onClose, onSuccess, template }) =>
 
             {/* Scale Labels */}
             <div>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px' }}>Scale Labels</label>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px' }}>
+                {language === 'en' ? 'Scale Labels' : 'Ölçek Etiketleri'}
+              </label>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {scaleLabels.map((label, index) => (
                   <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -308,9 +324,11 @@ const AddEditLikertTemplateModal = ({ isOpen, onClose, onSuccess, template }) =>
           {/* Questions */}
           <div style={{ marginBottom: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <label style={{ fontWeight: '600', fontSize: '15px' }}>Questions ({questions.length})</label>
+              <label style={{ fontWeight: '600', fontSize: '15px' }}>
+                {language === 'en' ? 'Questions' : 'Sorular'} ({questions.length})
+              </label>
               <button onClick={addQuestion} className="btn" style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'transparent', border: 'none', color: '#374151', cursor: 'pointer', fontWeight: '500' }}>
-                <Plus size={16} /> Add Question
+                <Plus size={16} /> {language === 'en' ? 'Add Question' : 'Soru Ekle'}
               </button>
             </div>
             
@@ -324,7 +342,11 @@ const AddEditLikertTemplateModal = ({ isOpen, onClose, onSuccess, template }) =>
                 color: '#9CA3AF',
               }}>
                 <div style={{ fontSize: '32px', marginBottom: '8px' }}>❓</div>
-                <p style={{ margin: 0, fontSize: '14px' }}>No questions added yet. Click the button above to add questions.</p>
+                <p style={{ margin: 0, fontSize: '14px' }}>
+                  {language === 'en' 
+                    ? 'No questions added yet. Click the button above to add questions.'
+                    : 'Henüz soru eklenmedi. Soru eklemek için yukarıdaki butona tıklayın.'}
+                </p>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -383,7 +405,7 @@ const AddEditLikertTemplateModal = ({ isOpen, onClose, onSuccess, template }) =>
                         updated[index].text = e.target.value;
                         setQuestions(updated);
                       }}
-                      placeholder="Enter your question here..."
+                      placeholder={language === 'en' ? 'Enter your question here...' : 'Sorunuzu buraya yazın...'}
                       className="text-input"
                       style={{ 
                         flex: 1, 
