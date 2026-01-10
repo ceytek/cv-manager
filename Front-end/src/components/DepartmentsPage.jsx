@@ -12,7 +12,9 @@ import {
   UPDATE_DEPARTMENT_MUTATION,
   TOGGLE_DEPARTMENT_ACTIVE_MUTATION,
   DELETE_DEPARTMENT_MUTATION,
+  DEPARTMENT_HAS_RELATED_RECORDS_QUERY,
 } from '../graphql/departments';
+import client from '../apolloClient';
 import { Edit2, Trash2, Plus } from 'lucide-react';
 
 const DepartmentsPage = () => {
@@ -131,7 +133,32 @@ const DepartmentsPage = () => {
     setSuccess('');
   };
 
-  // Handle delete
+  // Check if department can be deleted (before showing modal)
+  const handleDeleteClick = async (dept) => {
+    setError('');
+    setSuccess('');
+    
+    try {
+      // First check if department has related records
+      const { data } = await client.query({
+        query: DEPARTMENT_HAS_RELATED_RECORDS_QUERY,
+        variables: { id: dept.id },
+        fetchPolicy: 'network-only',
+      });
+      
+      if (data?.departmentHasRelatedRecords) {
+        // Has related records - show error directly
+        setError(t('departments.hasRelatedRecords'));
+      } else {
+        // No related records - show confirmation modal
+        setDeleteConfirm({ id: dept.id, name: dept.name });
+      }
+    } catch (err) {
+      setError(err.message || t('departments.deleteError'));
+    }
+  };
+
+  // Handle delete (after confirmation)
   const handleDelete = async () => {
     if (!deleteConfirm) return;
     
@@ -146,13 +173,7 @@ const DepartmentsPage = () => {
       // Clear success message after 3 seconds
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
-      // Extract the actual error message
-      const errorMsg = err.message || '';
-      if (errorMsg.includes('related operations')) {
-        setError(t('departments.hasRelatedRecords'));
-      } else {
-        setError(errorMsg || t('departments.deleteError'));
-      }
+      setError(err.message || t('departments.deleteError'));
       setDeleteConfirm(null);
     }
   };
@@ -256,7 +277,7 @@ const DepartmentsPage = () => {
                     <Edit2 size={18} />
                   </button>
                   <button
-                    onClick={() => setDeleteConfirm({ id: dept.id, name: dept.name })}
+                    onClick={() => handleDeleteClick(dept)}
                     className="icon-button"
                     title={t('common.delete')}
                   >

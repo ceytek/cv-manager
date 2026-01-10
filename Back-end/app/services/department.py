@@ -102,6 +102,17 @@ class DepartmentService:
         return department
     
     @staticmethod
+    def has_related_records(db: Session, department_id: str) -> bool:
+        """Check if department has related candidates or jobs"""
+        candidate_count = db.query(Candidate).filter(Candidate.department_id == department_id).count()
+        if candidate_count > 0:
+            return True
+        job_count = db.query(Job).filter(Job.department_id == department_id).count()
+        if job_count > 0:
+            return True
+        return False
+    
+    @staticmethod
     def delete(db: Session, department_id: str, company_id: Optional[UUID] = None) -> bool:
         """Delete department permanently if no related records exist"""
         department = DepartmentService.get_by_id(db, department_id, company_id)

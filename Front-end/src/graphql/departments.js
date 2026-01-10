@@ -72,3 +72,12 @@ export const DELETE_DEPARTMENT_MUTATION = gql`
     deleteDepartment(id: $id)
   }
 `;
+
+/**
+ * Query to check if department has related records
+ */
+export const DEPARTMENT_HAS_RELATED_RECORDS_QUERY = gql`
+  query DepartmentHasRelatedRecords($id: String!) {
+    departmentHasRelatedRecords(id: $id)
+  }
+`;

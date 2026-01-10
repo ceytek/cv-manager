@@ -410,6 +410,28 @@ class Query:
             db.close()
 
     @strawberry.field
+    def department_has_related_records(self, info: Info, id: str) -> bool:
+        """Check if department has related candidates or jobs"""
+        request = info.context["request"]
+        auth_header = request.headers.get("authorization")
+        if not auth_header:
+            raise Exception("Not authenticated")
+        try:
+            scheme, token = auth_header.split()
+            if scheme.lower() != "bearer":
+                raise Exception("Invalid authentication scheme")
+        except ValueError:
+            raise Exception("Invalid authorization header")
+
+        db = get_db_session()
+        try:
+            current = get_current_user_from_token(token, db)
+            ensure_admin(current, db)
+            return DepartmentService.has_related_records(db, id)
+        finally:
+            db.close()
+
+    @strawberry.field
     def job(self, info: Info, id: str) -> Optional[JobType]:
         """Get a single job by ID (admin only)"""
         request = info.context["request"]
