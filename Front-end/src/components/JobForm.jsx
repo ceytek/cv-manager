@@ -440,16 +440,13 @@ const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel, isModal =
               </div>
             )}
             <div>
-              <label style={{ display: 'block', marginBottom: 6, fontSize: 14, fontWeight: 500 }}>{t('jobForm.introText')}</label>
-              <textarea
+              <SimpleRichTextEditor
+                label={t('jobForm.introText')}
                 value={formData.introText}
-                onChange={(e) => handleChange('introText', e.target.value)}
+                onChange={(val) => handleChange('introText', val)}
                 placeholder={t('jobForm.introPlaceholder')}
-                className="text-input"
-                rows={6}
-                style={{ resize: 'vertical', fontFamily: 'inherit' }}
+                hint={t('jobForm.introHint')}
               />
-              <p style={{ margin: '6px 0 0', fontSize: 12, color: '#6B7280' }}>{t('jobForm.introHint')}</p>
             </div>
           </>
         )}
@@ -520,16 +517,13 @@ const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel, isModal =
               </div>
             )}
             <div>
-              <label style={{ display: 'block', marginBottom: 6, fontSize: 14, fontWeight: 500 }}>{t('jobForm.outroText')}</label>
-              <textarea
+              <SimpleRichTextEditor
+                label={t('jobForm.outroText')}
                 value={formData.outroText}
-                onChange={(e) => handleChange('outroText', e.target.value)}
+                onChange={(val) => handleChange('outroText', val)}
                 placeholder={t('jobForm.outroPlaceholder')}
-                className="text-input"
-                rows={6}
-                style={{ resize: 'vertical', fontFamily: 'inherit' }}
+                hint={t('jobForm.outroHint')}
               />
-              <p style={{ margin: '6px 0 0', fontSize: 12, color: '#6B7280' }}>{t('jobForm.outroHint')}</p>
             </div>
           </>
         )}

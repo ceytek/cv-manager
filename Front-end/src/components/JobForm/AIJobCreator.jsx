@@ -11,6 +11,7 @@ import { DEPARTMENTS_QUERY } from '../../graphql/departments';
 import { JOB_INTRO_TEMPLATES_QUERY } from '../../graphql/jobIntroTemplates';
 import { JOB_OUTRO_TEMPLATES_QUERY } from '../../graphql/jobOutroTemplates';
 import JobCreationProgressModal from '../JobCreationProgressModal';
+import SimpleRichTextEditor from '../SimpleRichTextEditor';
 
 const AIJobCreator = ({ isOpen, onClose, onGenerate }) => {
   const { t, i18n } = useTranslation();
@@ -627,20 +628,10 @@ const AIJobCreator = ({ isOpen, onClose, onGenerate }) => {
                       ))}
                     </select>
                   )}
-                  <textarea
+                  <SimpleRichTextEditor
                     value={introText}
-                    onChange={(e) => setIntroText(e.target.value)}
+                    onChange={setIntroText}
                     placeholder={t('aiJobCreator.introPlaceholder')}
-                    rows={4}
-                    style={{
-                      width: '100%',
-                      padding: '12px 16px',
-                      border: '2px solid #E5E7EB',
-                      borderRadius: 10,
-                      fontSize: 14,
-                      resize: 'vertical',
-                      fontFamily: 'inherit',
-                    }}
                   />
                 </div>
               )}
@@ -729,20 +720,10 @@ const AIJobCreator = ({ isOpen, onClose, onGenerate }) => {
                       ))}
                     </select>
                   )}
-                  <textarea
+                  <SimpleRichTextEditor
                     value={outroText}
-                    onChange={(e) => setOutroText(e.target.value)}
+                    onChange={setOutroText}
                     placeholder={t('aiJobCreator.outroPlaceholder')}
-                    rows={4}
-                    style={{
-                      width: '100%',
-                      padding: '12px 16px',
-                      border: '2px solid #BBF7D0',
-                      borderRadius: 10,
-                      fontSize: 14,
-                      resize: 'vertical',
-                      fontFamily: 'inherit',
-                    }}
                   />
                 </div>
               )}

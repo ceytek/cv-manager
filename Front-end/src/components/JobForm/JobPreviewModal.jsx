@@ -4,7 +4,7 @@
  */
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Eye, Briefcase, MapPin, Clock, GraduationCap, DollarSign, Calendar, Building2 } from 'lucide-react';
+import { X, Eye, Briefcase, MapPin, Clock, GraduationCap, DollarSign, Calendar, Building2, FileText, Gift } from 'lucide-react';
 
 const JobPreviewModal = ({ isOpen, onClose, jobData, departments, onPublish, isLoading, viewOnly = false }) => {
   const { t, i18n } = useTranslation();
@@ -222,6 +222,36 @@ const JobPreviewModal = ({ isOpen, onClose, jobData, departments, onPublish, isL
             </div>
           </div>
 
+          {/* Intro Text (Ön Yazı) */}
+          {jobData.introText && (
+            <div style={{ marginBottom: 32 }}>
+              <h3 style={{
+                fontSize: 18,
+                fontWeight: 700,
+                color: '#1F2937',
+                marginBottom: 16,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8
+              }}>
+                <FileText size={20} color="#6366F1" />
+                {t('jobPreview.intro')}
+              </h3>
+              <div 
+                dangerouslySetInnerHTML={{ __html: jobData.introText }}
+                style={{
+                  fontSize: 15,
+                  lineHeight: 1.7,
+                  color: '#374151',
+                  padding: 20,
+                  background: '#EEF2FF',
+                  borderRadius: 12,
+                  border: '1px solid #C7D2FE'
+                }}
+              />
+            </div>
+          )}
+
           {/* Job Description */}
           <div style={{ marginBottom: 32 }}>
             <h3 style={{
@@ -366,6 +396,36 @@ const JobPreviewModal = ({ isOpen, onClose, jobData, departments, onPublish, isL
               }}>
                 {jobData.preferredMajors}
               </p>
+            </div>
+          )}
+
+          {/* Outro Text (Sonuç Yazı / What We Offer) */}
+          {jobData.outroText && (
+            <div style={{ marginBottom: 32 }}>
+              <h3 style={{
+                fontSize: 18,
+                fontWeight: 700,
+                color: '#1F2937',
+                marginBottom: 16,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8
+              }}>
+                <Gift size={20} color="#10B981" />
+                {t('jobPreview.outro')}
+              </h3>
+              <div 
+                dangerouslySetInnerHTML={{ __html: jobData.outroText }}
+                style={{
+                  fontSize: 15,
+                  lineHeight: 1.7,
+                  color: '#374151',
+                  padding: 20,
+                  background: '#ECFDF5',
+                  borderRadius: 12,
+                  border: '1px solid #A7F3D0'
+                }}
+              />
             </div>
           )}
         </div>
