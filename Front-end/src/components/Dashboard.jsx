@@ -183,7 +183,6 @@ const Dashboard = ({ currentUser, onLogout }) => {
     { id: 'cv-evaluation', icon: BarChart3, label: t('sidebar.cvEvaluation') },
     { id: 'usage-history', icon: History, label: t('sidebar.usageHistory') },
     { id: 'templates', icon: Layers, label: t('sidebar.templates') },
-    ...(isAdmin ? [{ id: 'users', icon: Users, label: t('sidebar.users') }] : []),
     { id: 'settings', icon: Settings, label: t('sidebar.settings') }
   ];
 
@@ -343,9 +342,20 @@ const Dashboard = ({ currentUser, onLogout }) => {
                 </div>
               )}
               
-              {/* Settings Submenu - Only Password */}
+              {/* Settings Submenu */}
               {item.id === 'settings' && activeMenu === 'settings' && (
                 <div className="submenu">
+                  {isAdmin && (
+                    <button
+                      className={`submenu-item ${settingsMenu === 'users' ? 'active' : ''}`}
+                      onClick={() => setSettingsMenu('users')}
+                    >
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <Users size={16} color="#6B7280" />
+                        {t('sidebar.users')}
+                      </span>
+                    </button>
+                  )}
                   <button
                     className={`submenu-item ${settingsMenu === 'password' ? 'active' : ''}`}
                     onClick={() => setSettingsMenu('password')}
@@ -415,8 +425,8 @@ const Dashboard = ({ currentUser, onLogout }) => {
           </div>
         </header>
 
-        {/* Users (admin) */}
-        {activeMenu === 'users' && isAdmin && (
+        {/* Users (admin) - under Settings */}
+        {activeMenu === 'settings' && settingsMenu === 'users' && isAdmin && (
           <UsersTable />
         )}
 
@@ -470,7 +480,7 @@ const Dashboard = ({ currentUser, onLogout }) => {
         )}
 
         {/* Show dashboard widgets unless a settings/templates subpage is open */}
-  {!(activeMenu === 'settings' && settingsMenu) && !(activeMenu === 'templates' && templatesMenu) && activeMenu !== 'users' && activeMenu !== 'departments' && activeMenu !== 'jobs' && activeMenu !== 'cvs' && activeMenu !== 'cv-evaluation' && activeMenu !== 'usage-history' && activeMenu !== 'templates' && (
+  {!(activeMenu === 'settings' && settingsMenu) && !(activeMenu === 'templates' && templatesMenu) && activeMenu !== 'departments' && activeMenu !== 'jobs' && activeMenu !== 'cvs' && activeMenu !== 'cv-evaluation' && activeMenu !== 'usage-history' && activeMenu !== 'templates' && (
         <div className="stats-grid-kaggle">
           {stats.map((stat, index) => {
             const IconComponent = stat.icon;

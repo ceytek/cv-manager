@@ -26,10 +26,10 @@ class AuthService {
 
       const { accessToken, refreshToken } = data.login;
       
-      // Token'ları kaydet
-      localStorage.setItem('accessToken', accessToken);
-      localStorage.setItem('refreshToken', refreshToken);
-      // Company code'u da kaydet (optional, UI'da göstermek için)
+      // Token'ları sessionStorage'a kaydet (browser kapatılınca silinir)
+      sessionStorage.setItem('accessToken', accessToken);
+      sessionStorage.setItem('refreshToken', refreshToken);
+      // Company code'u localStorage'da tut (hatırlama için)
       localStorage.setItem('companyCode', companyCode);
       
       return data.login;
@@ -54,9 +54,9 @@ class AuthService {
 
       const { accessToken, refreshToken } = data.register;
       
-      // Token'ları kaydet
-      localStorage.setItem('accessToken', accessToken);
-      localStorage.setItem('refreshToken', refreshToken);
+      // Token'ları sessionStorage'a kaydet (browser kapatılınca silinir)
+      sessionStorage.setItem('accessToken', accessToken);
+      sessionStorage.setItem('refreshToken', refreshToken);
       
       return data.register;
     } catch (error) {
@@ -132,19 +132,19 @@ class AuthService {
 
   // Logout
   logout() {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
+    sessionStorage.removeItem('accessToken');
+    sessionStorage.removeItem('refreshToken');
     client.clearStore(); // Apollo cache'i temizle
   }
 
   // Check if logged in
   isAuthenticated() {
-    return !!localStorage.getItem('accessToken');
+    return !!sessionStorage.getItem('accessToken');
   }
 
   // Get access token
   getAccessToken() {
-    return localStorage.getItem('accessToken');
+    return sessionStorage.getItem('accessToken');
   }
 }
 

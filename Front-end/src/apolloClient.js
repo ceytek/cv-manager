@@ -15,8 +15,8 @@ const httpLink = createHttpLink({
 
 // Auth middleware - her istekte token ekle
 const authLink = setContext((_, { headers }) => {
-  // LocalStorage'dan token'ı al
-  const token = localStorage.getItem('accessToken');
+  // sessionStorage'dan token'ı al (browser kapatılınca silinir)
+  const token = sessionStorage.getItem('accessToken');
   
   return {
     headers: {
@@ -28,7 +28,7 @@ const authLink = setContext((_, { headers }) => {
 
 // Token refresh function
 const refreshToken = async () => {
-  const refresh = localStorage.getItem('refreshToken');
+  const refresh = sessionStorage.getItem('refreshToken');
   if (!refresh) return null;
   
   try {
@@ -43,9 +43,9 @@ const refreshToken = async () => {
     if (response.ok) {
       const data = await response.json();
       if (data.access_token) {
-        localStorage.setItem('accessToken', data.access_token);
+        sessionStorage.setItem('accessToken', data.access_token);
         if (data.refresh_token) {
-          localStorage.setItem('refreshToken', data.refresh_token);
+          sessionStorage.setItem('refreshToken', data.refresh_token);
         }
         return data.access_token;
       }
@@ -81,8 +81,8 @@ const errorLink = onError(({ graphQLErrors, networkError, operation, forward }) 
               resolve(forward(operation));
             } else {
               // Refresh failed, redirect to login
-              localStorage.removeItem('accessToken');
-              localStorage.removeItem('refreshToken');
+              sessionStorage.removeItem('accessToken');
+              sessionStorage.removeItem('refreshToken');
               window.location.href = '/login';
               resolve(null);
             }
@@ -101,7 +101,7 @@ const errorLink = onError(({ graphQLErrors, networkError, operation, forward }) 
 const wsLink = new GraphQLWsLink(createClient({
   url: import.meta.env.VITE_WS_URL || 'ws://localhost:8000/graphql',
   connectionParams: async () => {
-    const token = localStorage.getItem('accessToken');
+    const token = sessionStorage.getItem('accessToken');
     return {
       authorization: token ? `Bearer ${token}` : '',
     };
