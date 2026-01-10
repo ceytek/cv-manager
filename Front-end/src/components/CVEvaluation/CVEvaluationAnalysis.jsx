@@ -549,6 +549,30 @@ const SummaryPanel = ({ selectedJob, selectedCandidates, isAnalyzing, analysisPr
 
       {/* Content */}
       <div style={{ flex: 1, padding: 20, display: 'flex', flexDirection: 'column', gap: 24 }}>
+        {/* Start Analysis Button - Moved to top */}
+        <button
+          onClick={onStartAnalysis}
+          disabled={!canStartAnalysis || isAnalyzing}
+          style={{
+            width: '100%',
+            padding: '14px 24px',
+            background: canStartAnalysis && !isAnalyzing ? '#3B82F6' : '#D1D5DB',
+            color: 'white',
+            border: 'none',
+            borderRadius: 8,
+            fontSize: 15,
+            fontWeight: 600,
+            cursor: canStartAnalysis && !isAnalyzing ? 'pointer' : 'not-allowed',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            transition: 'all 0.2s',
+          }}
+        >
+          {t('cvEvaluation.startAnalysis')}
+        </button>
+
         {/* Selected Job */}
         <div>
           <div style={{
@@ -684,30 +708,6 @@ const SummaryPanel = ({ selectedJob, selectedCandidates, isAnalyzing, analysisPr
             </div>
           </div>
         )}
-
-        {/* Start Analysis Button */}
-        <button
-          onClick={onStartAnalysis}
-          disabled={!canStartAnalysis || isAnalyzing}
-          style={{
-            width: '100%',
-            padding: '14px 24px',
-            background: canStartAnalysis && !isAnalyzing ? '#3B82F6' : '#D1D5DB',
-            color: 'white',
-            border: 'none',
-            borderRadius: 8,
-            fontSize: 15,
-            fontWeight: 600,
-            cursor: canStartAnalysis && !isAnalyzing ? 'pointer' : 'not-allowed',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-            transition: 'all 0.2s',
-          }}
-        >
-          {t('cvEvaluation.startAnalysis')}
-        </button>
       </div>
     </div>
   );
