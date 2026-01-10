@@ -28,6 +28,12 @@
     "hide": "Gizle",
     "optional": "İsteğe bağlı"
   },
+  "jobs": {
+    "deleteTitle": "İlanı Sil",
+    "deleteConfirm": "ilanını silmek istediğinize emin misiniz?",
+    "cannotDelete": "Silinemez",
+    "hasApplications": "Bu ilanda başvuru var."
+  },
   "header": {
     "welcome": "Hoş Geldiniz, {{name}}!",
     "subtitle": "İşte bugünkü istatistikleriniz.",

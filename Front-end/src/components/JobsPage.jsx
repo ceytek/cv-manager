@@ -3,8 +3,8 @@
  * 3. resim tasarımına göre düzenlendi
  */
 import React, { useEffect, useState } from 'react';
-import { useQuery } from '@apollo/client/react';
-import { JOBS_QUERY } from '../graphql/jobs';
+import { useQuery, useMutation } from '@apollo/client/react';
+import { JOBS_QUERY, DELETE_JOB_MUTATION } from '../graphql/jobs';
 import { Search, MapPin, Users, Calendar, Sparkles, FileText, Eye, Video, ListChecks, Edit2, Trash2, Briefcase, Clock, Building2, X, List, LayoutGrid } from 'lucide-react';
 import JobForm from './JobForm';
 import AIJobCreator from './JobForm/AIJobCreator';
@@ -26,6 +26,13 @@ const JobsPage = ({ departments = [], initialCreate = false }) => {
   const [showPreview, setShowPreview] = useState(false);
   const [interviewSettingsJob, setInterviewSettingsJob] = useState(null);
   const [likertSettingsJob, setLikertSettingsJob] = useState(null);
+  
+  // Delete modal states
+  const [deleteConfirmJob, setDeleteConfirmJob] = useState(null);
+  const [deleteErrorJob, setDeleteErrorJob] = useState(null);
+
+  // Delete mutation
+  const [deleteJobMutation, { loading: deleting }] = useMutation(DELETE_JOB_MUTATION);
 
   // When initialCreate is true, show job form modal
   useEffect(() => {
@@ -95,6 +102,36 @@ const JobsPage = ({ departments = [], initialCreate = false }) => {
     e?.stopPropagation();
     setPreviewJob(job);
     setShowPreview(true);
+  };
+
+  const handleDeleteClick = (job, e) => {
+    e?.stopPropagation();
+    // Check if job has applications
+    const applicantCount = job.analysisCount || 0;
+    if (applicantCount > 0) {
+      setDeleteErrorJob(job);
+    } else {
+      setDeleteConfirmJob(job);
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteConfirmJob) return;
+    
+    try {
+      const result = await deleteJobMutation({
+        variables: { id: deleteConfirmJob.id }
+      });
+      
+      if (result.data?.deleteJob?.success) {
+        refetch();
+        setDeleteConfirmJob(null);
+      } else {
+        alert(result.data?.deleteJob?.message || t('common.error'));
+      }
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
   // Get department name by ID
@@ -808,7 +845,7 @@ const JobsPage = ({ departments = [], initialCreate = false }) => {
 
                       {/* Delete Button */}
                       <button
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e) => handleDeleteClick(job, e)}
                         style={{
                           padding: '8px',
                           background: '#F3F4F6',
@@ -945,6 +982,124 @@ const JobsPage = ({ departments = [], initialCreate = false }) => {
             setLikertSettingsJob(null);
           }}
         />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmJob && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1100
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: 16,
+            padding: 24,
+            maxWidth: 400,
+            width: '90%'
+          }}>
+            <h3 style={{ margin: '0 0 16px', fontSize: 18, fontWeight: 600 }}>
+              {t('jobs.deleteTitle', 'İlanı Sil')}
+            </h3>
+            <p style={{ margin: '0 0 24px', fontSize: 14, color: '#6B7280' }}>
+              <strong>"{deleteConfirmJob.title}"</strong> {t('jobs.deleteConfirm', 'ilanını silmek istediğinize emin misiniz?')}
+            </p>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setDeleteConfirmJob(null)}
+                style={{
+                  padding: '10px 20px',
+                  background: '#F3F4F6',
+                  border: 'none',
+                  borderRadius: 8,
+                  fontSize: 14,
+                  fontWeight: 500,
+                  cursor: 'pointer'
+                }}
+              >
+                {t('common.cancel', 'İptal')}
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                disabled={deleting}
+                style={{
+                  padding: '10px 20px',
+                  background: '#DC2626',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 8,
+                  fontSize: 14,
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  opacity: deleting ? 0.5 : 1
+                }}
+              >
+                {deleting ? t('common.deleting', 'Siliniyor...') : t('common.delete', 'Sil')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Error Modal - Has Applications */}
+      {deleteErrorJob && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1100
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: 16,
+            padding: 24,
+            maxWidth: 400,
+            width: '90%'
+          }}>
+            <div style={{
+              width: 48,
+              height: 48,
+              background: '#FEF2F2',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 16px'
+            }}>
+              <X size={24} color="#DC2626" />
+            </div>
+            <h3 style={{ margin: '0 0 12px', fontSize: 18, fontWeight: 600, textAlign: 'center' }}>
+              {t('jobs.cannotDelete', 'Silinemez')}
+            </h3>
+            <p style={{ margin: '0 0 24px', fontSize: 14, color: '#6B7280', textAlign: 'center' }}>
+              {t('jobs.hasApplications', 'Bu ilanda başvuru var.')}
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <button
+                onClick={() => setDeleteErrorJob(null)}
+                style={{
+                  padding: '10px 24px',
+                  background: '#6D28D9',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 8,
+                  fontSize: 14,
+                  fontWeight: 500,
+                  cursor: 'pointer'
+                }}
+              >
+                {t('common.ok', 'Tamam')}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

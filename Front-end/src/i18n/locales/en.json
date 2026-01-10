@@ -28,6 +28,12 @@
     "hide": "Hide",
     "optional": "Optional"
   },
+  "jobs": {
+    "deleteTitle": "Delete Job",
+    "deleteConfirm": "Are you sure you want to delete the job posting?",
+    "cannotDelete": "Cannot Delete",
+    "hasApplications": "This job has applications."
+  },
   "header": {
     "welcome": "Welcome, {{name}}!",
     "subtitle": "Here are your today's statistics.",

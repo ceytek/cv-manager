@@ -218,6 +218,18 @@ export const TOGGLE_JOB_ACTIVE_MUTATION = gql`
 `;
 
 /**
+ * Mutation to delete a job
+ */
+export const DELETE_JOB_MUTATION = gql`
+  mutation DeleteJob($id: String!) {
+    deleteJob(id: $id) {
+      success
+      message
+    }
+  }
+`;
+
+/**
  * Mutation to generate job description with AI
  */
 export const GENERATE_JOB_WITH_AI_MUTATION = gql`

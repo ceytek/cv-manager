@@ -2720,6 +2720,60 @@ class Mutation(CompanyMutation):
             db.close()
 
     @strawberry.mutation
+    def delete_job(self, id: str, info: Info) -> MessageType:
+        """Delete a job (admin only) - only if no applications exist"""
+        request = info.context["request"]
+        auth_header = request.headers.get("authorization")
+        if not auth_header:
+            raise Exception("Not authenticated")
+        try:
+            scheme, token = auth_header.split()
+            if scheme.lower() != "bearer":
+                raise Exception("Invalid authentication scheme")
+        except ValueError:
+            raise Exception("Invalid authorization header")
+
+        db = get_db_session()
+        try:
+            current = get_current_user_from_token(token, db)
+            ensure_admin(current, db)
+            
+            # Find the job
+            from app.models.job import Job
+            from app.models.application import Application
+            
+            job = db.query(Job).filter(Job.id == id).first()
+            if not job:
+                return MessageType(success=False, message="İlan bulunamadı")
+            
+            # Check if job has applications
+            application_count = db.query(Application).filter(Application.job_id == id).count()
+            if application_count > 0:
+                return MessageType(success=False, message="Bu ilanda başvuru var")
+            
+            # Delete the job
+            db.delete(job)
+            db.commit()
+            
+            # Publish stats update
+            try:
+                import asyncio as _asyncio
+                try:
+                    loop = _asyncio.get_running_loop()
+                    loop.create_task(pubsub.publish(topic="stats", payload={"reason": "job_deleted"}))
+                except RuntimeError:
+                    _asyncio.run(pubsub.publish(topic="stats", payload={"reason": "job_deleted"}))
+            except Exception:
+                pass
+            
+            return MessageType(success=True, message="İlan başarıyla silindi")
+        except Exception as e:
+            db.rollback()
+            return MessageType(success=False, message=str(e))
+        finally:
+            db.close()
+
+    @strawberry.mutation
     async def upload_cvs(
         self, 
         files: List[Upload], 
