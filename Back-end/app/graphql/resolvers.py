@@ -462,8 +462,8 @@ class Query:
             company_id = get_company_id_from_token(token)
             
             from app.models.application import Application
-            from app.models.interview_session import InterviewSession
-            from app.models.likert_session import LikertSession
+            from app.modules.interview.models import InterviewSession
+            from app.modules.likert.models import LikertSession
             
             # Check if candidate has any applications
             app_count = db.query(Application).filter(
