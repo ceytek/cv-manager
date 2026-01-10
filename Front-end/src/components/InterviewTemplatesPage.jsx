@@ -116,7 +116,19 @@ const InterviewTemplatesPage = () => {
             {t('interviewTemplates.subtitle')}
           </p>
         </div>
-        <button onClick={handleAdd} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <button onClick={handleAdd} style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: 8,
+          padding: '12px 20px',
+          background: '#3B82F6',
+          color: 'white',
+          border: 'none',
+          borderRadius: 10,
+          fontSize: 14,
+          fontWeight: 600,
+          cursor: 'pointer',
+        }}>
           <Plus size={18} />
           {t('interviewTemplates.addTemplate')}
         </button>

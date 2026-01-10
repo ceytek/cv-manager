@@ -116,7 +116,19 @@ const JobIntroTemplatesPage = () => {
           <h1 style={{ fontSize: '24px', fontWeight: '700', color: '#111827', margin: 0 }}>{t('jobIntroTemplates.title')}</h1>
           <p style={{ fontSize: '14px', color: '#6B7280', margin: '4px 0 0' }}>{t('jobIntroTemplates.subtitle')}</p>
         </div>
-        <button onClick={() => openModal()} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <button onClick={() => openModal()} style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: 8,
+          padding: '12px 20px',
+          background: '#3B82F6',
+          color: 'white',
+          border: 'none',
+          borderRadius: 10,
+          fontSize: 14,
+          fontWeight: 600,
+          cursor: 'pointer',
+        }}>
           <Plus size={18} />{t('jobIntroTemplates.addNew')}
         </button>
       </div>
