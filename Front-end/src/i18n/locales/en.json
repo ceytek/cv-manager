@@ -53,6 +53,7 @@
     "interviewTemplates": "Interview Templates",
     "likertTemplates": "Likert Test Templates",
     "agreementTemplates": "Agreement Templates",
+    "jobIntroTemplates": "Job Introductions",
     "rejectionTemplates": "Rejection Messages"
   },
   "stats": {
@@ -216,6 +217,24 @@
     "isActiveHint": "Inactive templates are not shown in interview settings",
     "nameRequired": "Template name is required",
     "contentRequired": "Agreement content is required"
+  },
+  "jobIntroTemplates": {
+    "title": "Job Introduction Templates",
+    "subtitle": "Introduction and preamble texts for job postings",
+    "addNew": "Add New Introduction",
+    "edit": "Edit Introduction",
+    "searchPlaceholder": "Search introductions...",
+    "empty": "No introduction templates added yet",
+    "emptyHint": "Add company introduction texts for your job postings",
+    "name": "Introduction Name",
+    "namePlaceholder": "E.g.: Company Introduction",
+    "content": "Introduction Text",
+    "contentPlaceholder": "Write the company introduction or job preamble here...",
+    "preview": "Preview",
+    "createdBy": "Created by",
+    "deleteTitle": "Delete Introduction",
+    "deleteConfirm": "Are you sure you want to delete this template?",
+    "fillRequired": "Please fill in all required fields"
   },
   "users": {
     "title": "Users",

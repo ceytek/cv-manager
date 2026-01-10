@@ -151,6 +151,7 @@ class JobType:
     id: str
     title: str
     department_id: str = strawberry.field(name="departmentId")
+    intro_text: Optional[str] = strawberry.field(name="introText", default=None)
     description: str
     description_plain: Optional[str] = strawberry.field(name="descriptionPlain")
     requirements: str
@@ -207,6 +208,7 @@ class JobInput:
     """Input for creating a job"""
     title: str
     department_id: str = strawberry.field(name="departmentId")
+    intro_text: Optional[str] = strawberry.field(name="introText", default=None)
     description: str
     description_plain: Optional[str] = strawberry.field(name="descriptionPlain", default=None)
     requirements: str
@@ -237,6 +239,7 @@ class JobUpdateInput:
     """Input for updating a job"""
     title: Optional[str] = None
     department_id: Optional[str] = strawberry.field(name="departmentId", default=None)
+    intro_text: Optional[str] = strawberry.field(name="introText", default=None)
     description: Optional[str] = None
     description_plain: Optional[str] = strawberry.field(name="descriptionPlain", default=None)
     requirements: Optional[str] = None
@@ -1015,6 +1018,13 @@ class AIAnalysisResponse:
 
 # ============================================
 # Rejection Template Types (Re-exported from module)
+# ============================================
+from app.modules.job_intro.types import (
+    JobIntroTemplateType,
+    JobIntroTemplateInput,
+    JobIntroTemplateResponse,
+)
+
 # ============================================
 from app.modules.rejection.types import (
     RejectionTemplateType,

@@ -33,6 +33,9 @@ class Job(Base):
     title = Column(String(200), nullable=False, index=True)
     department_id = Column(String(36), ForeignKey('departments.id'), nullable=False)
 
+    # Intro Text (Preamble/Girizgah)
+    intro_text = Column(Text, nullable=True)  # Optional job introduction text
+    
     # Detailed Description (Rich Text)
     description = Column(Text, nullable=False)  # Job description (HTML format)
     requirements = Column(Text, nullable=False)  # Required qualifications (HTML format)

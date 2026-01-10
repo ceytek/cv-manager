@@ -53,6 +53,7 @@
     "interviewTemplates": "Mülakat Şablonları",
     "likertTemplates": "Likert Test Şablonları",
     "agreementTemplates": "Sözleşme Şablonları",
+    "jobIntroTemplates": "İlan Ön Yazıları",
     "rejectionTemplates": "Red Mesajları"
   },
   "stats": {
@@ -216,6 +217,24 @@
     "isActiveHint": "Pasif şablonlar mülakat ayarlarında gösterilmez",
     "nameRequired": "Şablon adı zorunludur",
     "contentRequired": "Sözleşme içeriği zorunludur"
+  },
+  "jobIntroTemplates": {
+    "title": "İlan Ön Yazı Şablonları",
+    "subtitle": "İş ilanlarında kullanılacak tanıtım ve giriş metinleri",
+    "addNew": "Yeni Ön Yazı Ekle",
+    "edit": "Ön Yazıyı Düzenle",
+    "searchPlaceholder": "Ön yazı ara...",
+    "empty": "Henüz ön yazı şablonu eklenmemiş",
+    "emptyHint": "İlanlarınızda kullanmak için şirket tanıtım metni ekleyin",
+    "name": "Ön Yazı Adı",
+    "namePlaceholder": "Örn: Turkuvaz Medya Grubu Tanıtımı",
+    "content": "Ön Yazı Metni",
+    "contentPlaceholder": "Şirket tanıtımı veya ilan giriş metnini buraya yazın...",
+    "preview": "Önizleme",
+    "createdBy": "Oluşturan",
+    "deleteTitle": "Ön Yazıyı Sil",
+    "deleteConfirm": "şablonunu silmek istediğinize emin misiniz?",
+    "fillRequired": "Lütfen tüm zorunlu alanları doldurun"
   },
   "users": {
     "title": "Kullanıcılar",

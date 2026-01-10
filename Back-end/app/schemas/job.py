@@ -11,6 +11,7 @@ class JobCreate(BaseModel):
     """Schema for creating a job"""
     title: str = Field(..., min_length=3, max_length=200, description="Job title")
     department_id: str = Field(..., description="Department UUID")
+    intro_text: Optional[str] = Field(None, description="Job introduction/preamble text")
     description: str = Field(..., min_length=10, description="Job description (HTML)")
     description_plain: Optional[str] = Field(None, description="Plain text for AI matching")
     requirements: str = Field(..., min_length=10, description="Required qualifications (HTML)")
@@ -80,6 +81,7 @@ class JobUpdate(BaseModel):
     """Schema for updating a job"""
     title: Optional[str] = Field(None, min_length=3, max_length=200)
     department_id: Optional[str] = None
+    intro_text: Optional[str] = None
     description: Optional[str] = Field(None, min_length=10)
     description_plain: Optional[str] = None
     requirements: Optional[str] = Field(None, min_length=10)
@@ -157,6 +159,7 @@ class JobResponse(BaseModel):
     id: str
     title: str
     department_id: str
+    intro_text: Optional[str]
     description: str
     description_plain: Optional[str]
     requirements: str
