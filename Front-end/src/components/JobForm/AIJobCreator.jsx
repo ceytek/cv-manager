@@ -5,9 +5,10 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery } from '@apollo/client/react';
-import { X, Sparkles, Briefcase, MapPin, Clock, GraduationCap, Languages, Tag, Plus, Globe } from 'lucide-react';
+import { X, Sparkles, Briefcase, MapPin, Clock, GraduationCap, Languages, Tag, Plus, Globe, FileText } from 'lucide-react';
 import { GENERATE_JOB_WITH_AI_MUTATION } from '../../graphql/jobs';
 import { DEPARTMENTS_QUERY } from '../../graphql/departments';
+import { JOB_INTRO_TEMPLATES_QUERY } from '../../graphql/jobIntroTemplates';
 import JobCreationProgressModal from '../JobCreationProgressModal';
 
 const AIJobCreator = ({ isOpen, onClose, onGenerate }) => {
@@ -17,7 +18,17 @@ const AIJobCreator = ({ isOpen, onClose, onGenerate }) => {
   const { data: departmentsData, loading: departmentsLoading } = useQuery(DEPARTMENTS_QUERY, {
     variables: { includeInactive: false }
   });
+  const { data: introTemplatesData } = useQuery(JOB_INTRO_TEMPLATES_QUERY, {
+    variables: { activeOnly: true },
+    fetchPolicy: 'network-only',
+  });
+  const introTemplates = introTemplatesData?.jobIntroTemplates || [];
   const [generateJobMutation, { loading: mutationLoading }] = useMutation(GENERATE_JOB_WITH_AI_MUTATION);
+  
+  // Intro state
+  const [useIntro, setUseIntro] = useState(false);
+  const [selectedIntroId, setSelectedIntroId] = useState('');
+  const [introText, setIntroText] = useState('');
   
   // Form state
   const [formData, setFormData] = useState({
@@ -279,7 +290,8 @@ const AIJobCreator = ({ isOpen, onClose, onGenerate }) => {
             location: formData.location,
             employmentType: formData.employmentType,
             experienceLevel: formData.experienceLevel,
-            department: formData.department
+            department: formData.department,
+            introText: useIntro && introText ? introText : null
           });
           
           handleClose();
@@ -321,6 +333,9 @@ const AIJobCreator = ({ isOpen, onClose, onGenerate }) => {
     });
     setCurrentSkill('');
     setCurrentLanguage({ name: '', level: '' });
+    setUseIntro(false);
+    setSelectedIntroId('');
+    setIntroText('');
     onClose();
   };
 
@@ -515,6 +530,108 @@ const AIJobCreator = ({ isOpen, onClose, onGenerate }) => {
                   <option key={dept.id} value={dept.name}>{dept.name}</option>
                 ))}
               </select>
+            </div>
+
+            {/* Job Introduction */}
+            <div style={{
+              background: '#F8FAFC',
+              borderRadius: 12,
+              padding: 16,
+              border: '1px solid #E5E7EB',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: useIntro ? 16 : 0 }}>
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: '#374151',
+                }}>
+                  <FileText size={16} />
+                  {t('aiJobCreator.addIntro')}
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUseIntro(!useIntro);
+                    if (useIntro) {
+                      setIntroText('');
+                      setSelectedIntroId('');
+                    }
+                  }}
+                  style={{
+                    width: 44,
+                    height: 24,
+                    borderRadius: 12,
+                    border: 'none',
+                    background: useIntro ? '#10B981' : '#D1D5DB',
+                    position: 'relative',
+                    cursor: 'pointer',
+                    transition: 'background 0.2s',
+                  }}
+                >
+                  <div style={{
+                    width: 18,
+                    height: 18,
+                    borderRadius: '50%',
+                    background: 'white',
+                    position: 'absolute',
+                    top: 3,
+                    left: useIntro ? 23 : 3,
+                    transition: 'left 0.2s',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                  }} />
+                </button>
+              </div>
+              
+              {useIntro && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {introTemplates.length > 0 && (
+                    <select
+                      value={selectedIntroId}
+                      onChange={(e) => {
+                        const id = e.target.value;
+                        setSelectedIntroId(id);
+                        if (id) {
+                          const template = introTemplates.find(t => t.id === id);
+                          if (template) {
+                            setIntroText(template.content);
+                          }
+                        }
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '10px 14px',
+                        border: '2px solid #E5E7EB',
+                        borderRadius: 10,
+                        fontSize: 14,
+                        background: 'white',
+                      }}
+                    >
+                      <option value="">{t('aiJobCreator.selectIntroTemplate')}</option>
+                      {introTemplates.map(t => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
+                      ))}
+                    </select>
+                  )}
+                  <textarea
+                    value={introText}
+                    onChange={(e) => setIntroText(e.target.value)}
+                    placeholder={t('aiJobCreator.introPlaceholder')}
+                    rows={4}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      border: '2px solid #E5E7EB',
+                      borderRadius: 10,
+                      fontSize: 14,
+                      resize: 'vertical',
+                      fontFamily: 'inherit',
+                    }}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Location */}

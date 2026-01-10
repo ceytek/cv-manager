@@ -5,8 +5,9 @@
  * salary, deadline, status
  */
 import React, { useState, useEffect } from 'react';
-import { useMutation } from '@apollo/client/react';
+import { useMutation, useQuery } from '@apollo/client/react';
 import { CREATE_JOB_MUTATION, UPDATE_JOB_MUTATION, JOBS_QUERY } from '../graphql/jobs';
+import { JOB_INTRO_TEMPLATES_QUERY } from '../graphql/jobIntroTemplates';
 import { useTranslation } from 'react-i18next';
 import JobPreviewModal from './JobForm/JobPreviewModal';
 import SimpleRichTextEditor from './SimpleRichTextEditor';
@@ -62,9 +63,20 @@ const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel, isModal =
   const { t, i18n } = useTranslation();
   const isEditing = !!job;
   
+  // Fetch job intro templates
+  const { data: introTemplatesData } = useQuery(JOB_INTRO_TEMPLATES_QUERY, {
+    variables: { activeOnly: true },
+    fetchPolicy: 'network-only',
+  });
+  const introTemplates = introTemplatesData?.jobIntroTemplates || [];
+
+  const [useIntro, setUseIntro] = useState(false);
+  const [selectedIntroId, setSelectedIntroId] = useState('');
+  
   const [formData, setFormData] = useState({
     title: '',
     departmentId: '',
+    introText: '',
     description: '',
     requirements: '',
     keywords: '',
@@ -115,6 +127,7 @@ const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel, isModal =
       setFormData({
         title: job.title || '',
         departmentId: job.departmentId || '',
+        introText: job.introText || '',
         description: job.description || '',
         requirements: job.requirements || '',
         keywords: (job.keywords || []).join(', '),
@@ -134,6 +147,11 @@ const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel, isModal =
       });
       
       setLanguages(langArray);
+      
+      // If job has intro text, enable the switch
+      if (job.introText) {
+        setUseIntro(true);
+      }
     }
   }, [job]);
 
@@ -254,6 +272,7 @@ const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel, isModal =
     const jobData = {
       title: formData.title.trim(),
       departmentId: formData.departmentId,
+      introText: useIntro && formData.introText ? formData.introText.trim() : null,
       description: formData.description.trim(),
       requirements: formData.requirements.trim(),
       keywords,
@@ -337,6 +356,86 @@ const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel, isModal =
             ))}
           </select>
         </div>
+      </SectionPanel>
+
+      {/* SECTION: Ön Yazı / Introduction */}
+      <SectionPanel title={t('jobForm.sectionIntro')} icon="📝" defaultOpen={useIntro}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: useIntro ? 16 : 0 }}>
+          <label style={{ fontSize: 14, fontWeight: 500, color: '#374151' }}>{t('jobForm.addIntro')}</label>
+          <button
+            type="button"
+            onClick={() => {
+              setUseIntro(!useIntro);
+              if (useIntro) {
+                handleChange('introText', '');
+                setSelectedIntroId('');
+              }
+            }}
+            style={{
+              width: 44,
+              height: 24,
+              borderRadius: 12,
+              border: 'none',
+              background: useIntro ? '#10B981' : '#D1D5DB',
+              position: 'relative',
+              cursor: 'pointer',
+              transition: 'background 0.2s',
+            }}
+          >
+            <div style={{
+              width: 18,
+              height: 18,
+              borderRadius: '50%',
+              background: 'white',
+              position: 'absolute',
+              top: 3,
+              left: useIntro ? 23 : 3,
+              transition: 'left 0.2s',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+            }} />
+          </button>
+        </div>
+        
+        {useIntro && (
+          <>
+            {introTemplates.length > 0 && (
+              <div>
+                <label style={{ display: 'block', marginBottom: 6, fontSize: 14, fontWeight: 500 }}>{t('jobForm.selectIntroTemplate')}</label>
+                <select
+                  value={selectedIntroId}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    setSelectedIntroId(id);
+                    if (id) {
+                      const template = introTemplates.find(t => t.id === id);
+                      if (template) {
+                        handleChange('introText', template.content);
+                      }
+                    }
+                  }}
+                  className="text-input"
+                >
+                  <option value="">{t('jobForm.selectIntroPlaceholder')}</option>
+                  {introTemplates.map(t => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div>
+              <label style={{ display: 'block', marginBottom: 6, fontSize: 14, fontWeight: 500 }}>{t('jobForm.introText')}</label>
+              <textarea
+                value={formData.introText}
+                onChange={(e) => handleChange('introText', e.target.value)}
+                placeholder={t('jobForm.introPlaceholder')}
+                className="text-input"
+                rows={6}
+                style={{ resize: 'vertical', fontFamily: 'inherit' }}
+              />
+              <p style={{ margin: '6px 0 0', fontSize: 12, color: '#6B7280' }}>{t('jobForm.introHint')}</p>
+            </div>
+          </>
+        )}
       </SectionPanel>
 
       {/* SECTION 2: Lokasyon & Çalışma */}

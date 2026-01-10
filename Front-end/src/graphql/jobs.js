@@ -24,6 +24,7 @@ export const JOBS_QUERY = gql`
       title
       departmentId
       department { id name }
+      introText
       description
       descriptionPlain
       requirements
@@ -137,6 +138,7 @@ export const CREATE_JOB_MUTATION = gql`
       id
       title
       departmentId
+      introText
       description
       descriptionPlain
       requirements
@@ -171,6 +173,7 @@ export const UPDATE_JOB_MUTATION = gql`
       id
       title
       departmentId
+      introText
       description
       descriptionPlain
       requirements
