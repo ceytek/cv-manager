@@ -177,13 +177,13 @@ const Dashboard = ({ currentUser, onLogout }) => {
 
   const menuItems = [
     { id: 'dashboard', icon: LayoutDashboard, label: t('sidebar.dashboard') },
-    ...(isAdmin ? [{ id: 'users', icon: Users, label: t('sidebar.users') }] : []),
     ...(isAdmin ? [{ id: 'departments', icon: Briefcase, label: t('sidebar.departments') }] : []),
     { id: 'jobs', icon: Briefcase, label: t('sidebar.jobs') },
     { id: 'cvs', icon: FileText, label: t('sidebar.cvManagement') },
     { id: 'cv-evaluation', icon: BarChart3, label: t('sidebar.cvEvaluation') },
     { id: 'usage-history', icon: History, label: t('sidebar.usageHistory') },
     { id: 'templates', icon: Layers, label: t('sidebar.templates') },
+    ...(isAdmin ? [{ id: 'users', icon: Users, label: t('sidebar.users') }] : []),
     { id: 'settings', icon: Settings, label: t('sidebar.settings') }
   ];
 

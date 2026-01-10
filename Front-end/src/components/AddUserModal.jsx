@@ -1,10 +1,13 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import usersService from '../services/usersService';
 
 const AddUserModal = ({ isOpen, onClose, onSuccess }) => {
+  const { t } = useTranslation();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [role, setRole] = useState('user');
   const [error, setError] = useState('');
@@ -13,17 +16,31 @@ const AddUserModal = ({ isOpen, onClose, onSuccess }) => {
 
   const handleCreate = async () => {
     setError('');
-    if (!fullName || !email || !password) {
-      setError('Lütfen tüm alanları doldurunuz');
+    if (!fullName || !email || !password || !confirmPassword) {
+      setError(t('settings.fillAllFields'));
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError(t('settings.passwordMismatch'));
+      return;
+    }
+    if (password.length < 6) {
+      setError(t('settings.passwordMinLength'));
       return;
     }
     setLoading(true);
     try {
-  await usersService.createUser({ email, password, fullName, role });
+      await usersService.createUser({ email, password, fullName, role });
       onSuccess?.();
       onClose();
+      // Reset form
+      setFullName('');
+      setEmail('');
+      setPassword('');
+      setConfirmPassword('');
+      setRole('user');
     } catch (e) {
-      setError(e.message || 'Kullanıcı oluşturulamadı');
+      setError(e.message || t('addUser.createFailed'));
     } finally {
       setLoading(false);
     }
@@ -32,23 +49,25 @@ const AddUserModal = ({ isOpen, onClose, onSuccess }) => {
   return (
     <div style={styles.overlay}>
       <div style={styles.modal}>
-        <h3 style={{ marginBottom: 16 }}>Yeni Kullanıcı Ekle</h3>
-        <label style={styles.label}>Ad Soyad</label>
+        <h3 style={{ marginBottom: 16 }}>{t('addUser.title')}</h3>
+        <label style={styles.label}>{t('users.fullName')}</label>
         <input style={styles.input} value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Test User" />
-        <label style={styles.label}>E-posta</label>
+        <label style={styles.label}>{t('users.email')}</label>
         <input style={styles.input} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="ornek@mail.com" />
-        <label style={styles.label}>Şifre</label>
+        <label style={styles.label}>{t('addUser.password')}</label>
         <input style={styles.input} type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
-        <label style={styles.label}>Rol</label>
+        <label style={styles.label}>{t('addUser.confirmPassword')}</label>
+        <input style={styles.input} type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" />
+        <label style={styles.label}>{t('users.role')}</label>
         <select style={styles.input} value={role} onChange={(e) => setRole(e.target.value)}>
-          <option value="user">Kullanıcı</option>
-          <option value="admin">Admin</option>
+          <option value="user">{t('addUser.roleUser')}</option>
+          <option value="admin">{t('addUser.roleAdmin')}</option>
         </select>
         {error && <div style={styles.error}>{error}</div>}
         <div style={styles.row}>
-          <button style={styles.secondary} onClick={onClose}>Vazgeç</button>
+          <button style={styles.secondary} onClick={onClose}>{t('common.cancel')}</button>
           <button style={styles.primary} onClick={handleCreate} disabled={loading}>
-            {loading ? 'Kaydediliyor...' : 'Oluştur'}
+            {loading ? t('addUser.saving') : t('addUser.create')}
           </button>
         </div>
       </div>

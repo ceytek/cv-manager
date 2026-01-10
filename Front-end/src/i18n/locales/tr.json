@@ -225,6 +225,16 @@
     "deactivate": "Pasifleştir",
     "deactivateError": "Kullanıcı pasifleştirilemedi"
   },
+  "addUser": {
+    "title": "Yeni Kullanıcı Ekle",
+    "password": "Şifre",
+    "confirmPassword": "Şifre (Tekrar)",
+    "roleUser": "Kullanıcı",
+    "roleAdmin": "Admin",
+    "saving": "Kaydediliyor...",
+    "create": "Oluştur",
+    "createFailed": "Kullanıcı oluşturulamadı"
+  },
   "login": {
     "title": "Giriş Yap",
     "companyCode": "Şirket Kodu",

@@ -225,6 +225,16 @@
     "deactivate": "Deactivate",
     "deactivateError": "Failed to deactivate user"
   },
+  "addUser": {
+    "title": "Add New User",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "roleUser": "User",
+    "roleAdmin": "Admin",
+    "saving": "Saving...",
+    "create": "Create",
+    "createFailed": "Failed to create user"
+  },
   "login": {
     "title": "Login",
     "companyCode": "Company Code",
