@@ -36,6 +36,9 @@ class Job(Base):
     # Intro Text (Preamble/Girizgah)
     intro_text = Column(Text, nullable=True)  # Optional job introduction text
     
+    # Outro Text (What we offer / Conclusion)
+    outro_text = Column(Text, nullable=True)  # Optional job conclusion text
+    
     # Detailed Description (Rich Text)
     description = Column(Text, nullable=False)  # Job description (HTML format)
     requirements = Column(Text, nullable=False)  # Required qualifications (HTML format)

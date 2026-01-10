@@ -152,6 +152,7 @@ class JobType:
     title: str
     department_id: str = strawberry.field(name="departmentId")
     intro_text: Optional[str] = strawberry.field(name="introText", default=None)
+    outro_text: Optional[str] = strawberry.field(name="outroText", default=None)
     description: str
     description_plain: Optional[str] = strawberry.field(name="descriptionPlain")
     requirements: str
@@ -209,6 +210,7 @@ class JobInput:
     title: str
     department_id: str = strawberry.field(name="departmentId")
     intro_text: Optional[str] = strawberry.field(name="introText", default=None)
+    outro_text: Optional[str] = strawberry.field(name="outroText", default=None)
     description: str
     description_plain: Optional[str] = strawberry.field(name="descriptionPlain", default=None)
     requirements: str
@@ -240,6 +242,7 @@ class JobUpdateInput:
     title: Optional[str] = None
     department_id: Optional[str] = strawberry.field(name="departmentId", default=None)
     intro_text: Optional[str] = strawberry.field(name="introText", default=None)
+    outro_text: Optional[str] = strawberry.field(name="outroText", default=None)
     description: Optional[str] = None
     description_plain: Optional[str] = strawberry.field(name="descriptionPlain", default=None)
     requirements: Optional[str] = None
@@ -1023,6 +1026,12 @@ from app.modules.job_intro.types import (
     JobIntroTemplateType,
     JobIntroTemplateInput,
     JobIntroTemplateResponse,
+)
+
+from app.modules.job_outro.types import (
+    JobOutroTemplateType,
+    JobOutroTemplateInput,
+    JobOutroTemplateResponse,
 )
 
 # ============================================

@@ -33,6 +33,7 @@ class Company(Base):
     likert_templates = relationship("LikertTemplate", back_populates="company", cascade="all, delete-orphan")
     interview_templates = relationship("InterviewTemplate", back_populates="company", cascade="all, delete-orphan")
     job_intro_templates = relationship("JobIntroTemplate", back_populates="company", cascade="all, delete-orphan")
+    job_outro_templates = relationship("JobOutroTemplate", back_populates="company", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<Company {self.company_code}: {self.name}>"

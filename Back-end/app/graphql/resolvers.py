@@ -531,6 +531,7 @@ class Query:
                 title=job.title,
                 department_id=job.department_id,
                 intro_text=job.intro_text,
+                outro_text=job.outro_text,
                 description=job.description or "",
                 description_plain=job.description_plain,
                 requirements=job.requirements or "",
@@ -657,6 +658,7 @@ class Query:
                     title=j.title,
                     department_id=j.department_id,
                     intro_text=j.intro_text,
+                    outro_text=j.outro_text,
                     description=j.description,
                     description_plain=j.description_plain,
                     requirements=j.requirements,
@@ -874,6 +876,7 @@ class Query:
                         title=job.title,
                         department_id=job.department_id,
                         intro_text=job.intro_text,
+                        outro_text=job.outro_text,
                         description=job.description,
                         requirements=job.requirements,
                         description_plain=job.description_plain,
@@ -1573,6 +1576,13 @@ class Query:
         from app.modules.job_intro.resolvers import get_job_intro_templates
         return get_job_intro_templates(info, active_only)
 
+    # ============ Job Outro Template Queries ============
+    @strawberry.field
+    def job_outro_templates(self, info: Info, active_only: bool = False) -> List["JobOutroTemplateType"]:
+        """Get all job outro templates for the current company"""
+        from app.modules.job_outro.resolvers import get_job_outro_templates
+        return get_job_outro_templates(info, active_only)
+
     @strawberry.field
     def interview_session(self, info: Info, token: str) -> Optional["InterviewSessionFullType"]:
         """Get interview session by token (public - for candidates)"""
@@ -1851,6 +1861,7 @@ class Subscription:
                         title=job.title,
                         department_id=job.department_id,
                         intro_text=job.intro_text,
+                        outro_text=job.outro_text,
                         description=job.description,
                         requirements=job.requirements,
                         description_plain=job.description_plain,
@@ -2411,6 +2422,7 @@ class Mutation(CompanyMutation):
                     title=input.title,
                     department_id=input.department_id,
                     intro_text=input.intro_text,
+                    outro_text=input.outro_text,
                     description=input.description,
                     description_plain=input.description_plain,
                     requirements=input.requirements,
@@ -2445,6 +2457,7 @@ class Mutation(CompanyMutation):
                 title=created.title,
                 department_id=created.department_id,
                 intro_text=created.intro_text,
+                outro_text=created.outro_text,
                 description=created.description,
                 description_plain=created.description_plain,
                 requirements=created.requirements,
@@ -2522,6 +2535,8 @@ class Mutation(CompanyMutation):
                     update_dict['department_id'] = input.department_id
                 if input.intro_text is not None:
                     update_dict['intro_text'] = input.intro_text if input.intro_text else None
+                if input.outro_text is not None:
+                    update_dict['outro_text'] = input.outro_text if input.outro_text else None
                 if input.description is not None:
                     update_dict['description'] = input.description
                 if input.description_plain is not None:
@@ -2594,6 +2609,7 @@ class Mutation(CompanyMutation):
                 title=updated.title,
                 department_id=updated.department_id,
                 intro_text=updated.intro_text,
+                outro_text=updated.outro_text,
                 description=updated.description,
                 description_plain=updated.description_plain,
                 requirements=updated.requirements,
@@ -3452,6 +3468,31 @@ class Mutation(CompanyMutation):
         """Toggle job intro template active status"""
         from app.modules.job_intro.resolvers import toggle_job_intro_template
         return await toggle_job_intro_template(info, id)
+
+    # ============ Job Outro Template Mutations ============
+    @strawberry.mutation
+    async def create_job_outro_template(self, info: Info, input: "JobOutroTemplateInput") -> "JobOutroTemplateResponse":
+        """Create a new job outro template"""
+        from app.modules.job_outro.resolvers import create_job_outro_template
+        return await create_job_outro_template(info, input)
+
+    @strawberry.mutation
+    async def update_job_outro_template(self, info: Info, id: str, input: "JobOutroTemplateInput") -> "JobOutroTemplateResponse":
+        """Update a job outro template"""
+        from app.modules.job_outro.resolvers import update_job_outro_template
+        return await update_job_outro_template(info, id, input)
+
+    @strawberry.mutation
+    async def delete_job_outro_template(self, info: Info, id: str) -> MessageType:
+        """Delete a job outro template"""
+        from app.modules.job_outro.resolvers import delete_job_outro_template
+        return await delete_job_outro_template(info, id)
+
+    @strawberry.mutation
+    async def toggle_job_outro_template(self, info: Info, id: str) -> "JobOutroTemplateResponse":
+        """Toggle job outro template active status"""
+        from app.modules.job_outro.resolvers import toggle_job_outro_template
+        return await toggle_job_outro_template(info, id)
 
     # ============ Application Rejection Mutations ============
     @strawberry.mutation

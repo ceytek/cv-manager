@@ -9,6 +9,7 @@ import { X, Sparkles, Briefcase, MapPin, Clock, GraduationCap, Languages, Tag, P
 import { GENERATE_JOB_WITH_AI_MUTATION } from '../../graphql/jobs';
 import { DEPARTMENTS_QUERY } from '../../graphql/departments';
 import { JOB_INTRO_TEMPLATES_QUERY } from '../../graphql/jobIntroTemplates';
+import { JOB_OUTRO_TEMPLATES_QUERY } from '../../graphql/jobOutroTemplates';
 import JobCreationProgressModal from '../JobCreationProgressModal';
 
 const AIJobCreator = ({ isOpen, onClose, onGenerate }) => {
@@ -23,12 +24,22 @@ const AIJobCreator = ({ isOpen, onClose, onGenerate }) => {
     fetchPolicy: 'network-only',
   });
   const introTemplates = introTemplatesData?.jobIntroTemplates || [];
+  const { data: outroTemplatesData } = useQuery(JOB_OUTRO_TEMPLATES_QUERY, {
+    variables: { activeOnly: true },
+    fetchPolicy: 'network-only',
+  });
+  const outroTemplates = outroTemplatesData?.jobOutroTemplates || [];
   const [generateJobMutation, { loading: mutationLoading }] = useMutation(GENERATE_JOB_WITH_AI_MUTATION);
   
   // Intro state
   const [useIntro, setUseIntro] = useState(false);
   const [selectedIntroId, setSelectedIntroId] = useState('');
   const [introText, setIntroText] = useState('');
+  
+  // Outro state
+  const [useOutro, setUseOutro] = useState(false);
+  const [selectedOutroId, setSelectedOutroId] = useState('');
+  const [outroText, setOutroText] = useState('');
   
   // Form state
   const [formData, setFormData] = useState({
@@ -291,7 +302,8 @@ const AIJobCreator = ({ isOpen, onClose, onGenerate }) => {
             employmentType: formData.employmentType,
             experienceLevel: formData.experienceLevel,
             department: formData.department,
-            introText: useIntro && introText ? introText : null
+            introText: useIntro && introText ? introText : null,
+            outroText: useOutro && outroText ? outroText : null
           });
           
           handleClose();
@@ -624,6 +636,108 @@ const AIJobCreator = ({ isOpen, onClose, onGenerate }) => {
                       width: '100%',
                       padding: '12px 16px',
                       border: '2px solid #E5E7EB',
+                      borderRadius: 10,
+                      fontSize: 14,
+                      resize: 'vertical',
+                      fontFamily: 'inherit',
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Job Outro (What we offer) */}
+            <div style={{
+              background: '#F0FDF4',
+              borderRadius: 12,
+              padding: 16,
+              border: '1px solid #BBF7D0',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: useOutro ? 16 : 0 }}>
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: '#374151',
+                }}>
+                  <span style={{ fontSize: 16 }}>🎁</span>
+                  {t('aiJobCreator.addOutro')}
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUseOutro(!useOutro);
+                    if (useOutro) {
+                      setOutroText('');
+                      setSelectedOutroId('');
+                    }
+                  }}
+                  style={{
+                    width: 44,
+                    height: 24,
+                    borderRadius: 12,
+                    border: 'none',
+                    background: useOutro ? '#10B981' : '#D1D5DB',
+                    position: 'relative',
+                    cursor: 'pointer',
+                    transition: 'background 0.2s',
+                  }}
+                >
+                  <div style={{
+                    width: 18,
+                    height: 18,
+                    borderRadius: '50%',
+                    background: 'white',
+                    position: 'absolute',
+                    top: 3,
+                    left: useOutro ? 23 : 3,
+                    transition: 'left 0.2s',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                  }} />
+                </button>
+              </div>
+              
+              {useOutro && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {outroTemplates.length > 0 && (
+                    <select
+                      value={selectedOutroId}
+                      onChange={(e) => {
+                        const id = e.target.value;
+                        setSelectedOutroId(id);
+                        if (id) {
+                          const template = outroTemplates.find(t => t.id === id);
+                          if (template) {
+                            setOutroText(template.content);
+                          }
+                        }
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '10px 14px',
+                        border: '2px solid #BBF7D0',
+                        borderRadius: 10,
+                        fontSize: 14,
+                        background: 'white',
+                      }}
+                    >
+                      <option value="">{t('aiJobCreator.selectOutroTemplate')}</option>
+                      {outroTemplates.map(t => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
+                      ))}
+                    </select>
+                  )}
+                  <textarea
+                    value={outroText}
+                    onChange={(e) => setOutroText(e.target.value)}
+                    placeholder={t('aiJobCreator.outroPlaceholder')}
+                    rows={4}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      border: '2px solid #BBF7D0',
                       borderRadius: 10,
                       fontSize: 14,
                       resize: 'vertical',

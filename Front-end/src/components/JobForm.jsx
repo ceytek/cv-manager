@@ -8,6 +8,7 @@ import React, { useState, useEffect } from 'react';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { CREATE_JOB_MUTATION, UPDATE_JOB_MUTATION, JOBS_QUERY } from '../graphql/jobs';
 import { JOB_INTRO_TEMPLATES_QUERY } from '../graphql/jobIntroTemplates';
+import { JOB_OUTRO_TEMPLATES_QUERY } from '../graphql/jobOutroTemplates';
 import { useTranslation } from 'react-i18next';
 import JobPreviewModal from './JobForm/JobPreviewModal';
 import SimpleRichTextEditor from './SimpleRichTextEditor';
@@ -70,13 +71,23 @@ const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel, isModal =
   });
   const introTemplates = introTemplatesData?.jobIntroTemplates || [];
 
+  // Fetch job outro templates
+  const { data: outroTemplatesData } = useQuery(JOB_OUTRO_TEMPLATES_QUERY, {
+    variables: { activeOnly: true },
+    fetchPolicy: 'network-only',
+  });
+  const outroTemplates = outroTemplatesData?.jobOutroTemplates || [];
+
   const [useIntro, setUseIntro] = useState(false);
   const [selectedIntroId, setSelectedIntroId] = useState('');
+  const [useOutro, setUseOutro] = useState(false);
+  const [selectedOutroId, setSelectedOutroId] = useState('');
   
   const [formData, setFormData] = useState({
     title: '',
     departmentId: '',
     introText: '',
+    outroText: '',
     description: '',
     requirements: '',
     keywords: '',
@@ -128,6 +139,7 @@ const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel, isModal =
         title: job.title || '',
         departmentId: job.departmentId || '',
         introText: job.introText || '',
+        outroText: job.outroText || '',
         description: job.description || '',
         requirements: job.requirements || '',
         keywords: (job.keywords || []).join(', '),
@@ -151,6 +163,10 @@ const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel, isModal =
       // If job has intro text, enable the switch
       if (job.introText) {
         setUseIntro(true);
+      }
+      // If job has outro text, enable the switch
+      if (job.outroText) {
+        setUseOutro(true);
       }
     }
   }, [job]);
@@ -273,6 +289,7 @@ const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel, isModal =
       title: formData.title.trim(),
       departmentId: formData.departmentId,
       introText: useIntro && formData.introText ? formData.introText.trim() : null,
+      outroText: useOutro && formData.outroText ? formData.outroText.trim() : null,
       description: formData.description.trim(),
       requirements: formData.requirements.trim(),
       keywords,
@@ -433,6 +450,86 @@ const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel, isModal =
                 style={{ resize: 'vertical', fontFamily: 'inherit' }}
               />
               <p style={{ margin: '6px 0 0', fontSize: 12, color: '#6B7280' }}>{t('jobForm.introHint')}</p>
+            </div>
+          </>
+        )}
+      </SectionPanel>
+
+      {/* SECTION: Sonuç Yazı / Outro (What we offer) */}
+      <SectionPanel title={t('jobForm.sectionOutro')} icon="🎁" defaultOpen={useOutro}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: useOutro ? 16 : 0 }}>
+          <label style={{ fontSize: 14, fontWeight: 500, color: '#374151' }}>{t('jobForm.addOutro')}</label>
+          <button
+            type="button"
+            onClick={() => {
+              setUseOutro(!useOutro);
+              if (useOutro) {
+                handleChange('outroText', '');
+                setSelectedOutroId('');
+              }
+            }}
+            style={{
+              width: 44,
+              height: 24,
+              borderRadius: 12,
+              border: 'none',
+              background: useOutro ? '#10B981' : '#D1D5DB',
+              position: 'relative',
+              cursor: 'pointer',
+              transition: 'background 0.2s',
+            }}
+          >
+            <div style={{
+              width: 18,
+              height: 18,
+              borderRadius: '50%',
+              background: 'white',
+              position: 'absolute',
+              top: 3,
+              left: useOutro ? 23 : 3,
+              transition: 'left 0.2s',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+            }} />
+          </button>
+        </div>
+        
+        {useOutro && (
+          <>
+            {outroTemplates.length > 0 && (
+              <div>
+                <label style={{ display: 'block', marginBottom: 6, fontSize: 14, fontWeight: 500 }}>{t('jobForm.selectOutroTemplate')}</label>
+                <select
+                  value={selectedOutroId}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    setSelectedOutroId(id);
+                    if (id) {
+                      const template = outroTemplates.find(t => t.id === id);
+                      if (template) {
+                        handleChange('outroText', template.content);
+                      }
+                    }
+                  }}
+                  className="text-input"
+                >
+                  <option value="">{t('jobForm.selectOutroPlaceholder')}</option>
+                  {outroTemplates.map(t => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div>
+              <label style={{ display: 'block', marginBottom: 6, fontSize: 14, fontWeight: 500 }}>{t('jobForm.outroText')}</label>
+              <textarea
+                value={formData.outroText}
+                onChange={(e) => handleChange('outroText', e.target.value)}
+                placeholder={t('jobForm.outroPlaceholder')}
+                className="text-input"
+                rows={6}
+                style={{ resize: 'vertical', fontFamily: 'inherit' }}
+              />
+              <p style={{ margin: '6px 0 0', fontSize: 12, color: '#6B7280' }}>{t('jobForm.outroHint')}</p>
             </div>
           </>
         )}

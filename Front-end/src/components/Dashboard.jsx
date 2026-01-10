@@ -48,6 +48,7 @@ import LikertTemplatesPage from './LikertTemplatesPage';
 import AgreementTemplatesPage from './AgreementTemplatesPage';
 import RejectionTemplatesPage from './RejectionTemplatesPage';
 import JobIntroTemplatesPage from './JobIntroTemplatesPage';
+import JobOutroTemplatesPage from './JobOutroTemplatesPage';
 
 const Dashboard = ({ currentUser, onLogout }) => {
   const { t, i18n } = useTranslation();
@@ -343,6 +344,15 @@ const Dashboard = ({ currentUser, onLogout }) => {
                     </span>
                   </button>
                   <button
+                    className={`submenu-item ${templatesMenu === 'jobOutroTemplates' ? 'active' : ''}`}
+                    onClick={() => setTemplatesMenu('jobOutroTemplates')}
+                  >
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <FileText size={16} color="#6B7280" />
+                      {t('templates.jobOutroTemplates')}
+                    </span>
+                  </button>
+                  <button
                     className={`submenu-item ${templatesMenu === 'rejectionTemplates' ? 'active' : ''}`}
                     onClick={() => setTemplatesMenu('rejectionTemplates')}
                   >
@@ -489,6 +499,10 @@ const Dashboard = ({ currentUser, onLogout }) => {
 
         {activeMenu === 'templates' && templatesMenu === 'jobIntroTemplates' && (
           <JobIntroTemplatesPage />
+        )}
+
+        {activeMenu === 'templates' && templatesMenu === 'jobOutroTemplates' && (
+          <JobOutroTemplatesPage />
         )}
 
         {activeMenu === 'templates' && templatesMenu === 'rejectionTemplates' && (
