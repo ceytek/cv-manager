@@ -21,23 +21,23 @@ const DepartmentsPage = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // Fetch departments
+  // Fetch departments (including inactive ones to show in admin list)
   const { data, loading, error: queryError, refetch } = useQuery(DEPARTMENTS_QUERY, {
-    variables: { includeInactive: false },
+    variables: { includeInactive: true },
     fetchPolicy: 'network-only',
   });
 
   // Mutations
   const [createDepartment] = useMutation(CREATE_DEPARTMENT_MUTATION, {
-    refetchQueries: [{ query: DEPARTMENTS_QUERY, variables: { includeInactive: false } }],
+    refetchQueries: [{ query: DEPARTMENTS_QUERY, variables: { includeInactive: true } }],
   });
 
   const [updateDepartment] = useMutation(UPDATE_DEPARTMENT_MUTATION, {
-    refetchQueries: [{ query: DEPARTMENTS_QUERY, variables: { includeInactive: false } }],
+    refetchQueries: [{ query: DEPARTMENTS_QUERY, variables: { includeInactive: true } }],
   });
 
   const [toggleDepartmentActive] = useMutation(TOGGLE_DEPARTMENT_ACTIVE_MUTATION, {
-    refetchQueries: [{ query: DEPARTMENTS_QUERY, variables: { includeInactive: false } }],
+    refetchQueries: [{ query: DEPARTMENTS_QUERY, variables: { includeInactive: true } }],
   });
 
   // Handle form submission
