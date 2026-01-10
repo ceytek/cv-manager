@@ -124,7 +124,7 @@ const CVUploader = ({ onUploadComplete, departments }) => {
         formData.append(String(idx), file);
       });
 
-      const token = localStorage.getItem('accessToken');
+      const token = sessionStorage.getItem('accessToken');
 
       // Optional: indicate bulk processing in progress UI
       setUploadProgress(prev => ({
@@ -234,8 +234,8 @@ const CVUploader = ({ onUploadComplete, departments }) => {
           style={{
             padding: 20,
             borderRadius: 12,
-            background: uploadResult.totalFailed === 0 ? '#D1FAE5' : '#FEF3C7',
-            border: `1px solid ${uploadResult.totalFailed === 0 ? '#10B981' : '#F59E0B'}`,
+            background: uploadResult.totalFailed === 0 ? '#D1FAE5' : (uploadResult.totalUploaded === 0 ? '#FEE2E2' : '#FEF3C7'),
+            border: `1px solid ${uploadResult.totalFailed === 0 ? '#10B981' : (uploadResult.totalUploaded === 0 ? '#DC2626' : '#F59E0B')}`,
           }}
         >
           {uploadResult.totalFailed === 0 ? (
@@ -253,9 +253,13 @@ const CVUploader = ({ onUploadComplete, departments }) => {
           ) : (
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-                <AlertCircle size={24} color="#D97706" />
-                <h3 style={{ fontSize: 16, fontWeight: 600, color: '#92400E' }}>
-                  ⚠️ {t('cvUploader.uploadPartialSuccess')}
+                <AlertCircle size={24} color={uploadResult.totalUploaded === 0 ? "#DC2626" : "#D97706"} />
+                <h3 style={{ fontSize: 16, fontWeight: 600, color: uploadResult.totalUploaded === 0 ? '#991B1B' : '#92400E' }}>
+                  {uploadResult.totalUploaded === 0 ? (
+                    <>❌ {t('cvUploader.uploadFailed')}</>
+                  ) : (
+                    <>⚠️ {t('cvUploader.uploadPartialSuccess')}</>
+                  )}
                 </h3>
               </div>
               
