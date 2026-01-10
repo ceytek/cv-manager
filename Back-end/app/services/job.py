@@ -122,6 +122,8 @@ class JobService:
         job = Job(
             title=job_data.title,
             department_id=job_data.department_id,
+            intro_text=job_data.intro_text,
+            outro_text=job_data.outro_text,
             description=job_data.description,
             description_plain=job_data.description_plain,
             requirements=job_data.requirements,

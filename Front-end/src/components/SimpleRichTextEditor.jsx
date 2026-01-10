@@ -2,7 +2,7 @@
  * Simple Rich Text Editor Component
  * Basit bir zengin metin editörü - Bold, Italic, Underline, Liste desteği
  */
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback, useEffect } from 'react';
 import { Bold, Italic, Underline, List, ListOrdered } from 'lucide-react';
 
 const SimpleRichTextEditor = ({ 
@@ -15,19 +15,33 @@ const SimpleRichTextEditor = ({
   hint
 }) => {
   const editorRef = useRef(null);
+  const isInternalChange = useRef(false);
 
-  const execCommand = useCallback((command, value = null) => {
-    document.execCommand(command, false, value);
+  // Only update innerHTML when value changes externally (not from user input)
+  useEffect(() => {
+    if (editorRef.current && !isInternalChange.current) {
+      // Only update if the value is different from current content
+      if (editorRef.current.innerHTML !== value) {
+        editorRef.current.innerHTML = value || '';
+      }
+    }
+    isInternalChange.current = false;
+  }, [value]);
+
+  const execCommand = useCallback((command, cmdValue = null) => {
+    document.execCommand(command, false, cmdValue);
     editorRef.current?.focus();
     
     // Trigger onChange with updated HTML
     if (editorRef.current) {
+      isInternalChange.current = true;
       onChange(editorRef.current.innerHTML);
     }
   }, [onChange]);
 
   const handleInput = useCallback(() => {
     if (editorRef.current) {
+      isInternalChange.current = true;
       onChange(editorRef.current.innerHTML);
     }
   }, [onChange]);
@@ -36,6 +50,7 @@ const SimpleRichTextEditor = ({
     e.preventDefault();
     const text = e.clipboardData.getData('text/plain');
     document.execCommand('insertText', false, text);
+    // handleInput will be triggered by the input event
   }, []);
 
   const ToolbarButton = ({ icon: Icon, command, title }) => (
@@ -122,8 +137,8 @@ const SimpleRichTextEditor = ({
           contentEditable
           onInput={handleInput}
           onPaste={handlePaste}
-          dangerouslySetInnerHTML={{ __html: value || '' }}
           data-placeholder={placeholder}
+          suppressContentEditableWarning={true}
           style={{
             minHeight,
             padding: 16,
