@@ -64,6 +64,10 @@ from app.graphql.types import (
     JobIntroTemplateType,
     JobIntroTemplateInput,
     JobIntroTemplateResponse,
+    # Job Outro types
+    JobOutroTemplateType,
+    JobOutroTemplateInput,
+    JobOutroTemplateResponse,
     # Likert types
     LikertTemplateType,
     LikertTemplateInput,
