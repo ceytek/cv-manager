@@ -87,6 +87,8 @@
     "candidates": "candidates",
     "noJobs": "No job postings yet",
     "jobTitle": "Position",
+    "department": "Department",
+    "postDate": "Post Date",
     "applicants": "Applicants",
     "showing": "Showing",
     "recentActivities": "Recent Activities",

@@ -62,6 +62,8 @@ const Dashboard = ({ currentUser, onLogout }) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [jobsListPage, setJobsListPage] = useState(0); // Pagination for jobs widget
   const [activitiesPage, setActivitiesPage] = useState(0); // Pagination for activities widget
+  const [jobsSortField, setJobsSortField] = useState('createdAt'); // Sorting field for jobs widget
+  const [jobsSortOrder, setJobsSortOrder] = useState('desc'); // Sorting order
   const [tooltipDismissed, setTooltipDismissed] = useState(false);
 
   // Derive a safe display name
@@ -592,7 +594,7 @@ const Dashboard = ({ currentUser, onLogout }) => {
                 {/* Table Header */}
                 <div style={{
                   display: 'grid',
-                  gridTemplateColumns: '2fr 1fr 100px',
+                  gridTemplateColumns: '2fr 1fr 110px 90px',
                   padding: '12px 24px',
                   background: '#FAFAFA',
                   borderBottom: '1px solid #E5E7EB',
@@ -600,9 +602,66 @@ const Dashboard = ({ currentUser, onLogout }) => {
                   fontWeight: 500,
                   color: '#6B7280',
                 }}>
-                  <span>{t('dashboard.jobTitle', 'İlan')}</span>
-                  <span>{t('dashboard.department', 'Departman')}</span>
-                  <span style={{ textAlign: 'right' }}>{t('dashboard.applicants', 'Başvuran')}</span>
+                  <span 
+                    onClick={() => {
+                      if (jobsSortField === 'title') {
+                        setJobsSortOrder(jobsSortOrder === 'asc' ? 'desc' : 'asc');
+                      } else {
+                        setJobsSortField('title');
+                        setJobsSortOrder('asc');
+                      }
+                      setJobsListPage(0);
+                    }}
+                    style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                  >
+                    {t('dashboard.jobTitle', 'Pozisyon')}
+                    {jobsSortField === 'title' && <span style={{ fontSize: 10 }}>{jobsSortOrder === 'asc' ? '▲' : '▼'}</span>}
+                  </span>
+                  <span 
+                    onClick={() => {
+                      if (jobsSortField === 'department') {
+                        setJobsSortOrder(jobsSortOrder === 'asc' ? 'desc' : 'asc');
+                      } else {
+                        setJobsSortField('department');
+                        setJobsSortOrder('asc');
+                      }
+                      setJobsListPage(0);
+                    }}
+                    style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                  >
+                    {t('dashboard.department', 'Departman')}
+                    {jobsSortField === 'department' && <span style={{ fontSize: 10 }}>{jobsSortOrder === 'asc' ? '▲' : '▼'}</span>}
+                  </span>
+                  <span 
+                    onClick={() => {
+                      if (jobsSortField === 'createdAt') {
+                        setJobsSortOrder(jobsSortOrder === 'asc' ? 'desc' : 'asc');
+                      } else {
+                        setJobsSortField('createdAt');
+                        setJobsSortOrder('desc');
+                      }
+                      setJobsListPage(0);
+                    }}
+                    style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                  >
+                    {t('dashboard.postDate', 'İlan Tarihi')}
+                    {jobsSortField === 'createdAt' && <span style={{ fontSize: 10 }}>{jobsSortOrder === 'asc' ? '▲' : '▼'}</span>}
+                  </span>
+                  <span 
+                    onClick={() => {
+                      if (jobsSortField === 'applicants') {
+                        setJobsSortOrder(jobsSortOrder === 'asc' ? 'desc' : 'asc');
+                      } else {
+                        setJobsSortField('applicants');
+                        setJobsSortOrder('desc');
+                      }
+                      setJobsListPage(0);
+                    }}
+                    style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}
+                  >
+                    {t('dashboard.applicants', 'Başvuran')}
+                    {jobsSortField === 'applicants' && <span style={{ fontSize: 10 }}>{jobsSortOrder === 'asc' ? '▲' : '▼'}</span>}
+                  </span>
                 </div>
 
                 {/* Table Body - Fixed height for 5 rows */}
@@ -612,6 +671,33 @@ const Dashboard = ({ currentUser, onLogout }) => {
                   overflowY: 'auto',
                 }}>
                   {(jobsData?.jobs || [])
+                    .slice()
+                    .sort((a, b) => {
+                      let aVal, bVal;
+                      switch (jobsSortField) {
+                        case 'title':
+                          aVal = (a.title || '').toLowerCase();
+                          bVal = (b.title || '').toLowerCase();
+                          break;
+                        case 'department':
+                          aVal = (a.department?.name || '').toLowerCase();
+                          bVal = (b.department?.name || '').toLowerCase();
+                          break;
+                        case 'createdAt':
+                          aVal = new Date(a.createdAt || 0).getTime();
+                          bVal = new Date(b.createdAt || 0).getTime();
+                          break;
+                        case 'applicants':
+                          aVal = a.analysisCount || 0;
+                          bVal = b.analysisCount || 0;
+                          break;
+                        default:
+                          return 0;
+                      }
+                      if (aVal < bVal) return jobsSortOrder === 'asc' ? -1 : 1;
+                      if (aVal > bVal) return jobsSortOrder === 'asc' ? 1 : -1;
+                      return 0;
+                    })
                     .slice(jobsListPage * 5, (jobsListPage + 1) * 5)
                     .map((job, idx, arr) => (
                       <div
@@ -623,7 +709,7 @@ const Dashboard = ({ currentUser, onLogout }) => {
                         }}
                         style={{
                           display: 'grid',
-                          gridTemplateColumns: '2fr 1fr 100px',
+                          gridTemplateColumns: '2fr 1fr 110px 90px',
                           alignItems: 'center',
                           padding: '16px 24px',
                           borderBottom: idx < arr.length - 1 ? '1px solid #F3F4F6' : 'none',
@@ -657,6 +743,18 @@ const Dashboard = ({ currentUser, onLogout }) => {
                           fontSize: 13,
                         }}>
                           {job.department?.name || '-'}
+                        </div>
+
+                        {/* Post Date */}
+                        <div style={{ 
+                          color: '#6B7280', 
+                          fontSize: 12,
+                        }}>
+                          {job.createdAt ? new Date(job.createdAt).toLocaleDateString(i18n.language === 'tr' ? 'tr-TR' : 'en-US', { 
+                            day: '2-digit', 
+                            month: '2-digit', 
+                            year: 'numeric' 
+                          }) : '-'}
                         </div>
                         
                         {/* Applicants with avatars */}

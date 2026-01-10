@@ -87,6 +87,8 @@
     "candidates": "aday",
     "noJobs": "Henüz iş ilanı yok",
     "jobTitle": "Pozisyon",
+    "department": "Departman",
+    "postDate": "İlan Tarihi",
     "applicants": "Başvuran",
     "showing": "Gösterilen",
     "recentActivities": "Son İşlemler",
