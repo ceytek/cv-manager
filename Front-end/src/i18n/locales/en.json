@@ -228,7 +228,7 @@
   "login": {
     "title": "Login",
     "companyCode": "Company Code",
-    "companyCodePlaceholder": "COMPANY CODE (E.G: ABC123)",
+    "companyCodePlaceholder": "Enter company code",
     "companyCodeError": "Company code must be 6 characters (e.g: ABC123)",
     "email": "Email",
     "password": "Password",

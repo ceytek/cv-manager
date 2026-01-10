@@ -228,7 +228,7 @@
   "login": {
     "title": "Giriş Yap",
     "companyCode": "Şirket Kodu",
-    "companyCodePlaceholder": "ŞİRKET KODU (ÖRN: ABC123)",
+    "companyCodePlaceholder": "Şirket kodu girin",
     "companyCodeError": "Şirket kodu 6 karakter olmalıdır (örn: ABC123)",
     "email": "E-posta",
     "password": "Şifre",

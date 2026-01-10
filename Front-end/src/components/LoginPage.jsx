@@ -8,7 +8,9 @@ import LanguageSwitcher from './LanguageSwitcher';
 
 const LoginPage = ({ onLogin }) => {
   const { t } = useTranslation();
-  const [companyCode, setCompanyCode] = useState('');
+  const [companyCode, setCompanyCode] = useState(() => {
+    return localStorage.getItem('lastCompanyCode') || '';
+  });
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -36,6 +38,8 @@ const LoginPage = ({ onLogin }) => {
 
     try {
       await authService.login(companyCodeUpper, email, password);
+      // Başarılı girişte şirket kodunu kaydet
+      localStorage.setItem('lastCompanyCode', companyCodeUpper);
       const user = await authService.getCurrentUser();
       onLogin(user);
     } catch (err) {
