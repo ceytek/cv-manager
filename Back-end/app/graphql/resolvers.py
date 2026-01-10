@@ -2298,6 +2298,42 @@ class Mutation(CompanyMutation):
             db.close()
 
     @strawberry.mutation
+    def delete_department(self, id: str, info: Info) -> bool:
+        """Delete department permanently (admin only) - only if no related records exist"""
+        request = info.context["request"]
+        auth_header = request.headers.get("authorization")
+        if not auth_header:
+            raise Exception("Not authenticated")
+        try:
+            scheme, token = auth_header.split()
+            if scheme.lower() != "bearer":
+                raise Exception("Invalid authentication scheme")
+        except ValueError:
+            raise Exception("Invalid authorization header")
+
+        db = get_db_session()
+        try:
+            current = get_current_user_from_token(token, db)
+            ensure_admin(current, db)
+            company_id = current.company_id if hasattr(current, 'company_id') else None
+            DepartmentService.delete(db, id, company_id)
+            # Department count changed
+            try:
+                import asyncio as _asyncio
+                try:
+                    loop = _asyncio.get_running_loop()
+                    loop.create_task(pubsub.publish(topic="stats", payload={"reason": "department_deleted"}))
+                except RuntimeError:
+                    _asyncio.run(pubsub.publish(topic="stats", payload={"reason": "department_deleted"}))
+            except Exception:
+                pass
+            return True
+        except Exception as e:
+            raise Exception(str(e))
+        finally:
+            db.close()
+
+    @strawberry.mutation
     def create_job(self, input: JobInput, info: Info) -> JobType:
         """Create a new job (admin only)"""
         request = info.context["request"]

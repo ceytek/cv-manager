@@ -11,6 +11,7 @@ import {
   CREATE_DEPARTMENT_MUTATION,
   UPDATE_DEPARTMENT_MUTATION,
   TOGGLE_DEPARTMENT_ACTIVE_MUTATION,
+  DELETE_DEPARTMENT_MUTATION,
 } from '../graphql/departments';
 import { Edit2, Trash2, Plus } from 'lucide-react';
 
@@ -20,6 +21,7 @@ const DepartmentsPage = () => {
   const [editingId, setEditingId] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [deleteConfirm, setDeleteConfirm] = useState(null); // { id, name }
 
   // Fetch departments (including inactive ones to show in admin list)
   const { data, loading, error: queryError, refetch } = useQuery(DEPARTMENTS_QUERY, {
@@ -37,6 +39,10 @@ const DepartmentsPage = () => {
   });
 
   const [toggleDepartmentActive] = useMutation(TOGGLE_DEPARTMENT_ACTIVE_MUTATION, {
+    refetchQueries: [{ query: DEPARTMENTS_QUERY, variables: { includeInactive: true } }],
+  });
+
+  const [deleteDepartment] = useMutation(DELETE_DEPARTMENT_MUTATION, {
     refetchQueries: [{ query: DEPARTMENTS_QUERY, variables: { includeInactive: true } }],
   });
 
@@ -123,6 +129,32 @@ const DepartmentsPage = () => {
     setFormData({ name: '', isActive: true });
     setError('');
     setSuccess('');
+  };
+
+  // Handle delete
+  const handleDelete = async () => {
+    if (!deleteConfirm) return;
+    
+    try {
+      setError('');
+      setSuccess('');
+      await deleteDepartment({ variables: { id: deleteConfirm.id } });
+      setSuccess(t('departments.deleteSuccess'));
+      setDeleteConfirm(null);
+      await refetch();
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      // Extract the actual error message
+      const errorMsg = err.message || '';
+      if (errorMsg.includes('related operations')) {
+        setError(t('departments.hasRelatedRecords'));
+      } else {
+        setError(errorMsg || t('departments.deleteError'));
+      }
+      setDeleteConfirm(null);
+    }
   };
 
   if (loading) {
@@ -224,9 +256,9 @@ const DepartmentsPage = () => {
                     <Edit2 size={18} />
                   </button>
                   <button
-                    onClick={() => handleToggleActive(dept.id)}
+                    onClick={() => setDeleteConfirm({ id: dept.id, name: dept.name })}
                     className="icon-button"
-                    title={dept.isActive ? t('departments.makeInactive') : t('departments.makeActive')}
+                    title={t('common.delete')}
                   >
                     <Trash2 size={18} />
                   </button>
@@ -236,6 +268,64 @@ const DepartmentsPage = () => {
           ))}
         </tbody>
       </table>
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.4)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 50,
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: 12,
+            padding: 24,
+            maxWidth: 400,
+            width: '90%',
+            boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+          }}>
+            <h3 style={{ margin: '0 0 16px', fontSize: 18, fontWeight: 600 }}>
+              {t('departments.deleteConfirmTitle')}
+            </h3>
+            <p style={{ margin: '0 0 20px', color: '#4B5563', lineHeight: 1.5 }}>
+              <strong>"{deleteConfirm.name}"</strong> {t('departments.deleteConfirmMessage')}
+            </p>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                style={{
+                  padding: '10px 20px',
+                  background: '#F3F4F6',
+                  border: 'none',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  fontWeight: 500,
+                }}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                onClick={handleDelete}
+                style={{
+                  padding: '10px 20px',
+                  background: '#EF4444',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  fontWeight: 500,
+                }}
+              >
+                {t('common.delete')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

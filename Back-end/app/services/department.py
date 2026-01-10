@@ -1,6 +1,8 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from app.models.department import Department
+from app.models.candidate import Candidate
+from app.models.job import Job
 from app.schemas.department import DepartmentCreate, DepartmentUpdate
 from typing import Optional, List
 from uuid import UUID
@@ -98,3 +100,34 @@ class DepartmentService:
         db.commit()
         db.refresh(department)
         return department
+    
+    @staticmethod
+    def delete(db: Session, department_id: str, company_id: Optional[UUID] = None) -> bool:
+        """Delete department permanently if no related records exist"""
+        department = DepartmentService.get_by_id(db, department_id, company_id)
+        if not department:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Department not found"
+            )
+        
+        # Check if there are related candidates
+        candidate_count = db.query(Candidate).filter(Candidate.department_id == department_id).count()
+        if candidate_count > 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot delete department. There are related operations linked to this department."
+            )
+        
+        # Check if there are related jobs
+        job_count = db.query(Job).filter(Job.department_id == department_id).count()
+        if job_count > 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot delete department. There are related operations linked to this department."
+            )
+        
+        # Safe to delete
+        db.delete(department)
+        db.commit()
+        return True

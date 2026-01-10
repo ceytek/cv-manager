@@ -63,3 +63,12 @@ export const TOGGLE_DEPARTMENT_ACTIVE_MUTATION = gql`
     }
   }
 `;
+
+/**
+ * Mutation to delete department permanently
+ */
+export const DELETE_DEPARTMENT_MUTATION = gql`
+  mutation DeleteDepartment($id: String!) {
+    deleteDepartment(id: $id)
+  }
+`;
