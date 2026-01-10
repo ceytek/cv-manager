@@ -440,6 +440,54 @@ class Query:
             db.close()
 
     @strawberry.field
+    def candidate_has_analysis(self, info: Info, candidate_id: str) -> bool:
+        """Check if candidate has been analyzed (has applications, interviews, or likert sessions)"""
+        request = info.context["request"]
+        auth_header = request.headers.get("authorization")
+        if not auth_header:
+            raise Exception("Not authenticated")
+        try:
+            scheme, token = auth_header.split()
+            if scheme.lower() != "bearer":
+                raise Exception("Invalid authentication scheme")
+        except ValueError:
+            raise Exception("Invalid authorization header")
+
+        db = get_db_session()
+        try:
+            current = get_current_user_from_token(token, db)
+            ensure_admin(current, db)
+            
+            from app.api.dependencies import get_company_id_from_token
+            company_id = get_company_id_from_token(token)
+            
+            from app.models.application import Application
+            from app.models.interview_session import InterviewSession
+            from app.models.likert_session import LikertSession
+            
+            # Check if candidate has any applications
+            app_count = db.query(Application).filter(
+                Application.candidate_id == candidate_id,
+                Application.company_id == company_id
+            ).count()
+            
+            # Check if candidate has any interview sessions
+            interview_count = db.query(InterviewSession).filter(
+                InterviewSession.candidate_id == candidate_id,
+                InterviewSession.company_id == company_id
+            ).count()
+            
+            # Check if candidate has any likert sessions
+            likert_count = db.query(LikertSession).filter(
+                LikertSession.candidate_id == candidate_id,
+                LikertSession.company_id == company_id
+            ).count()
+            
+            return (app_count + interview_count + likert_count) > 0
+        finally:
+            db.close()
+
+    @strawberry.field
     def job(self, info: Info, id: str) -> Optional[JobType]:
         """Get a single job by ID (admin only)"""
         request = info.context["request"]
@@ -2767,6 +2815,75 @@ class Mutation(CompanyMutation):
                 pass
             
             return MessageType(success=True, message="İlan başarıyla silindi")
+        except Exception as e:
+            db.rollback()
+            return MessageType(success=False, message=str(e))
+        finally:
+            db.close()
+
+    @strawberry.mutation
+    def delete_candidate(self, id: str, info: Info) -> MessageType:
+        """Delete a candidate/CV (admin only) - cascades to all related records"""
+        request = info.context["request"]
+        auth_header = request.headers.get("authorization")
+        if not auth_header:
+            raise Exception("Not authenticated")
+        try:
+            scheme, token = auth_header.split()
+            if scheme.lower() != "bearer":
+                raise Exception("Invalid authentication scheme")
+        except ValueError:
+            raise Exception("Invalid authorization header")
+
+        db = get_db_session()
+        try:
+            current = get_current_user_from_token(token, db)
+            ensure_admin(current, db)
+            
+            from app.api.dependencies import get_company_id_from_token
+            company_id = get_company_id_from_token(token)
+            
+            from app.models.candidate import Candidate
+            import os
+            
+            # Find the candidate
+            candidate = db.query(Candidate).filter(
+                Candidate.id == id,
+                Candidate.company_id == company_id
+            ).first()
+            
+            if not candidate:
+                return MessageType(success=False, message="CV bulunamadı")
+            
+            # Store file path before deletion to remove the physical file
+            cv_file_path = candidate.cv_file_path
+            cv_photo_path = candidate.cv_photo_path
+            
+            # Delete the candidate (CASCADE will handle related records)
+            db.delete(candidate)
+            db.commit()
+            
+            # Try to delete physical files if they exist
+            try:
+                if cv_file_path and os.path.exists(cv_file_path):
+                    os.remove(cv_file_path)
+                if cv_photo_path and os.path.exists(cv_photo_path):
+                    os.remove(cv_photo_path)
+            except Exception:
+                pass  # Ignore file deletion errors
+            
+            # Publish stats update
+            try:
+                import asyncio as _asyncio
+                try:
+                    loop = _asyncio.get_running_loop()
+                    loop.create_task(pubsub.publish(topic="stats", payload={"reason": "candidate_deleted"}))
+                except RuntimeError:
+                    _asyncio.run(pubsub.publish(topic="stats", payload={"reason": "candidate_deleted"}))
+            except Exception:
+                pass
+            
+            return MessageType(success=True, message="CV başarıyla silindi")
         except Exception as e:
             db.rollback()
             return MessageType(success=False, message=str(e))

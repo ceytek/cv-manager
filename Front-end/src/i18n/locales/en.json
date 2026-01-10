@@ -707,7 +707,13 @@
       "github": "GitHub",
       "noContact": "No contact information found",
       "unnamedCandidate": "Unnamed Candidate"
-    }
+    },
+    "deleteTitle": "Delete CV",
+    "deleteConfirm": "Are you sure you want to delete this CV? This action cannot be undone.",
+    "deleteWarningTitle": "Warning: Analyzed CV",
+    "deleteWarningMessage": "has been analyzed before. Deleting will also remove all analysis results, interview records, and test scores.",
+    "deleteWarningConfirm": "Do you still want to delete?",
+    "deleteAnyway": "Delete Anyway"
   },
   "jobsPage": {
     "title": "Job Management",

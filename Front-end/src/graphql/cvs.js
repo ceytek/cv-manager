@@ -67,3 +67,24 @@ export const REJECT_APPLICATION = gql`
     }
   }
 `;
+
+/**
+ * Query to check if candidate has analysis (applications, interviews, likert tests)
+ */
+export const CANDIDATE_HAS_ANALYSIS_QUERY = gql`
+  query CandidateHasAnalysis($candidateId: String!) {
+    candidateHasAnalysis(candidateId: $candidateId)
+  }
+`;
+
+/**
+ * Mutation to delete a candidate/CV
+ */
+export const DELETE_CANDIDATE_MUTATION = gql`
+  mutation DeleteCandidate($id: String!) {
+    deleteCandidate(id: $id) {
+      success
+      message
+    }
+  }
+`;

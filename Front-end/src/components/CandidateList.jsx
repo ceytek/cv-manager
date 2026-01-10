@@ -3,9 +3,9 @@
  * Displays list of uploaded candidates with their CV information
  */
 import React from 'react';
-import { useQuery } from '@apollo/client/react';
-import { CANDIDATES_QUERY } from '../graphql/cvs';
-import { User, Mail, Phone, Calendar, FileText, Contact, Linkedin, Github, X, ExternalLink, Copy, Check, Download } from 'lucide-react';
+import { useQuery, useMutation, useLazyQuery } from '@apollo/client/react';
+import { CANDIDATES_QUERY, CANDIDATE_HAS_ANALYSIS_QUERY, DELETE_CANDIDATE_MUTATION } from '../graphql/cvs';
+import { User, Mail, Phone, Calendar, FileText, Contact, Linkedin, Github, X, ExternalLink, Copy, Check, Download, Trash2, AlertTriangle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { API_BASE_URL } from '../config/api';
 
@@ -334,6 +334,51 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
   
   // Contact card state
   const [contactCard, setContactCard] = React.useState({ open: false, candidate: null, position: { top: 0, left: 0 } });
+  
+  // Delete modal states
+  const [deleteConfirmCandidate, setDeleteConfirmCandidate] = React.useState(null);
+  const [deleteWarningCandidate, setDeleteWarningCandidate] = React.useState(null);
+  const [isDeleting, setIsDeleting] = React.useState(false);
+  
+  // Delete mutation and analysis check query
+  const [checkAnalysis] = useLazyQuery(CANDIDATE_HAS_ANALYSIS_QUERY);
+  const [deleteCandidate] = useMutation(DELETE_CANDIDATE_MUTATION, {
+    onCompleted: () => {
+      refetch();
+      setDeleteConfirmCandidate(null);
+      setDeleteWarningCandidate(null);
+      setIsDeleting(false);
+    },
+    onError: (error) => {
+      alert(error.message);
+      setIsDeleting(false);
+    }
+  });
+  
+  // Handle delete button click
+  const handleDeleteClick = async (candidate, e) => {
+    e.stopPropagation();
+    
+    // Check if candidate has analysis
+    const { data } = await checkAnalysis({ variables: { candidateId: candidate.id } });
+    
+    if (data?.candidateHasAnalysis) {
+      // Has analysis - show warning modal
+      setDeleteWarningCandidate(candidate);
+    } else {
+      // No analysis - show simple confirm modal
+      setDeleteConfirmCandidate(candidate);
+    }
+  };
+  
+  // Confirm delete
+  const confirmDelete = async () => {
+    const candidateToDelete = deleteConfirmCandidate || deleteWarningCandidate;
+    if (!candidateToDelete) return;
+    
+    setIsDeleting(true);
+    await deleteCandidate({ variables: { id: candidateToDelete.id } });
+  };
 
   // Refetch when onRefresh changes
   React.useEffect(() => {
@@ -695,35 +740,66 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
                   <span>{formatFileSize(candidate.cvFileSize)}</span>
                 </div>
 
-                {/* Download Button */}
-                <a
-                  href={`${API_BASE_URL}${candidate.cvFilePath}`}
-                  download={candidate.cvFileName}
-                  onClick={(e) => e.stopPropagation()}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: 36,
-                    height: 36,
-                    borderRadius: 8,
-                    background: '#F3F4F6',
-                    textDecoration: 'none',
-                    color: '#374151',
-                    transition: 'all 0.15s',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#3B82F6';
-                    e.currentTarget.style.color = 'white';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = '#F3F4F6';
-                    e.currentTarget.style.color = '#374151';
-                  }}
-                  title={t('candidateList.downloadCV')}
-                >
-                  <Download size={18} />
-                </a>
+                {/* Action Buttons */}
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {/* Delete Button */}
+                  <button
+                    onClick={(e) => handleDeleteClick(candidate, e)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: 36,
+                      height: 36,
+                      borderRadius: 8,
+                      background: '#FEE2E2',
+                      border: 'none',
+                      color: '#DC2626',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#DC2626';
+                      e.currentTarget.style.color = 'white';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = '#FEE2E2';
+                      e.currentTarget.style.color = '#DC2626';
+                    }}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                  
+                  {/* Download Button */}
+                  <a
+                    href={`${API_BASE_URL}${candidate.cvFilePath}`}
+                    download={candidate.cvFileName}
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: 36,
+                      height: 36,
+                      borderRadius: 8,
+                      background: '#F3F4F6',
+                      textDecoration: 'none',
+                      color: '#374151',
+                      transition: 'all 0.15s',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#3B82F6';
+                      e.currentTarget.style.color = 'white';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = '#F3F4F6';
+                      e.currentTarget.style.color = '#374151';
+                    }}
+                    title={t('candidateList.downloadCV')}
+                  >
+                    <Download size={18} />
+                  </a>
+                </div>
               </div>
             </div>
           ))}
@@ -960,6 +1036,166 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
           position={contactCard.position}
           onClose={() => setContactCard({ open: false, candidate: null, position: { top: 0, left: 0 } })}
         />
+      )}
+      
+      {/* Delete Confirmation Modal (No Analysis) */}
+      {deleteConfirmCandidate && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000,
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: 16,
+            padding: 24,
+            maxWidth: 400,
+            width: '90%',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+              <div style={{
+                width: 48,
+                height: 48,
+                borderRadius: 12,
+                background: '#FEE2E2',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <Trash2 size={24} color="#DC2626" />
+              </div>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#1F2937' }}>
+                {t('candidateList.deleteTitle')}
+              </h3>
+            </div>
+            <p style={{ margin: '0 0 20px', fontSize: 14, color: '#6B7280', lineHeight: 1.6 }}>
+              <strong>"{deleteConfirmCandidate.name}"</strong> {t('candidateList.deleteConfirm')}
+            </p>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setDeleteConfirmCandidate(null)}
+                disabled={isDeleting}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: 8,
+                  border: '1px solid #D1D5DB',
+                  background: 'white',
+                  color: '#374151',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={isDeleting}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: 8,
+                  border: 'none',
+                  background: '#DC2626',
+                  color: 'white',
+                  fontWeight: 600,
+                  cursor: isDeleting ? 'not-allowed' : 'pointer',
+                  opacity: isDeleting ? 0.7 : 1,
+                }}
+              >
+                {isDeleting ? t('common.deleting') : t('common.delete')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Delete Warning Modal (Has Analysis) */}
+      {deleteWarningCandidate && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000,
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: 16,
+            padding: 24,
+            maxWidth: 450,
+            width: '90%',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+              <div style={{
+                width: 48,
+                height: 48,
+                borderRadius: 12,
+                background: '#FEF3C7',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <AlertTriangle size={24} color="#D97706" />
+              </div>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#1F2937' }}>
+                {t('candidateList.deleteWarningTitle')}
+              </h3>
+            </div>
+            <div style={{
+              padding: 16,
+              background: '#FEF3C7',
+              borderRadius: 12,
+              marginBottom: 20,
+            }}>
+              <p style={{ margin: 0, fontSize: 14, color: '#92400E', lineHeight: 1.6 }}>
+                <strong>"{deleteWarningCandidate.name}"</strong> {t('candidateList.deleteWarningMessage')}
+              </p>
+            </div>
+            <p style={{ margin: '0 0 20px', fontSize: 13, color: '#6B7280' }}>
+              {t('candidateList.deleteWarningConfirm')}
+            </p>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setDeleteWarningCandidate(null)}
+                disabled={isDeleting}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: 8,
+                  border: '1px solid #D1D5DB',
+                  background: 'white',
+                  color: '#374151',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={isDeleting}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: 8,
+                  border: 'none',
+                  background: '#DC2626',
+                  color: 'white',
+                  fontWeight: 600,
+                  cursor: isDeleting ? 'not-allowed' : 'pointer',
+                  opacity: isDeleting ? 0.7 : 1,
+                }}
+              >
+                {isDeleting ? t('common.deleting') : t('candidateList.deleteAnyway')}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

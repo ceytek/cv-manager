@@ -707,7 +707,13 @@
       "github": "GitHub",
       "noContact": "İletişim bilgisi bulunamadı",
       "unnamedCandidate": "İsimsiz Aday"
-    }
+    },
+    "deleteTitle": "CV'yi Sil",
+    "deleteConfirm": "adlı CV'yi silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
+    "deleteWarningTitle": "Dikkat: Analiz Edilmiş CV",
+    "deleteWarningMessage": "adlı CV daha önce analiz edilmiş. Silmek tüm analiz sonuçlarını, mülakat kayıtlarını ve test sonuçlarını da silecektir.",
+    "deleteWarningConfirm": "Yine de silmek istiyor musunuz?",
+    "deleteAnyway": "Yine de Sil"
   },
   "jobsPage": {
     "title": "İş İlanları Yönetimi",
