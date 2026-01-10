@@ -614,7 +614,7 @@ const SummaryPanel = ({ selectedJob, selectedCandidates, isAnalyzing, analysisPr
         </div>
 
         {/* Selected Candidates */}
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <div style={{
             fontSize: 12,
             fontWeight: 600,
@@ -627,7 +627,7 @@ const SummaryPanel = ({ selectedJob, selectedCandidates, isAnalyzing, analysisPr
           <div style={{
             flex: 1,
             overflowY: 'auto',
-            maxHeight: 300,
+            minHeight: 0,
           }}>
             {selectedCandidates.length === 0 ? (
               <div style={{
