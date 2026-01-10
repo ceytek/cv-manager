@@ -440,7 +440,7 @@ class Query:
             db.close()
 
     @strawberry.field
-    def candidate_has_analysis(self, info: Info, candidate_id: str) -> bool:
+    def candidate_has_analysis(self, info: Info, candidateId: str) -> bool:
         """Check if candidate has been analyzed (has applications, interviews, or likert sessions)"""
         request = info.context["request"]
         auth_header = request.headers.get("authorization")
@@ -467,19 +467,19 @@ class Query:
             
             # Check if candidate has any applications
             app_count = db.query(Application).filter(
-                Application.candidate_id == candidate_id,
+                Application.candidate_id == candidateId,
                 Application.company_id == company_id
             ).count()
             
             # Check if candidate has any interview sessions
             interview_count = db.query(InterviewSession).filter(
-                InterviewSession.candidate_id == candidate_id,
+                InterviewSession.candidate_id == candidateId,
                 InterviewSession.company_id == company_id
             ).count()
             
             # Check if candidate has any likert sessions
             likert_count = db.query(LikertSession).filter(
-                LikertSession.candidate_id == candidate_id,
+                LikertSession.candidate_id == candidateId,
                 LikertSession.company_id == company_id
             ).count()
             
