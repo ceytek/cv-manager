@@ -266,8 +266,8 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
                     <span style={{ color: '#374151' }}>{sessionDetails?.questionCount || 0}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
-                    <span style={{ color: '#6B7280' }}>Scale Type</span>
-                    <span style={{ color: '#374151' }}>{sessionDetails?.scaleType || 5} Point</span>
+                    <span style={{ color: '#6B7280' }}>{t('likertTemplates.scaleType')}</span>
+                    <span style={{ color: '#374151' }}>{sessionDetails?.scaleType || 5}</span>
                   </div>
                 </div>
               </div>

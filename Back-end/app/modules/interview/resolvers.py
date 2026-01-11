@@ -225,6 +225,23 @@ def get_interview_session(info: Info, token: str) -> Optional[InterviewSessionFu
                 ai_analysis_enabled=template.ai_analysis_enabled or False,
             )
         
+        # Get existing answers for this session
+        db_answers = db.query(InterviewAnswer).filter(InterviewAnswer.session_id == session.id).all()
+        answers = [
+            InterviewAnswerType(
+                id=str(a.id),
+                session_id=str(a.session_id),
+                question_id=str(a.question_id),
+                answer_text=a.answer_text,
+                video_url=a.video_url,
+                audio_url=a.audio_url,
+                duration_seconds=a.duration_seconds,
+                status=a.status,
+                created_at=a.created_at.isoformat() if a.created_at else None,
+                updated_at=a.updated_at.isoformat() if a.updated_at else None,
+            ) for a in db_answers
+        ]
+        
         return InterviewSessionFullType(
             id=str(session.id),
             job_id=str(session.job_id),
@@ -243,6 +260,7 @@ def get_interview_session(info: Info, token: str) -> Optional[InterviewSessionFu
             job=job_type,
             candidate=candidate_type,
             questions=questions,
+            existing_answers=answers,
         )
     finally:
         db.close()

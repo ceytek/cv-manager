@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { useQuery } from '@apollo/client/react';
 import { X, FileText, BarChart2, Video, ListChecks, CheckCircle2, Clock, Send, Download, XCircle, FileSearch, Upload, Play, UserCheck, MessageSquare, Search, Loader2 } from 'lucide-react';
 import { GET_APPLICATION_HISTORY } from '../../graphql/history';
+import { API_BASE_URL } from '../../config/api';
 
 // Icon mapping for action types
 const ICON_MAP = {
@@ -328,7 +329,7 @@ const CandidateHistoryModal = ({
                             </div>
                           </div>
                           <a
-                            href={event.extra.filePath}
+                            href={`${API_BASE_URL}${event.extra.filePath?.replace('/app', '') || ''}`}
                             download
                             style={{
                               padding: 8,

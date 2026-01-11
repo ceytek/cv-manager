@@ -102,7 +102,7 @@ const LikertTemplatesPage = () => {
                   </div>
                   <div style={{ padding: '10px', background: '#F9FAFB', borderRadius: '8px' }}>
                     <div style={{ fontSize: '12px', color: '#6B7280', marginBottom: '4px' }}><ListChecks size={12} style={{ display: 'inline', marginRight: 4 }} />{t('likertTemplates.scaleType')}</div>
-                    <div style={{ fontSize: '14px', fontWeight: '600', color: '#374151' }}>{template.scaleType} {t('likertTemplates.pointScale')}</div>
+                    <div style={{ fontSize: '14px', fontWeight: '600', color: '#374151' }}>{template.scaleType}</div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', background: '#F3E8FF', borderRadius: '8px', fontSize: '13px', color: '#7C3AED' }}>

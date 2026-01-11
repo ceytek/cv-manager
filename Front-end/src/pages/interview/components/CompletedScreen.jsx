@@ -1,13 +1,11 @@
 const translations = {
   tr: {
     title: 'Tebrikler!',
-    message: 'pozisyonu için mülakatınızı başarıyla tamamladınız. Cevaplarınız İK ekibine iletildi.',
-    note: 'Değerlendirme sonuçları hakkında sizinle iletişime geçilecektir.'
+    message: 'pozisyonu için mülakatınızı başarıyla tamamladınız. Cevaplarınız İK ekibine iletildi.'
   },
   en: {
     title: 'Congratulations!',
-    message: 'You have successfully completed your interview for the position. Your answers have been submitted to the HR team.',
-    note: 'You will be contacted regarding the evaluation results.'
+    message: 'You have successfully completed your interview for the position. Your answers have been submitted to the HR team.'
   }
 };
 
@@ -28,10 +26,6 @@ const CompletedScreen = ({ job, language = 'tr' }) => {
         <p className="completed-message">
           <strong>{job?.title}</strong> {t.message}
         </p>
-        
-        <div className="completed-note">
-          <span>📧 {t.note}</span>
-        </div>
       </div>
     </div>
   );

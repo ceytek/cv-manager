@@ -340,6 +340,14 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
   const [deleteWarningCandidate, setDeleteWarningCandidate] = React.useState(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
   
+  // Force state update with a key
+  const [, forceUpdate] = React.useReducer(x => x + 1, 0);
+  
+  // Debug: Log when modal state changes
+  React.useEffect(() => {
+    console.log('deleteConfirmCandidate state changed:', deleteConfirmCandidate);
+  }, [deleteConfirmCandidate]);
+  
   // Delete mutation and analysis check query
   const [checkAnalysis] = useLazyQuery(CANDIDATE_HAS_ANALYSIS_QUERY);
   const [deleteCandidate] = useMutation(DELETE_CANDIDATE_MUTATION, {
@@ -359,15 +367,28 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
   const handleDeleteClick = async (candidate, e) => {
     e.stopPropagation();
     
-    // Check if candidate has analysis
-    const { data } = await checkAnalysis({ variables: { candidateId: candidate.id } });
-    
-    if (data?.candidateHasAnalysis) {
-      // Has analysis - show warning modal
-      setDeleteWarningCandidate(candidate);
-    } else {
-      // No analysis - show simple confirm modal
+    try {
+      // Check if candidate has analysis
+      const result = await checkAnalysis({ variables: { candidateId: candidate.id } });
+      console.log('Analysis check result:', result);
+      console.log('Setting deleteConfirmCandidate to:', candidate);
+      
+      if (result?.data?.candidateHasAnalysis) {
+        // Has analysis - show warning modal
+        console.log('Has analysis, showing warning modal');
+        setDeleteWarningCandidate(candidate);
+        forceUpdate();
+      } else {
+        // No analysis - show simple confirm modal
+        console.log('No analysis, showing confirm modal');
+        setDeleteConfirmCandidate(candidate);
+        forceUpdate();
+      }
+    } catch (error) {
+      console.error('Error checking analysis:', error);
+      // If error, show simple confirm modal anyway
       setDeleteConfirmCandidate(candidate);
+      forceUpdate();
     }
   };
   
@@ -772,7 +793,7 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
                   
                   {/* Download Button */}
                   <a
-                    href={`${API_BASE_URL}${candidate.cvFilePath}`}
+                    href={`${API_BASE_URL}${candidate.cvFilePath?.replace('/app', '') || ''}`}
                     download={candidate.cvFileName}
                     onClick={(e) => e.stopPropagation()}
                     style={{
@@ -827,6 +848,156 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
             position={contactCard.position}
             onClose={() => setContactCard({ open: false, candidate: null, position: { top: 0, left: 0 } })}
           />
+        )}
+        
+        {/* Delete Confirmation Modal (No Analysis) - Card View */}
+        {deleteConfirmCandidate && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+          }}>
+            <div style={{
+              background: 'white',
+              borderRadius: 16,
+              padding: 24,
+              maxWidth: 400,
+              width: '90%',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                <div style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 12,
+                  background: '#FEE2E2',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <Trash2 size={24} color="#DC2626" />
+                </div>
+                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#1F2937' }}>
+                  {t('candidateList.deleteTitle')}
+                </h3>
+              </div>
+              <p style={{ margin: '0 0 20px', fontSize: 14, color: '#6B7280', lineHeight: 1.6 }}>
+                <strong>"{deleteConfirmCandidate.name}"</strong> {t('candidateList.deleteConfirm')}
+              </p>
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+                <button
+                  onClick={() => setDeleteConfirmCandidate(null)}
+                  disabled={isDeleting}
+                  style={{
+                    padding: '10px 20px',
+                    borderRadius: 8,
+                    border: '1px solid #D1D5DB',
+                    background: 'white',
+                    color: '#374151',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {t('common.cancel')}
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  disabled={isDeleting}
+                  style={{
+                    padding: '10px 20px',
+                    borderRadius: 8,
+                    border: 'none',
+                    background: '#DC2626',
+                    color: 'white',
+                    fontWeight: 600,
+                    cursor: isDeleting ? 'not-allowed' : 'pointer',
+                    opacity: isDeleting ? 0.7 : 1,
+                  }}
+                >
+                  {isDeleting ? t('common.deleting') : t('common.delete')}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Delete Warning Modal (Has Analysis) - Card View */}
+        {deleteWarningCandidate && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+          }}>
+            <div style={{
+              background: 'white',
+              borderRadius: 16,
+              padding: 24,
+              maxWidth: 450,
+              width: '90%',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                <div style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 12,
+                  background: '#FEF3C7',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <AlertTriangle size={24} color="#D97706" />
+                </div>
+                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#1F2937' }}>
+                  {t('candidateList.deleteWarning')}
+                </h3>
+              </div>
+              <p style={{ margin: '0 0 20px', fontSize: 14, color: '#6B7280', lineHeight: 1.6 }}>
+                <strong>"{deleteWarningCandidate.name}"</strong> {t('candidateList.deleteWarningMessage')}
+              </p>
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+                <button
+                  onClick={() => setDeleteWarningCandidate(null)}
+                  disabled={isDeleting}
+                  style={{
+                    padding: '10px 20px',
+                    borderRadius: 8,
+                    border: '1px solid #D1D5DB',
+                    background: 'white',
+                    color: '#374151',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {t('common.cancel')}
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  disabled={isDeleting}
+                  style={{
+                    padding: '10px 20px',
+                    borderRadius: 8,
+                    border: 'none',
+                    background: '#DC2626',
+                    color: 'white',
+                    fontWeight: 600,
+                    cursor: isDeleting ? 'not-allowed' : 'pointer',
+                    opacity: isDeleting ? 0.7 : 1,
+                  }}
+                >
+                  {isDeleting ? t('common.deleting') : t('candidateList.deleteAnyway')}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     );
@@ -948,7 +1119,7 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
               {/* CV Dosyası */}
               <td style={{ padding: 12 }}>
                 <a
-                  href={`${API_BASE_URL}${candidate.cvFilePath}`}
+                  href={`${API_BASE_URL}${candidate.cvFilePath?.replace('/app', '') || ''}`}
                   download={candidate.cvFileName}
                   onClick={(e) => e.stopPropagation()}
                   style={{

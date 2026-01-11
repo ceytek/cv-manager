@@ -223,6 +223,7 @@ const Dashboard = ({ currentUser, onLogout }) => {
                     // For CV Evaluation via sidebar, land on welcome by default
                     if (item.id === 'cv-evaluation') {
                       setCvEvalInitialView('welcome');
+                      setCvEvalInitialJob(null);
                     }
                     // For Jobs via sidebar, default is list (not create)
                     if (item.id === 'jobs') {

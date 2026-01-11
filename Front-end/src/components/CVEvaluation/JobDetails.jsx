@@ -8,6 +8,7 @@ import LikertResultsModal from './LikertResultsModal';
 import InterviewResultsModal from './InterviewResultsModal';
 import CandidateHistoryModal from './CandidateHistoryModal';
 import JobPreviewModal from '../JobForm/JobPreviewModal';
+import { API_BASE_URL } from '../../config/api';
 
 // Reuse data coming from parent job
 const JobDetails = ({ job, onBack, departments }) => {
@@ -380,7 +381,7 @@ const JobDetails = ({ job, onBack, departments }) => {
                     
                     {app.candidate?.cvFilePath && (
                       <a
-                        href={app.candidate.cvFilePath}
+                        href={`${API_BASE_URL}${app.candidate.cvFilePath.replace('/app', '')}`}
                         download
                         onClick={(e) => e.stopPropagation()}
                         style={{
@@ -660,7 +661,7 @@ const JobDetails = ({ job, onBack, departments }) => {
                   {/* Download CV */}
                   {app.candidate?.cvFilePath ? (
                     <a
-                      href={app.candidate.cvFilePath}
+                      href={`${API_BASE_URL}${app.candidate.cvFilePath.replace('/app', '')}`}
                       download
                       title={t('jobDetails.downloadCV')}
                       style={{

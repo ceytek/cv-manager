@@ -30,6 +30,8 @@ const translations = {
     completedDesc: 'Mülakatınızı daha önce tamamladınız. Teşekkür ederiz!',
     notFound: 'Mülakat Bulunamadı',
     notFoundDesc: 'Bu mülakat bağlantısı geçerli değil.',
+    saving: 'Cevaplarınız Kaydediliyor',
+    savingDesc: 'Lütfen bekleyin, video ve cevaplarınız kaydediliyor...',
   },
   en: {
     loading: 'Loading...',
@@ -40,6 +42,8 @@ const translations = {
     completedDesc: 'You have already completed this interview. Thank you!',
     notFound: 'Interview Not Found',
     notFoundDesc: 'This interview link is not valid.',
+    saving: 'Saving Your Answers',
+    savingDesc: 'Please wait, your video and answers are being saved...',
   }
 };
 
@@ -76,18 +80,72 @@ const InterviewPage = ({ token }) => {
   const questions = session?.questions || [];
 
   // Handle completing interview (using useCallback to use in useEffect)
-  const handleCompleteInterview = useCallback(async () => {
+  // Can be called with or without final answer data
+  const handleCompleteInterview = useCallback(async (finalQuestionId, finalAnswerText, finalVideoBlob) => {
     try {
+      // Show saving screen first
+      setStep('saving');
+      
+      // If we have final answer data, save it first
+      if (finalQuestionId) {
+        console.log('Saving final answer before completing...');
+        
+        // Upload video if exists
+        let videoUrl = null;
+        if (finalVideoBlob && finalVideoBlob.size > 0) {
+          try {
+            console.log('Uploading final video:', finalVideoBlob.size, 'bytes');
+            const formData = new FormData();
+            formData.append('video', finalVideoBlob, `interview_${token}_${finalQuestionId}.webm`);
+            formData.append('token', token);
+            formData.append('questionId', finalQuestionId);
+            
+            const uploadResponse = await fetch(`${API_BASE_URL}/upload-interview-video`, {
+              method: 'POST',
+              body: formData,
+            });
+            
+            if (uploadResponse.ok) {
+              const result = await uploadResponse.json();
+              videoUrl = result.videoUrl;
+              console.log('Final video uploaded:', videoUrl);
+            }
+          } catch (uploadErr) {
+            console.error('Final video upload error:', uploadErr);
+          }
+        }
+        
+        // Save the final answer
+        await saveAnswer({
+          variables: {
+            input: {
+              sessionToken: token,
+              questionId: finalQuestionId,
+              answerText: finalAnswerText || '',
+              videoUrl: videoUrl,
+            }
+          }
+        });
+        console.log('Final answer saved');
+      }
+      
+      // Complete the session
       await completeSession({ variables: { token } });
-      setStep('completed');
+      
+      // Stop camera
       if (mediaStream) {
         mediaStream.getTracks().forEach(track => track.stop());
         setMediaStream(null);
       }
+      
+      // Show completed screen
+      setStep('completed');
     } catch (err) {
       console.error('Error completing interview:', err);
+      // Still show completed even if there's an error
+      setStep('completed');
     }
-  }, [completeSession, token, mediaStream]);
+  }, [completeSession, saveAnswer, token, mediaStream]);
 
   // Handle data changes with useEffect
   useEffect(() => {
@@ -103,10 +161,22 @@ const InterviewPage = ({ token }) => {
       } else if (sess.status === 'expired' || new Date(sess.expiresAt) < new Date()) {
         setStep('expired');
       } else if (sess.status === 'in_progress') {
-        setStep('interview');
-        // Restore global timer if it was in progress
-        if (sess.job?.useGlobalTimer && sess.job?.totalDuration) {
+        // Calculate remaining time for global timer
+        if (sess.job?.useGlobalTimer && sess.job?.totalDuration && sess.startedAt) {
+          const startTime = new Date(sess.startedAt).getTime();
+          const now = Date.now();
+          const elapsedSeconds = Math.floor((now - startTime) / 1000);
+          const remaining = Math.max(0, sess.job.totalDuration - elapsedSeconds);
+          setGlobalTimeRemaining(remaining);
+        } else if (sess.job?.useGlobalTimer && sess.job?.totalDuration) {
           setGlobalTimeRemaining(sess.job.totalDuration);
+        }
+        
+        // If already in progress but no camera, go to camera test first
+        if (!mediaStream) {
+          setStep('camera-test');
+        } else {
+          setStep('interview');
         }
       } else {
         setStep('welcome');
@@ -311,6 +381,7 @@ const InterviewPage = ({ token }) => {
           language={language}
           onReady={handleCameraReady}
           onBack={() => setStep('welcome')}
+          voiceEnabled={template?.voiceResponseEnabled || false}
         />
       );
     
@@ -343,6 +414,17 @@ const InterviewPage = ({ token }) => {
           template={template}
           onBrowserSupportUpdate={handleBrowserSupportUpdate}
         />
+      );
+    
+    case 'saving':
+      return (
+        <div className="interview-page saving-screen">
+          <div className="saving-container">
+            <div className="saving-spinner"></div>
+            <h2>{t.saving}</h2>
+            <p>{t.savingDesc}</p>
+          </div>
+        </div>
       );
     
     case 'completed':

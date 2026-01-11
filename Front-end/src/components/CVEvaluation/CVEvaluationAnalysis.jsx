@@ -143,7 +143,14 @@ const CVEvaluationAnalysis = ({ onBack }) => {
 
     } catch (error) {
       console.error('Analysis error:', error);
-      setAnalysisError(error.message || 'Failed to analyze candidates');
+      // Check for timeout error (524 status code from Cloudflare)
+      let errorMessage;
+      if (error.message && (error.message.includes('524') || error.message.includes('timeout'))) {
+        errorMessage = t('cvEvaluation.timeoutError');
+      } else {
+        errorMessage = t('cvEvaluation.genericError');
+      }
+      setAnalysisError(errorMessage);
       setProgressState(prev => ({
         ...prev,
         status: 'error'
@@ -701,7 +708,7 @@ const SummaryPanel = ({ selectedJob, selectedCandidates, isAnalyzing, analysisPr
             marginBottom: 16,
           }}>
             <div style={{ color: '#DC2626', fontSize: 14, fontWeight: 500 }}>
-              ❌ Analysis Failed
+              ❌ {t('cvEvaluation.analysisFailed')}
             </div>
             <div style={{ color: '#991B1B', fontSize: 13, marginTop: 4 }}>
               {analysisError}

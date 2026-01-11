@@ -221,6 +221,7 @@ class InterviewSessionFullType:
     job: Optional[InterviewJobType] = None
     candidate: Optional[InterviewCandidateType] = None
     questions: List[InterviewQuestionType] = strawberry.field(default_factory=list)
+    existing_answers: List[InterviewAnswerType] = strawberry.field(name="existingAnswers", default_factory=list)
 
 
 @strawberry.type

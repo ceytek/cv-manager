@@ -81,6 +81,7 @@ const InterviewScreen = ({
   const [sttSupported, setSttSupported] = useState(true);
   const [recordingSupported, setRecordingSupported] = useState(true);
   const [videoBlobs, setVideoBlobs] = useState({}); // Store video blobs per question
+  const [isNavigating, setIsNavigating] = useState(false); // Prevent double clicks
   
   const timerRef = useRef(null);
   
@@ -118,12 +119,16 @@ const InterviewScreen = ({
     }
   }, [mediaStream]);
 
-  // Initialize Speech Recognition
+  // Initialize Speech Recognition - only once when component mounts
   useEffect(() => {
     if (!voiceResponseEnabled || !sttSupported) return;
     
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) return;
+    if (!SpeechRecognition) {
+      console.log('SpeechRecognition not supported');
+      setSttSupported(false);
+      return;
+    }
     
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
@@ -132,14 +137,11 @@ const InterviewScreen = ({
     
     recognition.onresult = (event) => {
       let finalTranscript = '';
-      let interimTranscript = '';
       
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const transcript = event.results[i][0].transcript;
         if (event.results[i].isFinal) {
           finalTranscript += transcript + ' ';
-        } else {
-          interimTranscript = transcript;
         }
       }
       
@@ -153,21 +155,14 @@ const InterviewScreen = ({
       if (event.error === 'not-allowed') {
         setSttSupported(false);
       }
-      setIsListening(false);
     };
     
     recognition.onend = () => {
-      // Restart if still supposed to be listening
-      if (isListening && recognitionRef.current) {
-        try {
-          recognitionRef.current.start();
-        } catch (e) {
-          console.log('Recognition restart failed:', e);
-        }
-      }
+      // Will be restarted by toggleListening if needed
     };
     
     recognitionRef.current = recognition;
+    console.log('Speech recognition initialized');
     
     return () => {
       if (recognitionRef.current) {
@@ -176,54 +171,89 @@ const InterviewScreen = ({
         } catch (e) {
           // Ignore
         }
+        recognitionRef.current = null;
       }
     };
-  }, [voiceResponseEnabled, sttSupported, language, isListening]);
+  }, [voiceResponseEnabled, sttSupported, language]);
 
   // Start/stop video recording when question changes
   useEffect(() => {
-    if (!recordingSupported || !mediaStream) return;
+    if (!recordingSupported || !mediaStream) {
+      setIsRecording(false);
+      return;
+    }
     
     // Stop previous recording if exists
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop();
+    if (mediaRecorderRef.current) {
+      try {
+        if (mediaRecorderRef.current.state !== 'inactive') {
+          mediaRecorderRef.current.stop();
+        }
+      } catch (e) {
+        console.log('Stop previous recording error:', e);
+      }
+      mediaRecorderRef.current = null;
     }
     
     // Start new recording for this question
     recordedChunksRef.current = [];
     
+    // Find supported mimeType
+    const mimeTypes = [
+      'video/webm;codecs=vp9,opus',
+      'video/webm;codecs=vp8,opus',
+      'video/webm',
+      'video/mp4'
+    ];
+    
+    let selectedMimeType = '';
+    for (const mimeType of mimeTypes) {
+      if (MediaRecorder.isTypeSupported(mimeType)) {
+        selectedMimeType = mimeType;
+        break;
+      }
+    }
+    
+    if (!selectedMimeType) {
+      console.log('No supported mimeType found');
+      setRecordingSupported(false);
+      setIsRecording(false);
+      return;
+    }
+    
     try {
-      const mediaRecorder = new MediaRecorder(mediaStream, {
-        mimeType: 'video/webm;codecs=vp9,opus'
-      });
+      const mediaRecorder = new MediaRecorder(mediaStream, { mimeType: selectedMimeType });
       
       mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
+        if (event.data && event.data.size > 0) {
           recordedChunksRef.current.push(event.data);
         }
       };
       
-      mediaRecorder.onstop = () => {
-        if (recordedChunksRef.current.length > 0) {
-          const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
-          setVideoBlobs(prev => ({
-            ...prev,
-            [currentQuestion?.id]: blob
-          }));
-        }
+      mediaRecorder.onerror = (e) => {
+        console.error('MediaRecorder error:', e);
+        setIsRecording(false);
       };
       
       mediaRecorder.start(1000); // Collect data every second
       mediaRecorderRef.current = mediaRecorder;
       setIsRecording(true);
+      console.log('Recording started with:', selectedMimeType);
     } catch (e) {
       console.error('Failed to start recording:', e);
       setRecordingSupported(false);
+      setIsRecording(false);
     }
     
     return () => {
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-        mediaRecorderRef.current.stop();
+      if (mediaRecorderRef.current) {
+        try {
+          if (mediaRecorderRef.current.state !== 'inactive') {
+            mediaRecorderRef.current.stop();
+          }
+        } catch (e) {
+          // Ignore
+        }
       }
     };
   }, [currentQuestionIndex, mediaStream, recordingSupported]);
@@ -279,21 +309,58 @@ const InterviewScreen = ({
   };
 
   const toggleListening = useCallback(() => {
-    if (!recognitionRef.current) return;
+    if (!recognitionRef.current) {
+      console.log('Recognition ref not available');
+      return;
+    }
     
     if (isListening) {
+      // Stop listening
       try {
         recognitionRef.current.stop();
       } catch (e) {
-        // Ignore
+        console.log('Stop error:', e);
       }
       setIsListening(false);
     } else {
+      // Start listening - set state first for immediate UI feedback
+      setIsListening(true);
+      
       try {
-        recognitionRef.current.start();
-        setIsListening(true);
+        // First ensure it's stopped
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {
+          // Ignore - might not be running
+        }
+        
+        // Small delay then start
+        setTimeout(() => {
+          try {
+            recognitionRef.current.start();
+            console.log('Speech recognition started');
+            
+            // Set up continuous listening - restart on end
+            recognitionRef.current.onend = () => {
+              // Check if we should still be listening
+              if (document.querySelector('[data-listening="true"]')) {
+                try {
+                  recognitionRef.current.start();
+                  console.log('Speech recognition restarted');
+                } catch (e) {
+                  console.log('Restart failed:', e);
+                  setIsListening(false);
+                }
+              }
+            };
+          } catch (e) {
+            console.error('Failed to start recognition:', e);
+            setIsListening(false);
+          }
+        }, 100);
       } catch (e) {
-        console.error('Failed to start recognition:', e);
+        console.error('Recognition error:', e);
+        setIsListening(false);
       }
     }
   }, [isListening]);
@@ -301,93 +368,153 @@ const InterviewScreen = ({
   // Helper function to stop recording and get the video blob
   const stopRecordingAndGetBlob = () => {
     return new Promise((resolve) => {
-      if (!mediaRecorderRef.current || mediaRecorderRef.current.state === 'inactive') {
-        resolve(null);
+      // IMPORTANT: Copy chunks immediately before anything else
+      // Because useEffect will clear them when question changes
+      const chunksCopy = [...recordedChunksRef.current];
+      
+      // Timeout - give enough time for recording to finalize
+      const timeout = setTimeout(() => {
+        console.log('Recording stop timeout - using copied chunks');
+        if (chunksCopy.length > 0) {
+          const blob = new Blob(chunksCopy, { type: 'video/webm' });
+          resolve(blob);
+        } else {
+          resolve(null);
+        }
+      }, 1500);
+      
+      // No recorder or already stopped
+      if (!mediaRecorderRef.current) {
+        clearTimeout(timeout);
+        if (chunksCopy.length > 0) {
+          const blob = new Blob(chunksCopy, { type: 'video/webm' });
+          resolve(blob);
+        } else {
+          resolve(null);
+        }
         return;
       }
       
       const currentRecorder = mediaRecorderRef.current;
-      const originalOnStop = currentRecorder.onstop;
       
+      // Already inactive - just return copied chunks
+      if (currentRecorder.state === 'inactive') {
+        clearTimeout(timeout);
+        if (chunksCopy.length > 0) {
+          const blob = new Blob(chunksCopy, { type: 'video/webm' });
+          resolve(blob);
+        } else {
+          resolve(null);
+        }
+        return;
+      }
+      
+      // Set up stop handler - use chunksCopy + any new data
       currentRecorder.onstop = () => {
-        // Call original onstop to save blob to state
-        if (originalOnStop) originalOnStop.call(currentRecorder);
+        clearTimeout(timeout);
+        // Merge copied chunks with any new ones that came in
+        const allChunks = [...chunksCopy];
+        // Add any chunks that were added after our copy
+        recordedChunksRef.current.forEach(chunk => {
+          if (!chunksCopy.includes(chunk)) {
+            allChunks.push(chunk);
+          }
+        });
         
-        // Create blob and resolve
-        if (recordedChunksRef.current.length > 0) {
-          const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+        if (allChunks.length > 0) {
+          const blob = new Blob(allChunks, { type: 'video/webm' });
+          console.log('Video blob created:', blob.size, 'bytes');
           resolve(blob);
         } else {
           resolve(null);
         }
       };
       
-      currentRecorder.stop();
+      // Try to stop
+      try {
+        currentRecorder.stop();
+      } catch (e) {
+        console.log('Stop recording error:', e);
+        clearTimeout(timeout);
+        if (chunksCopy.length > 0) {
+          const blob = new Blob(chunksCopy, { type: 'video/webm' });
+          resolve(blob);
+        } else {
+          resolve(null);
+        }
+      }
     });
   };
 
   const handleSaveAndNext = async () => {
-    // Stop listening
-    if (isListening && recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch (e) {
-        // Ignore
-      }
-      setIsListening(false);
-    }
+    // Prevent double clicks
+    if (isNavigating || isListening) return;
+    setIsNavigating(true);
     
-    // Stop recording and wait for blob
+    // Get current answer before navigation
+    const answerToSave = currentAnswer || '';
+    const questionToSave = currentQuestion;
+    
+    // Get video blob BEFORE navigation (so chunks aren't cleared)
     const videoBlob = await stopRecordingAndGetBlob();
     
-    // Save answer with video blob
-    if (currentQuestion) {
-      await onSaveAnswer(currentQuestion.id, currentAnswer || '', videoBlob);
-    }
-    
+    // Navigate
     if (!isLastQuestion) {
       onNext();
     }
+    
+    // Save in background (don't await)
+    if (questionToSave) {
+      onSaveAnswer(questionToSave.id, answerToSave, videoBlob).catch(e => {
+        console.error('Save error:', e);
+      });
+    }
+    
+    setIsNavigating(false);
   };
 
   const handleSaveAndPrev = async () => {
-    // Stop listening
-    if (isListening && recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch (e) {
-        // Ignore
-      }
-      setIsListening(false);
-    }
+    // Prevent double clicks or while listening
+    if (isNavigating || isListening) return;
+    setIsNavigating(true);
     
-    // Stop recording and wait for blob
+    // Get current answer before navigation
+    const answerToSave = currentAnswer || '';
+    const questionToSave = currentQuestion;
+    
+    // Get video blob BEFORE navigation (so chunks aren't cleared)
     const videoBlob = await stopRecordingAndGetBlob();
     
-    if (currentQuestion) {
-      await onSaveAnswer(currentQuestion.id, currentAnswer || '', videoBlob);
-    }
+    // Navigate
     onPrev();
+    
+    // Save in background (don't await)
+    if (questionToSave) {
+      onSaveAnswer(questionToSave.id, answerToSave, videoBlob).catch(e => {
+        console.error('Save error:', e);
+      });
+    }
+    
+    setIsNavigating(false);
   };
 
   const handleComplete = async () => {
-    // Stop listening
-    if (isListening && recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch (e) {
-        // Ignore
-      }
-      setIsListening(false);
-    }
+    // Prevent double clicks or while listening
+    if (isNavigating || isListening) return;
+    setIsNavigating(true);
     
-    // Stop recording and wait for blob
+    // Get current answer before completion
+    const answerToSave = currentAnswer || '';
+    const questionToSave = currentQuestion;
+    
+    // Stop recording and get video blob
     const videoBlob = await stopRecordingAndGetBlob();
+    console.log('handleComplete - video blob:', videoBlob ? videoBlob.size + ' bytes' : 'null');
     
-    if (currentQuestion) {
-      await onSaveAnswer(currentQuestion.id, currentAnswer || '', videoBlob);
-    }
-    onComplete();
+    // Pass final answer data to parent - parent will save and complete
+    // This ensures video is saved before session is completed
+    onComplete(questionToSave?.id, answerToSave, videoBlob);
+    setIsNavigating(false);
   };
 
   const displayTime = useGlobalTimer ? (globalTimeRemaining || 0) : questionTimeRemaining;
@@ -508,6 +635,7 @@ const InterviewScreen = ({
                 {voiceResponseEnabled && sttSupported && (
                   <button
                     onClick={toggleListening}
+                    data-listening={isListening ? 'true' : 'false'}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -576,7 +704,8 @@ const InterviewScreen = ({
             <button 
               className="interview-nav-btn prev"
               onClick={handleSaveAndPrev}
-              disabled={isFirstQuestion}
+              disabled={isFirstQuestion || isNavigating || isListening}
+              style={{ opacity: (isNavigating || isListening) ? 0.5 : 1, cursor: (isNavigating || isListening) ? 'not-allowed' : undefined }}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="19" y1="12" x2="5" y2="12" />
@@ -589,6 +718,8 @@ const InterviewScreen = ({
               <button 
                 className="interview-nav-btn complete"
                 onClick={handleComplete}
+                disabled={isNavigating || isListening}
+                style={{ opacity: (isNavigating || isListening) ? 0.5 : 1, cursor: (isNavigating || isListening) ? 'not-allowed' : undefined }}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M22 2L11 13" />
@@ -600,6 +731,8 @@ const InterviewScreen = ({
               <button 
                 className="interview-nav-btn next"
                 onClick={handleSaveAndNext}
+                disabled={isNavigating || isListening}
+                style={{ opacity: (isNavigating || isListening) ? 0.5 : 1, cursor: (isNavigating || isListening) ? 'not-allowed' : undefined }}
               >
                 {t.nextQuestion}
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

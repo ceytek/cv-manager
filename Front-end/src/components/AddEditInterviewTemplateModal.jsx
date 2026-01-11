@@ -300,15 +300,20 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
                 </select>
               </div>
             ) : (
-              /* Per-Question Timer - Default Duration */
+              /* Per-Question Timer - Duration Per Question */
               <div>
                 <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px' }}>
                   <Clock size={14} style={{ display: 'inline', marginRight: '6px' }} />
-                  {isEnglish ? 'Default Duration Per Question' : 'Varsayılan Soru Süresi'}
+                  {isEnglish ? 'Duration Per Question' : 'Soru Başına Süre'}
                 </label>
                 <select 
                   value={durationPerQuestion} 
-                  onChange={(e) => setDurationPerQuestion(parseInt(e.target.value))} 
+                  onChange={(e) => {
+                    const newDuration = parseInt(e.target.value);
+                    setDurationPerQuestion(newDuration);
+                    // Update all existing questions to match the new duration
+                    setQuestions(questions.map(q => ({ ...q, timeLimit: newDuration })));
+                  }} 
                   className="text-input" 
                   style={{ width: '100%' }}
                 >

@@ -32,6 +32,9 @@ const CVEvaluationPage = ({ initialView = 'jobs', initialJob = null }) => {
     if (initialJob) {
       setSelectedJob(initialJob);
       setCurrentView('job-details');
+    } else {
+      // Reset when coming from sidebar (initialJob is null)
+      setSelectedJob(null);
     }
   }, [initialView, initialJob]);
 

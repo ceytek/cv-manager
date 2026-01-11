@@ -205,13 +205,13 @@ const AddEditLikertTemplateModal = ({ isOpen, onClose, onSuccess, template }) =>
           {/* Scale Settings */}
           <div style={{ marginBottom: '20px', padding: '16px', background: '#F3F4F6', borderRadius: '12px', border: '1px solid #E5E7EB' }}>
             <h3 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: '600', color: '#8B5CF6' }}>
-              {language === 'en' ? 'Scale Settings' : 'Ölçek Ayarları'}
+              {language === 'en' ? 'Option Settings' : 'Seçenek Ayarları'}
             </h3>
             
             {/* Scale Type */}
             <div style={{ marginBottom: '16px' }}>
               <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px' }}>
-                {language === 'en' ? 'Scale Type' : 'Ölçek Tipi'}
+                {language === 'en' ? 'Number of Options' : 'Seçenek Sayısı'}
               </label>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
                 {[3, 4, 5].map(val => (
@@ -230,7 +230,7 @@ const AddEditLikertTemplateModal = ({ isOpen, onClose, onSuccess, template }) =>
                       fontSize: '14px',
                     }}
                   >
-                    {val} {language === 'en' ? 'Point' : 'Puan'}
+                    {val}
                   </button>
                 ))}
               </div>

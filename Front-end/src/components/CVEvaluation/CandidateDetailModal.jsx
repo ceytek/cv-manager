@@ -8,6 +8,7 @@ import { X, Briefcase, GraduationCap, Award, MapPin, Mail, Phone, Linkedin, Chec
 import InterviewInviteModal from '../InterviewInviteModal';
 import LikertInviteModal from '../LikertInviteModal';
 import SendRejectionModal from '../SendRejectionModal';
+import { API_BASE_URL } from '../../config/api';
 
 const CandidateDetailModal = ({ candidate, onClose, jobId, jobTitle, application, onRefetch }) => {
   const { t, i18n } = useTranslation();
@@ -254,7 +255,7 @@ const CandidateDetailModal = ({ candidate, onClose, jobId, jobTitle, application
 
             {/* Actions */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <a href={detail.cvFilePath || '#'} download style={{
+              <a href={detail.cvFilePath ? `${API_BASE_URL}${detail.cvFilePath.replace('/app', '')}` : '#'} download style={{
                 padding: '10px 20px',
                 background: 'white',
                 color: '#3B82F6',

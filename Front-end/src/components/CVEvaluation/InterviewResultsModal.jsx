@@ -170,24 +170,6 @@ const InterviewResultsModal = ({ isOpen, onClose, applicationId, candidateName, 
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            {/* Browser STT Support Indicator */}
-            {browserSttSupported !== null && (
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                background: 'rgba(255,255,255,0.2)',
-                padding: '6px 12px',
-                borderRadius: 20,
-                fontSize: 12,
-              }}>
-                {browserSttSupported ? <Mic size={14} /> : <MicOff size={14} />}
-                {browserSttSupported 
-                  ? (isEnglish ? 'Voice supported' : 'Sesli yanıt desteklendi')
-                  : (isEnglish ? 'Voice not supported' : 'Sesli yanıt desteklenmedi')
-                }
-              </div>
-            )}
             <button
               onClick={onClose}
               style={{
