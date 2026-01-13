@@ -42,7 +42,6 @@ const translations = {
     successMessage: 'Kişilik/Uyum testini başarıyla tamamladınız.',
     nextSteps: 'Sonraki Adımlar',
     nextStep1: 'Yanıtlarınız İK ekibine iletildi',
-    nextStep2: 'Değerlendirme sonuçları en kısa sürede paylaşılacak',
     nextStep3: 'Süreç hakkında e-posta ile bilgilendirileceksiniz',
     appliedPosition: 'Başvurulan Pozisyon:',
     stronglyDisagree: 'Kesinlikle Katılmıyorum',
@@ -88,7 +87,6 @@ const translations = {
     successMessage: 'You have successfully completed the Personality/Fit test.',
     nextSteps: 'Next Steps',
     nextStep1: 'Your answers have been sent to the HR team',
-    nextStep2: 'Evaluation results will be shared as soon as possible',
     nextStep3: 'You will be notified via email about the process',
     appliedPosition: 'Applied Position:',
     stronglyDisagree: 'Strongly Disagree',
@@ -654,7 +652,6 @@ const LikertPage = ({ token }) => {
               </h3>
               <ul>
                 <li>{t.nextStep1}</li>
-                <li>{t.nextStep2}</li>
                 <li>{t.nextStep3}</li>
               </ul>
             </div>

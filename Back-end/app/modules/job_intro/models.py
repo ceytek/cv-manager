@@ -32,3 +32,4 @@ class JobIntroTemplate(Base):
     def __repr__(self):
         return f"<JobIntroTemplate(id={self.id}, name={self.name})>"
 
+

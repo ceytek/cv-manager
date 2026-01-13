@@ -5,7 +5,7 @@
 import React, { useState, useRef } from 'react';
 import { useMutation } from '@apollo/client/react';
 import { useTranslation } from 'react-i18next';
-import { X, GripVertical, User, Phone, Briefcase, Mail } from 'lucide-react';
+import { X, GripVertical, User, Phone, Briefcase, Mail, Building2, Image } from 'lucide-react';
 import { 
   CREATE_REJECTION_TEMPLATE, 
   UPDATE_REJECTION_TEMPLATE 
@@ -42,6 +42,10 @@ const AddEditRejectionTemplateModal = ({ template, onClose, variables }) => {
         return <Phone size={14} />;
       case 'ilan_adi':
         return <Briefcase size={14} />;
+      case 'sirket_adi':
+        return <Building2 size={14} />;
+      case 'sirket_logo':
+        return <Image size={14} />;
       default:
         return <Mail size={14} />;
     }

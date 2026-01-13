@@ -119,6 +119,7 @@ from app.core.database import get_db
 from app.api.dependencies import get_current_user_from_token, get_company_id_from_token
 from app.models.user import User
 from app.models.role import Role
+from app.models.company import Company
 from app.api.authorization import ensure_admin
 from app.graphql.pubsub import pubsub
 
@@ -163,6 +164,19 @@ class Query:
             except Exception:
                 role_name = None
 
+            # Get company name and logo if user has company_id
+            company_name = None
+            company_logo = None
+            try:
+                if user.company_id:
+                    company = db.query(Company).filter(Company.id == user.company_id).first()
+                    if company:
+                        company_name = company.name
+                        company_logo = company.logo_url
+            except Exception:
+                company_name = None
+                company_logo = None
+
             return UserType(
                 id=user.id,
                 email=user.email,
@@ -170,6 +184,8 @@ class Query:
                 is_active=user.is_active,
                 is_verified=user.is_verified,
                 role=role_name,
+                company_name=company_name,
+                company_logo=company_logo,
                 created_at=user.created_at,
                 updated_at=user.updated_at,
             )

@@ -32,3 +32,4 @@ class JobOutroTemplate(Base):
     def __repr__(self):
         return f"<JobOutroTemplate(id={self.id}, name={self.name})>"
 
+

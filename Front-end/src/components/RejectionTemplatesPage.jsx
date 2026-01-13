@@ -51,6 +51,8 @@ const RejectionTemplatesPage = () => {
     { key: 'soyad', label: t('rejectionTemplates.variables.surname', 'Soyad'), example: isEnglish ? 'Doe' : 'Yılmaz' },
     { key: 'telefon', label: t('rejectionTemplates.variables.phone', 'Telefon'), example: '+90 532 123 4567' },
     { key: 'ilan_adi', label: t('rejectionTemplates.variables.jobTitle', 'İlan Adı'), example: isEnglish ? 'Software Developer' : 'Yazılım Geliştirici' },
+    { key: 'sirket_adi', label: t('rejectionTemplates.variables.companyName', 'Şirket Adı'), example: isEnglish ? 'ABC Company' : 'ABC Şirketi' },
+    { key: 'sirket_logo', label: t('rejectionTemplates.variables.companyLogo', 'Şirket Logosu'), example: '<img src="...">' },
   ];
 
   if (loading) {

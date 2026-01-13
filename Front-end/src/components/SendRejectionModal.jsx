@@ -8,6 +8,8 @@ import { useTranslation } from 'react-i18next';
 import { X, Mail, Check, AlertTriangle, FileText, Send, Copy, Eye } from 'lucide-react';
 import { GET_REJECTION_TEMPLATES } from '../graphql/rejectionTemplates';
 import { REJECT_APPLICATION } from '../graphql/cvs';
+import { ME_QUERY } from '../graphql/auth';
+import { API_BASE_URL } from '../config/api';
 
 const SendRejectionModal = ({ isOpen, onClose, candidate, application, jobId, jobTitle, onSuccess }) => {
   const { t, i18n } = useTranslation();
@@ -23,6 +25,10 @@ const SendRejectionModal = ({ isOpen, onClose, candidate, application, jobId, jo
     fetchPolicy: 'network-only',
   });
 
+  // Fetch current user for company info
+  const { data: meData } = useQuery(ME_QUERY);
+  const currentUser = meData?.me;
+
   const templates = templatesData?.rejectionTemplates?.filter(t => t.isActive) || [];
   const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
 
@@ -34,14 +40,21 @@ const SendRejectionModal = ({ isOpen, onClose, candidate, application, jobId, jo
     const cand = candidate || {};
     const name = cand.name || '';
     const nameParts = name.split(' ');
+    const logoUrl = currentUser?.companyLogo 
+      ? (currentUser.companyLogo.startsWith('http') 
+          ? currentUser.companyLogo 
+          : `${API_BASE_URL}${currentUser.companyLogo}`)
+      : '';
     return {
       ad: nameParts[0] || '',
       soyad: nameParts.slice(1).join(' ') || '',
       telefon: cand.phone || '',
       ilan_adi: jobTitle || '',
       email: cand.email || '',
+      sirket_adi: currentUser?.companyName || '',
+      sirket_logo: logoUrl ? `<img src="${logoUrl}" alt="Logo" style="max-height: 50px;">` : '',
     };
-  }, [candidate, jobTitle]);
+  }, [candidate, jobTitle, currentUser]);
 
   // Replace variables in text
   const replaceVariables = (text) => {
@@ -322,14 +335,15 @@ const SendRejectionModal = ({ isOpen, onClose, candidate, application, jobId, jo
                       </div>
                       {/* Email Body */}
                       <div style={{ padding: 16 }}>
-                        <div style={{
-                          fontSize: 14,
-                          color: '#374151',
-                          lineHeight: 1.6,
-                          whiteSpace: 'pre-wrap',
-                        }}>
-                          {previewBody}
-                        </div>
+                        <div 
+                          style={{
+                            fontSize: 14,
+                            color: '#374151',
+                            lineHeight: 1.6,
+                            whiteSpace: 'pre-wrap',
+                          }}
+                          dangerouslySetInnerHTML={{ __html: previewBody.replace(/\n/g, '<br/>') }}
+                        />
                       </div>
                     </div>
                   )}

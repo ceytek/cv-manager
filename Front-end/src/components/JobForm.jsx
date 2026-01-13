@@ -178,9 +178,20 @@ const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel, isModal =
       const langObj = aiData.required_languages || {};
       const langArray = Object.entries(langObj).map(([name, level]) => ({ name, level }));
       
+      // Find department ID from department name
+      let departmentId = '';
+      if (aiData.department && departments.length > 0) {
+        const matchedDept = departments.find(d => d.name === aiData.department);
+        if (matchedDept) {
+          departmentId = matchedDept.id;
+        }
+      }
+      
       setFormData({
         title: aiData.title || '',
-        departmentId: '', // Will be set by user
+        departmentId: departmentId,
+        introText: aiData.introText || '',
+        outroText: aiData.outroText || '',
         description: aiData.description || '',
         requirements: aiData.requirements || '',
         keywords: (aiData.keywords || []).join(', '),
@@ -200,8 +211,23 @@ const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel, isModal =
       });
       
       setLanguages(langArray);
+      
+      // If AI data has intro text, enable the switch and set template ID
+      if (aiData.introText) {
+        setUseIntro(true);
+        if (aiData.selectedIntroId) {
+          setSelectedIntroId(aiData.selectedIntroId);
+        }
+      }
+      // If AI data has outro text, enable the switch and set template ID
+      if (aiData.outroText) {
+        setUseOutro(true);
+        if (aiData.selectedOutroId) {
+          setSelectedOutroId(aiData.selectedOutroId);
+        }
+      }
     }
-  }, [aiData]);
+  }, [aiData, departments]);
 
   const [createJob, { loading: createLoading }] = useMutation(CREATE_JOB_MUTATION, {
     refetchQueries: [{ query: JOBS_QUERY, variables: { includeInactive: false } }],

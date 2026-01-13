@@ -201,3 +201,4 @@ async def toggle_job_outro_template(info: Info, id: str) -> JobOutroTemplateResp
     finally:
         db.close()
 
+

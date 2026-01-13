@@ -10,7 +10,8 @@ import { CREATE_INTERVIEW_SESSION } from '../graphql/interview';
 import { JOB_QUERY } from '../graphql/jobs';
 
 const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, onSuccess }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isEnglish = i18n.language === 'en';
   const [sending, setSending] = useState(false);
   const [copied, setCopied] = useState(false);
   const [generatedLink, setGeneratedLink] = useState('');
@@ -132,7 +133,7 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
   const formatDate = (isoString) => {
     if (!isoString) return '-';
     const date = new Date(isoString);
-    return date.toLocaleString('tr-TR', {
+    return date.toLocaleString(isEnglish ? 'en-US' : 'tr-TR', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
@@ -142,7 +143,9 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
   };
 
   const getLanguageLabel = (lang) => {
-    const labels = { tr: 'Türkçe', en: 'İngilizce', de: 'Almanca', fr: 'Fransızca' };
+    const labels = isEnglish 
+      ? { tr: 'Turkish', en: 'English', de: 'German', fr: 'French' }
+      : { tr: 'Türkçe', en: 'İngilizce', de: 'Almanca', fr: 'Fransızca' };
     return labels[lang] || lang;
   };
 
@@ -153,7 +156,7 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
         <div style={{ padding: '20px 24px', background: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)', borderRadius: '16px 16px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'white' }}>
             <Video size={24} />
-            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '600' }}>Interview Invitation</h2>
+            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '600' }}>{t('interviewInvite.title', 'Interview Invitation')}</h2>
           </div>
           <button onClick={onClose} style={{ padding: '8px', background: 'rgba(255,255,255,0.2)', border: 'none', cursor: 'pointer', borderRadius: '8px' }}>
             <X size={20} color="white" />
@@ -164,17 +167,17 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
         <div style={{ padding: '24px' }}>
           {jobLoading ? (
             <div style={{ textAlign: 'center', padding: '32px' }}>
-              <p>Yükleniyor...</p>
+              <p>{t('common.loading', 'Loading...')}</p>
             </div>
           ) : jobError ? (
             <div style={{ textAlign: 'center', padding: '32px' }}>
-              <p style={{ color: '#DC2626' }}>Hata: {jobError.message}</p>
+              <p style={{ color: '#DC2626' }}>{t('common.error', 'Error')}: {jobError.message}</p>
             </div>
           ) : !interviewEnabled ? (
             <div style={{ textAlign: 'center', padding: '32px' }}>
               <HelpCircle size={48} style={{ color: '#9CA3AF', marginBottom: '16px' }} />
-              <h3 style={{ margin: '0 0 8px', fontSize: '16px', fontWeight: '600', color: '#374151' }}>Mülakat Aktif Değil</h3>
-              <p style={{ margin: 0, fontSize: '14px', color: '#6B7280' }}>Bu iş ilanı için önce mülakat ayarlarını yapılandırmalısınız.</p>
+              <h3 style={{ margin: '0 0 8px', fontSize: '16px', fontWeight: '600', color: '#374151' }}>{t('interviewInvite.notEnabled', 'Interview Not Active')}</h3>
+              <p style={{ margin: 0, fontSize: '14px', color: '#6B7280' }}>{t('interviewInvite.configureFirst', 'You need to configure interview settings for this job first.')}</p>
               <p style={{ margin: '8px 0 0', fontSize: '12px', color: '#9CA3AF' }}>Job ID: {jobId}</p>
             </div>
           ) : generatedLink ? (
@@ -184,40 +187,40 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
                 <div style={{ background: '#DBEAFE', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#1D4ED8', marginBottom: '4px' }}>
                     <Check size={18} />
-                    <span style={{ fontWeight: '600' }}>Mülakat Tamamlandı</span>
+                    <span style={{ fontWeight: '600' }}>{t('interviewInvite.interviewCompleted', 'Interview Completed')}</span>
                   </div>
                   <p style={{ margin: 0, fontSize: '14px', color: '#1E40AF' }}>
-                    <strong>{candidate?.name}</strong> için mülakat zaten tamamlanmış.
+                    {t('interviewInvite.interviewCompletedDesc', 'Interview has already been completed for {{name}}.', { name: candidate?.name })}
                   </p>
                 </div>
               ) : sessionStatus === 'expired' ? (
                 <div style={{ background: '#FEF3C7', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#B45309', marginBottom: '4px' }}>
                     <Clock size={18} />
-                    <span style={{ fontWeight: '600' }}>Mülakat Süresi Dolmuş</span>
+                    <span style={{ fontWeight: '600' }}>{t('interviewInvite.interviewExpired', 'Interview Expired')}</span>
                   </div>
                   <p style={{ margin: 0, fontSize: '14px', color: '#92400E' }}>
-                    <strong>{candidate?.name}</strong> için mülakat daveti süresi dolmuş.
+                    {t('interviewInvite.interviewExpiredDesc', 'Interview invitation has expired for {{name}}.', { name: candidate?.name })}
                   </p>
                 </div>
               ) : sessionStatus === 'existing' ? (
                 <div style={{ background: '#FEF3C7', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#B45309', marginBottom: '4px' }}>
                     <Check size={18} />
-                    <span style={{ fontWeight: '600' }}>Mevcut Davet Bulundu</span>
+                    <span style={{ fontWeight: '600' }}>{t('interviewInvite.existingInvite', 'Existing Invitation Found')}</span>
                   </div>
                   <p style={{ margin: 0, fontSize: '14px', color: '#92400E' }}>
-                    <strong>{candidate?.name}</strong> için zaten bir mülakat daveti gönderilmiş. Aşağıdaki linki kullanabilirsiniz.
+                    {t('interviewInvite.existingInviteDesc', 'An interview invitation has already been sent to {{name}}. You can use the link below.', { name: candidate?.name })}
                   </p>
                 </div>
               ) : (
                 <div style={{ background: '#D1FAE5', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#059669', marginBottom: '4px' }}>
                     <Check size={18} />
-                    <span style={{ fontWeight: '600' }}>Mülakat daveti oluşturuldu</span>
+                    <span style={{ fontWeight: '600' }}>{t('interviewInvite.inviteCreated', 'Interview Invitation Created')}</span>
                   </div>
                   <p style={{ margin: 0, fontSize: '14px', color: '#065F46' }}>
-                    <strong>{candidate?.name}</strong> - Interview link is ready
+                    {t('interviewInvite.inviteCreatedDesc', 'Interview link is ready for {{name}}.', { name: candidate?.name })}
                   </p>
                 </div>
               )}
@@ -225,7 +228,7 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
               {/* Link */}
               <div style={{ marginBottom: '20px' }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: '600', color: '#6B7280', marginBottom: '8px' }}>
-                  🔗 INTERVIEW LINK
+                  🔗 {t('interviewInvite.interviewLink', 'INTERVIEW LINK')}
                 </label>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <input
@@ -252,44 +255,44 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
                     }}
                   >
                     {copied ? <Check size={16} /> : <Copy size={16} />}
-                    {copied ? 'Copied!' : 'Copy'}
+                    {copied ? t('interviewInvite.copied', 'Copied!') : t('interviewInvite.copy', 'Copy')}
                   </button>
                 </div>
               </div>
 
               {/* Session Details */}
               <div style={{ background: '#F9FAFB', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
-                <h4 style={{ margin: '0 0 12px', fontSize: '14px', fontWeight: '600', color: '#374151' }}>Davet Detayları</h4>
+                <h4 style={{ margin: '0 0 12px', fontSize: '14px', fontWeight: '600', color: '#374151' }}>{t('interviewInvite.inviteDetails', 'Invitation Details')}</h4>
                 <div style={{ display: 'grid', gap: '12px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
-                    <span style={{ color: '#6B7280' }}>Durum</span>
+                    <span style={{ color: '#6B7280' }}>{t('interviewInvite.status', 'Status')}</span>
                     <span style={{ 
                       color: sessionDetails?.status === 'completed' ? '#059669' : 
                              sessionDetails?.status === 'expired' ? '#DC2626' :
                              sessionDetails?.status === 'in_progress' ? '#3B82F6' : '#F59E0B', 
                       fontWeight: '600' 
                     }}>
-                      {sessionDetails?.status === 'completed' ? 'Tamamlandı' : 
-                       sessionDetails?.status === 'expired' ? 'Süresi Dolmuş' :
-                       sessionDetails?.status === 'in_progress' ? 'Devam Ediyor' : 'Bekliyor'}
+                      {sessionDetails?.status === 'completed' ? t('interviewInvite.statusCompleted', 'Completed') : 
+                       sessionDetails?.status === 'expired' ? t('interviewInvite.statusExpired', 'Expired') :
+                       sessionDetails?.status === 'in_progress' ? t('interviewInvite.statusInProgress', 'In Progress') : t('interviewInvite.statusPending', 'Pending')}
                     </span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
                     <span style={{ color: '#6B7280', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <Clock size={14} /> Expires At
+                      <Clock size={14} /> {t('interviewInvite.expiresAt', 'Expires At')}
                     </span>
                     <span style={{ color: '#374151' }}>{formatDate(sessionDetails?.expiresAt)}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
-                    <span style={{ color: '#6B7280' }}>Interview Template</span>
+                    <span style={{ color: '#6B7280' }}>{t('interviewInvite.interviewTemplate', 'Interview Template')}</span>
                     <span style={{ color: '#374151' }}>{sessionDetails?.templateName || '-'}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
-                    <span style={{ color: '#6B7280' }}>Question Count</span>
+                    <span style={{ color: '#6B7280' }}>{t('interviewInvite.questionCount', 'Question Count')}</span>
                     <span style={{ color: '#374151' }}>{sessionDetails?.questionCount || 0}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
-                    <span style={{ color: '#6B7280' }}>Language</span>
+                    <span style={{ color: '#6B7280' }}>{t('interviewInvite.language', 'Language')}</span>
                     <span style={{ color: '#374151' }}>{getLanguageLabel(sessionDetails?.language)}</span>
                   </div>
                 </div>
@@ -297,7 +300,7 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
 
               {/* Info Box */}
               <div style={{ background: '#FEF3C7', borderRadius: '12px', padding: '16px', fontSize: '14px', color: '#92400E' }}>
-                💡 You can send this link to the candidate via email, WhatsApp or SMS. The link can only be used once.
+                💡 {t('interviewInvite.infoBox', 'You can send this link to the candidate via email, WhatsApp or SMS. The link can be used only once.')}
               </div>
             </>
           ) : (
@@ -306,14 +309,14 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
 
               {/* Candidate Info */}
               <div style={{ background: '#F9FAFB', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
-                <h4 style={{ margin: '0 0 12px', fontSize: '14px', fontWeight: '600', color: '#374151' }}>Aday Bilgileri</h4>
+                <h4 style={{ margin: '0 0 12px', fontSize: '14px', fontWeight: '600', color: '#374151' }}>{t('interviewInvite.candidateInfo', 'Candidate Information')}</h4>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'linear-gradient(135deg, #3B82F6, #1D4ED8)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '600', fontSize: '18px' }}>
                     {candidate?.name?.charAt(0) || '?'}
                   </div>
                   <div>
-                    <div style={{ fontWeight: '600', color: '#111827' }}>{candidate?.name || 'Bilinmiyor'}</div>
-                    <div style={{ fontSize: '13px', color: '#6B7280' }}>{candidate?.email || 'E-posta yok'}</div>
+                    <div style={{ fontWeight: '600', color: '#111827' }}>{candidate?.name || t('interviewInvite.unknown', 'Unknown')}</div>
+                    <div style={{ fontSize: '13px', color: '#6B7280' }}>{candidate?.email || t('interviewInvite.noEmail', 'No email')}</div>
                   </div>
                 </div>
               </div>
@@ -323,25 +326,25 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
                 <div style={{ padding: '16px', background: '#EFF6FF', borderRadius: '12px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#3B82F6', marginBottom: '4px' }}>
                     <Hash size={14} />
-                    Soru Sayısı
+                    {t('interviewInvite.questionCount', 'Question Count')}
                   </div>
                   <div style={{ fontSize: '20px', fontWeight: '700', color: '#1E40AF' }}>{questionCount}</div>
                 </div>
                 <div style={{ padding: '16px', background: '#EFF6FF', borderRadius: '12px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#3B82F6', marginBottom: '4px' }}>
                     <Clock size={14} />
-                    Geçerlilik Süresi
+                    {t('interviewInvite.validityPeriod', 'Validity Period')}
                   </div>
-                  <div style={{ fontSize: '20px', fontWeight: '700', color: '#1E40AF' }}>{deadlineHours} saat</div>
+                  <div style={{ fontSize: '20px', fontWeight: '700', color: '#1E40AF' }}>{deadlineHours} {t('interviewInvite.hours', 'hours')}</div>
                 </div>
               </div>
 
               {/* Template Info */}
               {interviewTemplate && (
                 <div style={{ background: '#F9FAFB', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
-                  <h4 style={{ margin: '0 0 8px', fontSize: '14px', fontWeight: '600', color: '#374151' }}>Mülakat Şablonu</h4>
+                  <h4 style={{ margin: '0 0 8px', fontSize: '14px', fontWeight: '600', color: '#374151' }}>{t('interviewInvite.interviewTemplate', 'Interview Template')}</h4>
                   <div style={{ fontSize: '16px', fontWeight: '600', color: '#1E40AF' }}>{interviewTemplate.name}</div>
-                  <div style={{ fontSize: '13px', color: '#6B7280', marginTop: '4px' }}>Dil: {getLanguageLabel(interviewTemplate.language)}</div>
+                  <div style={{ fontSize: '13px', color: '#6B7280', marginTop: '4px' }}>{t('interviewInvite.language', 'Language')}: {getLanguageLabel(interviewTemplate.language)}</div>
                 </div>
               )}
             </>
@@ -354,14 +357,14 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
             <button onClick={onClose} className="btn btn-secondary" disabled={sending}>{t('common.cancel')}</button>
             <button onClick={handleSend} className="btn btn-primary" disabled={sending} style={{ background: '#3B82F6', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Video size={18} />
-              {sending ? 'Oluşturuluyor...' : 'Davet Oluştur'}
+              {sending ? t('interviewInvite.creating', 'Creating...') : t('interviewInvite.createInvite', 'Create Invitation')}
             </button>
           </div>
         )}
 
         {generatedLink && (
           <div style={{ padding: '16px 24px', borderTop: '1px solid #E5E7EB', display: 'flex', justifyContent: 'flex-end' }}>
-            <button onClick={onClose} className="btn" style={{ background: '#374151', color: 'white', padding: '10px 24px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '600' }}>Close</button>
+            <button onClick={onClose} className="btn" style={{ background: '#374151', color: 'white', padding: '10px 24px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '600' }}>{t('common.close', 'Close')}</button>
           </div>
         )}
       </div>

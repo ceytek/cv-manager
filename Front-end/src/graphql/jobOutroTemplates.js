@@ -77,3 +77,4 @@ export const TOGGLE_JOB_OUTRO_TEMPLATE = gql`
   }
 `;
 
+

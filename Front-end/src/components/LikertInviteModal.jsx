@@ -10,7 +10,8 @@ import { CREATE_LIKERT_SESSION } from '../graphql/likert';
 import { JOB_QUERY } from '../graphql/jobs';
 
 const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onSuccess }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isEnglish = i18n.language === 'en';
   const [sending, setSending] = useState(false);
   const [copied, setCopied] = useState(false);
   const [generatedLink, setGeneratedLink] = useState('');
@@ -114,7 +115,7 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
   const formatDate = (isoString) => {
     if (!isoString) return '-';
     const date = new Date(isoString);
-    return date.toLocaleString('tr-TR', {
+    return date.toLocaleString(isEnglish ? 'en-US' : 'tr-TR', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
@@ -130,7 +131,7 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
         <div style={{ padding: '20px 24px', background: 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)', borderRadius: '16px 16px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'white' }}>
             <ListChecks size={24} />
-            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '600' }}>Likert Test Invitation</h2>
+            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '600' }}>{t('likertInvite.title', 'Likert Test Invitation')}</h2>
           </div>
           <button onClick={onClose} style={{ padding: '8px', background: 'rgba(255,255,255,0.2)', border: 'none', cursor: 'pointer', borderRadius: '8px' }}>
             <X size={20} color="white" />
@@ -141,17 +142,17 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
         <div style={{ padding: '24px' }}>
           {jobLoading ? (
             <div style={{ textAlign: 'center', padding: '32px' }}>
-              <p>Yükleniyor...</p>
+              <p>{t('common.loading', 'Loading...')}</p>
             </div>
           ) : jobError ? (
             <div style={{ textAlign: 'center', padding: '32px' }}>
-              <p style={{ color: '#DC2626' }}>Hata: {jobError.message}</p>
+              <p style={{ color: '#DC2626' }}>{t('common.error', 'Error')}: {jobError.message}</p>
             </div>
           ) : !likertEnabled ? (
             <div style={{ textAlign: 'center', padding: '32px' }}>
               <HelpCircle size={48} style={{ color: '#9CA3AF', marginBottom: '16px' }} />
-              <h3 style={{ margin: '0 0 8px', fontSize: '16px', fontWeight: '600', color: '#374151' }}>Likert Testi Aktif Değil</h3>
-              <p style={{ margin: 0, fontSize: '14px', color: '#6B7280' }}>Bu iş ilanı için önce Likert test ayarlarını yapılandırmalısınız.</p>
+              <h3 style={{ margin: '0 0 8px', fontSize: '16px', fontWeight: '600', color: '#374151' }}>{t('likertInvite.notEnabled', 'Likert Test Not Active')}</h3>
+              <p style={{ margin: 0, fontSize: '14px', color: '#6B7280' }}>{t('likertInvite.configureFirst', 'You need to configure Likert test settings for this job first.')}</p>
               <p style={{ margin: '8px 0 0', fontSize: '12px', color: '#9CA3AF' }}>Job ID: {jobId}</p>
             </div>
           ) : generatedLink ? (
@@ -161,40 +162,40 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
                 <div style={{ background: '#DBEAFE', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#1D4ED8', marginBottom: '4px' }}>
                     <Check size={18} />
-                    <span style={{ fontWeight: '600' }}>Likert Testi Tamamlandı</span>
+                    <span style={{ fontWeight: '600' }}>{t('likertInvite.testCompleted', 'Likert Test Completed')}</span>
                   </div>
                   <p style={{ margin: 0, fontSize: '14px', color: '#1E40AF' }}>
-                    <strong>{candidate?.name}</strong> için Likert testi zaten tamamlanmış.
+                    {t('likertInvite.testCompletedDesc', 'Likert test has already been completed for {{name}}.', { name: candidate?.name })}
                   </p>
                 </div>
               ) : sessionStatus === 'expired' ? (
                 <div style={{ background: '#FEF3C7', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#B45309', marginBottom: '4px' }}>
                     <Clock size={18} />
-                    <span style={{ fontWeight: '600' }}>Test Süresi Dolmuş</span>
+                    <span style={{ fontWeight: '600' }}>{t('likertInvite.testExpired', 'Test Expired')}</span>
                   </div>
                   <p style={{ margin: 0, fontSize: '14px', color: '#92400E' }}>
-                    <strong>{candidate?.name}</strong> için Likert test daveti süresi dolmuş.
+                    {t('likertInvite.testExpiredDesc', 'Likert test invitation has expired for {{name}}.', { name: candidate?.name })}
                   </p>
                 </div>
               ) : sessionStatus === 'existing' ? (
                 <div style={{ background: '#FEF3C7', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#B45309', marginBottom: '4px' }}>
                     <Check size={18} />
-                    <span style={{ fontWeight: '600' }}>Mevcut Davet Bulundu</span>
+                    <span style={{ fontWeight: '600' }}>{t('likertInvite.existingInvite', 'Existing Invitation Found')}</span>
                   </div>
                   <p style={{ margin: 0, fontSize: '14px', color: '#92400E' }}>
-                    <strong>{candidate?.name}</strong> için zaten bir Likert test daveti gönderilmiş. Aşağıdaki linki kullanabilirsiniz.
+                    {t('likertInvite.existingInviteDesc', 'A Likert test invitation has already been sent to {{name}}. You can use the link below.', { name: candidate?.name })}
                   </p>
                 </div>
               ) : (
                 <div style={{ background: '#D1FAE5', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#059669', marginBottom: '4px' }}>
                     <Check size={18} />
-                    <span style={{ fontWeight: '600' }}>Likert test daveti oluşturuldu</span>
+                    <span style={{ fontWeight: '600' }}>{t('likertInvite.inviteCreated', 'Likert Test Invitation Created')}</span>
                   </div>
                   <p style={{ margin: 0, fontSize: '14px', color: '#065F46' }}>
-                    <strong>{candidate?.name}</strong> - Likert test link is ready
+                    {t('likertInvite.inviteCreatedDesc', 'Likert test link is ready for {{name}}.', { name: candidate?.name })}
                   </p>
                 </div>
               )}
@@ -229,40 +230,40 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
                     }}
                   >
                     {copied ? <Check size={16} /> : <Copy size={16} />}
-                    {copied ? 'Copied!' : 'Copy'}
+                    {copied ? t('likertInvite.copied', 'Copied!') : t('likertInvite.copy', 'Copy')}
                   </button>
                 </div>
               </div>
 
               {/* Session Details */}
               <div style={{ background: '#F9FAFB', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
-                <h4 style={{ margin: '0 0 12px', fontSize: '14px', fontWeight: '600', color: '#374151' }}>Davet Detayları</h4>
+                <h4 style={{ margin: '0 0 12px', fontSize: '14px', fontWeight: '600', color: '#374151' }}>{t('likertInvite.inviteDetails', 'Invitation Details')}</h4>
                 <div style={{ display: 'grid', gap: '12px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
-                    <span style={{ color: '#6B7280' }}>Durum</span>
+                    <span style={{ color: '#6B7280' }}>{t('likertInvite.status', 'Status')}</span>
                     <span style={{ 
                       color: sessionDetails?.status === 'completed' ? '#059669' : 
                              sessionDetails?.status === 'expired' ? '#DC2626' :
                              sessionDetails?.status === 'in_progress' ? '#8B5CF6' : '#F59E0B', 
                       fontWeight: '600' 
                     }}>
-                      {sessionDetails?.status === 'completed' ? 'Tamamlandı' : 
-                       sessionDetails?.status === 'expired' ? 'Süresi Dolmuş' :
-                       sessionDetails?.status === 'in_progress' ? 'Devam Ediyor' : 'Bekliyor'}
+                      {sessionDetails?.status === 'completed' ? t('likertInvite.statusCompleted', 'Completed') : 
+                       sessionDetails?.status === 'expired' ? t('likertInvite.statusExpired', 'Expired') :
+                       sessionDetails?.status === 'in_progress' ? t('likertInvite.statusInProgress', 'In Progress') : t('likertInvite.statusPending', 'Pending')}
                     </span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
                     <span style={{ color: '#6B7280', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <Clock size={14} /> Expires At
+                      <Clock size={14} /> {t('likertInvite.expiresAt', 'Expires At')}
                     </span>
                     <span style={{ color: '#374151' }}>{formatDate(sessionDetails?.expiresAt)}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
-                    <span style={{ color: '#6B7280' }}>Test Template</span>
+                    <span style={{ color: '#6B7280' }}>{t('likertInvite.testTemplate', 'Test Template')}</span>
                     <span style={{ color: '#374151' }}>{sessionDetails?.templateName || '-'}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
-                    <span style={{ color: '#6B7280' }}>Question Count</span>
+                    <span style={{ color: '#6B7280' }}>{t('likertInvite.questionCount', 'Question Count')}</span>
                     <span style={{ color: '#374151' }}>{sessionDetails?.questionCount || 0}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
@@ -274,7 +275,7 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
 
               {/* Info Box */}
               <div style={{ background: '#FEF3C7', borderRadius: '12px', padding: '16px', fontSize: '14px', color: '#92400E' }}>
-                💡 You can send this link to the candidate via email, WhatsApp or SMS. The link can only be used once.
+                💡 {t('likertInvite.infoBox', 'You can send this link to the candidate via email, WhatsApp or SMS. The link can be used only once.')}
               </div>
             </>
           ) : (
@@ -283,14 +284,14 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
 
               {/* Candidate Info */}
               <div style={{ background: '#F9FAFB', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
-                <h4 style={{ margin: '0 0 12px', fontSize: '14px', fontWeight: '600', color: '#374151' }}>Aday Bilgileri</h4>
+                <h4 style={{ margin: '0 0 12px', fontSize: '14px', fontWeight: '600', color: '#374151' }}>{t('likertInvite.candidateInfo', 'Candidate Information')}</h4>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'linear-gradient(135deg, #8B5CF6, #6D28D9)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '600', fontSize: '18px' }}>
                     {candidate?.name?.charAt(0) || '?'}
                   </div>
                   <div>
-                    <div style={{ fontWeight: '600', color: '#111827' }}>{candidate?.name || 'Bilinmiyor'}</div>
-                    <div style={{ fontSize: '13px', color: '#6B7280' }}>{candidate?.email || 'E-posta yok'}</div>
+                    <div style={{ fontWeight: '600', color: '#111827' }}>{candidate?.name || t('likertInvite.unknown', 'Unknown')}</div>
+                    <div style={{ fontSize: '13px', color: '#6B7280' }}>{candidate?.email || t('likertInvite.noEmail', 'No email')}</div>
                   </div>
                 </div>
               </div>
@@ -300,23 +301,23 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
                 <div style={{ padding: '16px', background: '#F3E8FF', borderRadius: '12px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#7C3AED', marginBottom: '4px' }}>
                     <Hash size={14} />
-                    Soru Sayısı
+                    {t('likertInvite.questionCount', 'Question Count')}
                   </div>
                   <div style={{ fontSize: '20px', fontWeight: '700', color: '#5B21B6' }}>{questionCount}</div>
                 </div>
                 <div style={{ padding: '16px', background: '#F3E8FF', borderRadius: '12px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#7C3AED', marginBottom: '4px' }}>
                     <Clock size={14} />
-                    Geçerlilik Süresi
+                    {t('likertInvite.validityPeriod', 'Validity Period')}
                   </div>
-                  <div style={{ fontSize: '20px', fontWeight: '700', color: '#5B21B6' }}>{deadlineHours} saat</div>
+                  <div style={{ fontSize: '20px', fontWeight: '700', color: '#5B21B6' }}>{deadlineHours} {t('likertInvite.hours', 'hours')}</div>
                 </div>
               </div>
 
               {/* Template Info */}
               {likertTemplate && (
                 <div style={{ background: '#F9FAFB', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
-                  <h4 style={{ margin: '0 0 8px', fontSize: '14px', fontWeight: '600', color: '#374151' }}>Test Şablonu</h4>
+                  <h4 style={{ margin: '0 0 8px', fontSize: '14px', fontWeight: '600', color: '#374151' }}>{t('likertInvite.testTemplate', 'Test Template')}</h4>
                   <div style={{ fontSize: '16px', fontWeight: '600', color: '#5B21B6' }}>{likertTemplate.name}</div>
                   {likertTemplate.description && (
                     <p style={{ margin: '8px 0 0', fontSize: '13px', color: '#6B7280' }}>{likertTemplate.description}</p>
@@ -333,14 +334,14 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
             <button onClick={onClose} className="btn btn-secondary" disabled={sending}>{t('common.cancel')}</button>
             <button onClick={handleSend} className="btn btn-primary" disabled={sending} style={{ background: '#8B5CF6', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <ListChecks size={18} />
-              {sending ? 'Oluşturuluyor...' : 'Davet Oluştur'}
+              {sending ? t('likertInvite.creating', 'Creating...') : t('likertInvite.createInvite', 'Create Invitation')}
             </button>
           </div>
         )}
 
         {generatedLink && (
           <div style={{ padding: '16px 24px', borderTop: '1px solid #E5E7EB', display: 'flex', justifyContent: 'flex-end' }}>
-            <button onClick={onClose} className="btn" style={{ background: '#374151', color: 'white', padding: '10px 24px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '600' }}>Close</button>
+            <button onClick={onClose} className="btn" style={{ background: '#374151', color: 'white', padding: '10px 24px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '600' }}>{t('common.close', 'Close')}</button>
           </div>
         )}
       </div>

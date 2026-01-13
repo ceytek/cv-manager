@@ -304,7 +304,9 @@ const AIJobCreator = ({ isOpen, onClose, onGenerate }) => {
             experienceLevel: formData.experienceLevel,
             department: formData.department,
             introText: useIntro && introText ? introText : null,
-            outroText: useOutro && outroText ? outroText : null
+            outroText: useOutro && outroText ? outroText : null,
+            selectedIntroId: useIntro && selectedIntroId ? selectedIntroId : null,
+            selectedOutroId: useOutro && selectedOutroId ? selectedOutroId : null
           });
           
           handleClose();
@@ -1175,7 +1177,7 @@ const AIJobCreator = ({ isOpen, onClose, onGenerate }) => {
             ) : (
               <>
                 <Sparkles size={16} />
-                {t('aiJobCreator.createAndSave')}
+                {t('aiJobCreator.create')}
               </>
             )}
           </button>

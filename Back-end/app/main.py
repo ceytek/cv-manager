@@ -192,6 +192,10 @@ app.include_router(graphql_app, prefix="")
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'interview_videos')
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+# Ensure uploads directory exists for logos
+LOGO_UPLOAD_DIR = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'logos')
+os.makedirs(LOGO_UPLOAD_DIR, exist_ok=True)
+
 # Serve static files for uploaded videos
 app.mount("/uploads", StaticFiles(directory=os.path.join(os.path.dirname(__file__), '..', 'uploads')), name="uploads")
 
@@ -235,6 +239,56 @@ async def upload_interview_video(
         return {
             "success": True,
             "videoUrl": video_url,
+            "filename": unique_filename
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@app.post("/upload-logo")
+async def upload_logo(
+    file: UploadFile = File(...)
+):
+    """
+    Upload company logo.
+    Returns the URL where the logo can be accessed.
+    """
+    try:
+        # Validate file type
+        allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+        if file.content_type not in allowed_types:
+            return {
+                "success": False,
+                "error": "Invalid file type. Allowed: JPEG, PNG, GIF, WebP"
+            }
+        
+        # Generate unique filename
+        file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'png'
+        unique_filename = f"logo_{uuid.uuid4().hex[:12]}.{file_extension}"
+        file_path = os.path.join(LOGO_UPLOAD_DIR, unique_filename)
+        
+        # Save the file
+        content = await file.read()
+        
+        # Validate file size (max 2MB)
+        if len(content) > 2 * 1024 * 1024:
+            return {
+                "success": False,
+                "error": "File size must be less than 2MB"
+            }
+        
+        with open(file_path, 'wb') as f:
+            f.write(content)
+        
+        # Return the URL (relative to the server)
+        logo_url = f"/uploads/logos/{unique_filename}"
+        
+        return {
+            "success": True,
+            "url": logo_url,
             "filename": unique_filename
         }
     except Exception as e:

@@ -46,6 +46,8 @@ class UserType:
     is_verified: bool = strawberry.field(name="isVerified")
     role: Optional[str] = None
     company_id: Optional[str] = strawberry.field(name="companyId", default=None)
+    company_name: Optional[str] = strawberry.field(name="companyName", default=None)
+    company_logo: Optional[str] = strawberry.field(name="companyLogo", default=None)
     role_id: Optional[int] = strawberry.field(name="roleId", default=None)
     created_at: datetime = strawberry.field(name="createdAt")
     updated_at: datetime = strawberry.field(name="updatedAt")

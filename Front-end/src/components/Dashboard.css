@@ -39,10 +39,38 @@
   font-size: 20px;
 }
 
+.logo-text-container {
+  display: flex;
+  flex-direction: column;
+}
+
 .logo-text {
   font-size: 18px;
   font-weight: 600;
   color: #1F2937;
+}
+
+.company-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: #6B7280;
+  margin-top: 2px;
+}
+
+.logo-icon-wrapper {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.company-logo-img {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  object-fit: cover;
 }
 
 .sidebar-nav {

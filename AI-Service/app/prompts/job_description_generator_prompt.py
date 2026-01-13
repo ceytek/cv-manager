@@ -113,7 +113,7 @@ def _get_turkish_prompt(
     # Build additional notes section separately to avoid f-string backslash issue
     notes_section = ""
     if additional_notes:
-        notes_section = f"**EK NOTLAR:**\n{additional_notes}\n"
+        notes_section = f"**EK NOTLAR (Kullanıcının Sağladığı İçerik):**\n{additional_notes}\n"
     
     return f"""Sen profesyonel bir İnsan Kaynakları uzmanısın. Verilen bilgilere dayanarak kapsamlı ve çekici bir iş ilanı oluştur.
 
@@ -131,12 +131,22 @@ def _get_turkish_prompt(
 Yukarıdaki bilgilere dayanarak profesyonel bir iş ilanı oluştur. İlan şu bölümlerden oluşmalı:
 
 1. **İş Tanımı (description):**
-   - Pozisyonun genel tanımı
-   - Şirketteki rolü ve sorumlulukları
-   - Günlük görevler ve beklentiler
-   - HTML formatında (paragraflar için <p>, listeler için <ul>/<li>)
-   - Minimum 3-4 paragraf
-   - Profesyonel ve çekici dil
+   - MUTLAKA karma format kullan: Giriş paragrafı + madde işaretli görevler + kapanış paragrafı
+   - İlk önce pozisyonu tanıtan 1-2 paragraf (<p> etiketi ile)
+   - Ardından görevler ve sorumluluklar için MUTLAKA madde işaretli liste (<ul><li> ile)
+   - Son olarak pozisyonun önemini vurgulayan kapanış paragrafı
+   - EK NOTLARDA madde işaretli içerik varsa, bu formatı KORU ve geliştir
+   - Düz metin paragrafları sıkıcı ve okunması zordur - KAÇIN!
+
+   ÖRNEK YAPI:
+   <p>Giriş paragrafı - pozisyon hakkında genel bilgi...</p>
+   <p><strong>Temel Sorumluluklar:</strong></p>
+   <ul>
+     <li>Görev 1</li>
+     <li>Görev 2</li>
+     <li>Görev 3</li>
+   </ul>
+   <p>Kapanış paragrafı...</p>
 
 2. **Aranan Nitelikler (requirements):**
    - Zorunlu yetenek ve deneyimler
@@ -172,13 +182,15 @@ Yukarıdaki bilgilere dayanarak profesyonel bir iş ilanı oluştur. İlan şu b
 - Gerçekçi ve sektör standartlarına uygun olmalı
 - Pozisyona özel ve detaylı olmalı
 - Kopyala-yapıştır gibiymiş gibi görünmemeli, özgün olmalı
+- **KRİTİK:** İş tanımında ASLA sadece düz paragraflar kullanma! Görevler ve sorumluluklar için MUTLAKA madde işaretli liste kullan!
+- **KRİTİK:** Ek notlarda madde işaretli içerik varsa, bu yapıyı koru ve profesyonelce geliştir!
 
 **ÇIKTI FORMATI:**
 Sadece JSON formatında yanıt ver, başka açıklama ekleme:
 
 {{
   "title": "{position}",
-  "description": "<p>HTML formatted iş tanımı...</p><p>İkinci paragraf...</p>",
+  "description": "<p>Giriş paragrafı...</p><p><strong>Temel Sorumluluklar:</strong></p><ul><li>Görev 1</li><li>Görev 2</li></ul><p>Kapanış...</p>",
   "description_plain": "Düz metin versiyonu iş tanımı...",
   "requirements": "<ul><li>İlk gereksinim</li><li>İkinci gereksinim</li>...</ul>",
   "requirements_plain": "Düz metin versiyonu gereksinimler...",
@@ -206,7 +218,7 @@ def _get_english_prompt(
     # Build additional notes section separately to avoid f-string backslash issue
     notes_section = ""
     if additional_notes:
-        notes_section = f"**ADDITIONAL NOTES:**\n{additional_notes}\n"
+        notes_section = f"**ADDITIONAL NOTES (User-Provided Content):**\n{additional_notes}\n"
     
     return f"""You are a professional Human Resources specialist. Create a comprehensive and attractive job posting based on the given information.
 
@@ -224,12 +236,22 @@ def _get_english_prompt(
 Based on the above information, create a professional job posting. The posting should consist of these sections:
 
 1. **Job Description (description):**
-   - General description of the position
-   - Role and responsibilities within the company
-   - Daily tasks and expectations
-   - HTML format (use <p> for paragraphs, <ul>/<li> for lists)
-   - Minimum 3-4 paragraphs
-   - Professional and engaging language
+   - MUST use mixed format: Introduction paragraph + bulleted tasks + closing paragraph
+   - Start with 1-2 paragraphs introducing the position (<p> tags)
+   - Then MUST include a bulleted list for duties and responsibilities (<ul><li>)
+   - End with a closing paragraph highlighting the importance of the role
+   - If ADDITIONAL NOTES contain bulleted content, PRESERVE this format and enhance it
+   - Plain text paragraphs only are boring and hard to read - AVOID!
+
+   EXAMPLE STRUCTURE:
+   <p>Introduction paragraph - general info about the position...</p>
+   <p><strong>Key Responsibilities:</strong></p>
+   <ul>
+     <li>Task 1</li>
+     <li>Task 2</li>
+     <li>Task 3</li>
+   </ul>
+   <p>Closing paragraph...</p>
 
 2. **Requirements (requirements):**
    - Mandatory skills and experience
@@ -265,13 +287,15 @@ Based on the above information, create a professional job posting. The posting s
 - Must be realistic and comply with industry standards
 - Should be position-specific and detailed
 - Should not look like copy-paste, must be original
+- **CRITICAL:** NEVER use only plain paragraphs in job description! MUST use bulleted lists for tasks and responsibilities!
+- **CRITICAL:** If additional notes contain bulleted content, preserve this structure and enhance it professionally!
 
 **OUTPUT FORMAT:**
 Respond only in JSON format, no additional explanation:
 
 {{
   "title": "{position}",
-  "description": "<p>HTML formatted job description...</p><p>Second paragraph...</p>",
+  "description": "<p>Introduction paragraph...</p><p><strong>Key Responsibilities:</strong></p><ul><li>Task 1</li><li>Task 2</li></ul><p>Closing...</p>",
   "description_plain": "Plain text version of job description...",
   "requirements": "<ul><li>First requirement</li><li>Second requirement</li>...</ul>",
   "requirements_plain": "Plain text version of requirements...",

@@ -90,6 +90,8 @@ export const ME_QUERY = gql`
       fullName
       role
       companyId
+      companyName
+      companyLogo
       roleId
       isActive
       isVerified
@@ -110,6 +112,17 @@ export const USERS_QUERY = gql`
       isVerified
       createdAt
       updatedAt
+    }
+  }
+`;
+
+export const UPDATE_COMPANY_MUTATION = gql`
+  mutation UpdateCompany($input: UpdateCompanyInput!) {
+    updateCompany(input: $input) {
+      id
+      name
+      companyCode
+      logoUrl
     }
   }
 `;

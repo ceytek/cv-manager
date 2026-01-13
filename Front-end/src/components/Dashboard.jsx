@@ -24,7 +24,8 @@ import {
   ChevronDown,
   MailX,
   Activity,
-  Clock
+  Clock,
+  Building2
 } from 'lucide-react';
 import { useQuery, useMutation, useSubscription } from '@apollo/client/react';
 import { USERS_QUERY, DEACTIVATE_USER_MUTATION } from '../graphql/auth';
@@ -49,6 +50,7 @@ import AgreementTemplatesPage from './AgreementTemplatesPage';
 import RejectionTemplatesPage from './RejectionTemplatesPage';
 import JobIntroTemplatesPage from './JobIntroTemplatesPage';
 import JobOutroTemplatesPage from './JobOutroTemplatesPage';
+import CompanySettingsForm from './CompanySettingsForm';
 
 const Dashboard = ({ currentUser, onLogout }) => {
   const { t, i18n } = useTranslation();
@@ -196,8 +198,27 @@ const Dashboard = ({ currentUser, onLogout }) => {
       <aside className="sidebar">
         <div className="sidebar-header">
           <div className="logo-container">
-            <div className="logo-icon">👔</div>
-            <span className="logo-text">{t('sidebar.appName')}</span>
+            <div className="logo-icon-wrapper">
+              <img 
+                src={currentUser?.companyLogo || ''} 
+                alt="Company Logo" 
+                className="company-logo-img"
+                style={{ display: currentUser?.companyLogo ? 'block' : 'none' }}
+              />
+              <span 
+                className="logo-icon"
+                style={{ display: currentUser?.companyLogo ? 'none' : 'block' }}
+              >👔</span>
+            </div>
+            <div className="logo-text-container">
+              <span className="logo-text">{t('sidebar.appName')}</span>
+              <span 
+                className="company-name"
+                style={{ display: currentUser?.companyName ? 'block' : 'none' }}
+              >
+                {currentUser?.companyName || ''}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -370,6 +391,17 @@ const Dashboard = ({ currentUser, onLogout }) => {
                 <div className="submenu">
                   {isAdmin && (
                     <button
+                      className={`submenu-item ${settingsMenu === 'company' ? 'active' : ''}`}
+                      onClick={() => setSettingsMenu('company')}
+                    >
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <Building2 size={16} color="#6B7280" />
+                        {t('settings.companyInfo')}
+                      </span>
+                    </button>
+                  )}
+                  {isAdmin && (
+                    <button
                       className={`submenu-item ${settingsMenu === 'users' ? 'active' : ''}`}
                       onClick={() => setSettingsMenu('users')}
                     >
@@ -479,6 +511,12 @@ const Dashboard = ({ currentUser, onLogout }) => {
         )}
 
         {/* Settings pages - open only when submenu chosen */}
+        {activeMenu === 'settings' && settingsMenu === 'company' && isAdmin && (
+          <div className="table-card" style={{ maxWidth: 520 }}>
+            <CompanySettingsForm currentUser={currentUser} />
+          </div>
+        )}
+
         {activeMenu === 'settings' && settingsMenu === 'password' && (
           <div className="table-card" style={{ maxWidth: 520 }}>
             <ChangePasswordForm onLogout={onLogout} />
