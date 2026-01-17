@@ -22,10 +22,14 @@ import {
   ScrollText,
   Layers,
   ChevronDown,
+  ChevronRight,
   MailX,
   Activity,
   Clock,
-  Building2
+  Building2,
+  Menu,
+  X,
+  Plus
 } from 'lucide-react';
 import { useQuery, useMutation, useSubscription } from '@apollo/client/react';
 import { USERS_QUERY, DEACTIVATE_USER_MUTATION } from '../graphql/auth';
@@ -51,6 +55,7 @@ import RejectionTemplatesPage from './RejectionTemplatesPage';
 import JobIntroTemplatesPage from './JobIntroTemplatesPage';
 import JobOutroTemplatesPage from './JobOutroTemplatesPage';
 import CompanySettingsForm from './CompanySettingsForm';
+import DailyActivityWidget from './DailyActivityWidget';
 
 const Dashboard = ({ currentUser, onLogout }) => {
   const { t, i18n } = useTranslation();
@@ -69,6 +74,8 @@ const Dashboard = ({ currentUser, onLogout }) => {
   const [jobsSortField, setJobsSortField] = useState('createdAt'); // Sorting field for jobs widget
   const [jobsSortOrder, setJobsSortOrder] = useState('desc'); // Sorting order
   const [tooltipDismissed, setTooltipDismissed] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true); // Sidebar toggle state
+  const [departmentsInitialAdd, setDepartmentsInitialAdd] = useState(false); // Open add form on departments page
 
   // Derive a safe display name
   const displayName = (currentUser?.fullName?.trim()) 
@@ -102,20 +109,17 @@ const Dashboard = ({ currentUser, onLogout }) => {
     setTooltipDismissed(true);
   };
 
-  // Fetch recent jobs (auto-refresh every 10 seconds)
+  // Fetch recent jobs (auto-refresh every 30 seconds with no-cache to avoid conflicts)
   const { data: jobsData } = useQuery(JOBS_QUERY, {
     variables: {
       includeInactive: false,
       status: 'active',
       searchTerm: null,
     },
-    fetchPolicy: 'cache-and-network',
-    pollInterval: 10000, // Refresh every 10 seconds
+    fetchPolicy: 'no-cache', // Don't cache to avoid conflicts with JobsPage
+    pollInterval: 30000, // Refresh every 30 seconds (less frequent)
   });
   const recentJobs = (jobsData?.jobs || []).slice(0, 3);
-  
-  // Debug: Log job data
-  console.log('Recent Jobs Data:', recentJobs);
 
   // Fetch recent activities (auto-refresh every 5 seconds)
   const { data: activitiesData, loading: activitiesLoading } = useQuery(GET_RECENT_ACTIVITIES, {
@@ -183,42 +187,30 @@ const Dashboard = ({ currentUser, onLogout }) => {
 
   const menuItems = [
     { id: 'dashboard', icon: LayoutDashboard, label: t('sidebar.dashboard') },
-    ...(isAdmin ? [{ id: 'departments', icon: Briefcase, label: t('sidebar.departments') }] : []),
     { id: 'jobs', icon: Briefcase, label: t('sidebar.jobs') },
     { id: 'cvs', icon: FileText, label: t('sidebar.cvManagement') },
     { id: 'cv-evaluation', icon: BarChart3, label: t('sidebar.cvEvaluation') },
     { id: 'usage-history', icon: History, label: t('sidebar.usageHistory') },
-    { id: 'templates', icon: Layers, label: t('sidebar.templates') },
-    { id: 'settings', icon: Settings, label: t('sidebar.settings') }
+    { id: 'templates', icon: Layers, label: t('sidebar.templates') }
   ];
 
   return (
-    <div className="dashboard-layout">
+    <div className={`dashboard-layout ${sidebarOpen ? '' : 'sidebar-closed'}`}>
       {/* Sidebar */}
-      <aside className="sidebar">
-        <div className="sidebar-header">
-          <div className="logo-container">
-            <div className="logo-icon-wrapper">
-              <img 
-                src={currentUser?.companyLogo || ''} 
-                alt="Company Logo" 
-                className="company-logo-img"
-                style={{ display: currentUser?.companyLogo ? 'block' : 'none' }}
-              />
-              <span 
-                className="logo-icon"
-                style={{ display: currentUser?.companyLogo ? 'none' : 'block' }}
-              >👔</span>
-            </div>
-            <div className="logo-text-container">
-              <span className="logo-text">{t('sidebar.appName')}</span>
-              <span 
-                className="company-name"
-                style={{ display: currentUser?.companyName ? 'block' : 'none' }}
-              >
-                {currentUser?.companyName || ''}
-              </span>
-            </div>
+      <aside className={`sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
+        <div className="sidebar-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px' }}>
+          {/* Sidebar Toggle Button (Hamburger) */}
+          <button 
+            className="sidebar-toggle-btn"
+            onClick={() => setSidebarOpen(false)}
+            title="Menüyü Kapat"
+            style={{ margin: 0 }}
+          >
+            <Menu size={24} />
+          </button>
+          {/* Subscription Widget in Header */}
+          <div style={{ flex: 1, marginLeft: 12 }}>
+            <SubscriptionUsageWidget compact />
           </div>
         </div>
 
@@ -228,11 +220,7 @@ const Dashboard = ({ currentUser, onLogout }) => {
               <button
                 className={`nav-item ${activeMenu === item.id ? 'active' : ''}`}
                 onClick={() => {
-                  if (item.id === 'settings') {
-                    setActiveMenu('settings');
-                    setSettingsMenu(null);
-                    setTemplatesMenu(null);
-                  } else if (item.id === 'templates') {
+                  if (item.id === 'templates') {
                     setActiveMenu('templates');
                     setTemplatesMenu(null);
                     setSettingsMenu(null);
@@ -250,10 +238,6 @@ const Dashboard = ({ currentUser, onLogout }) => {
                     if (item.id === 'jobs') {
                       setJobsInitialCreate(false);
                     }
-                    // Dismiss tooltip when clicking departments
-                    if (item.id === 'departments' && showDepartmentTooltip) {
-                      dismissDepartmentTooltip();
-                    }
                     setActiveMenu(item.id);
                     setSettingsMenu(null);
                     setTemplatesMenu(null);
@@ -264,68 +248,6 @@ const Dashboard = ({ currentUser, onLogout }) => {
                 <span>{item.label}</span>
               </button>
               
-              {/* Department tooltip - show only once for new users */}
-              {item.id === 'departments' && showDepartmentTooltip && isAdmin && (
-                <div style={{
-                  position: 'fixed',
-                  left: 270,
-                  top: 205,
-                  background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
-                  color: 'white',
-                  padding: '14px 18px',
-                  borderRadius: 10,
-                  fontSize: 13,
-                  fontWeight: 500,
-                  whiteSpace: 'nowrap',
-                  boxShadow: '0 8px 24px rgba(59, 130, 246, 0.35)',
-                  zIndex: 9999,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  animation: 'pulse 2s infinite',
-                }}>
-                  {/* Arrow pointing left */}
-                  <div style={{
-                    position: 'absolute',
-                    left: -8,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    width: 0,
-                    height: 0,
-                    borderTop: '8px solid transparent',
-                    borderBottom: '8px solid transparent',
-                    borderRight: '8px solid #3B82F6',
-                  }} />
-                  <span style={{ fontSize: 16 }}>👆</span>
-                  <span>{t('sidebar.departmentTooltip', 'Create a department first to get started')}</span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      dismissDepartmentTooltip();
-                    }}
-                    style={{
-                      background: 'rgba(255,255,255,0.25)',
-                      border: 'none',
-                      color: 'white',
-                      width: 22,
-                      height: 22,
-                      borderRadius: '50%',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: 12,
-                      marginLeft: 4,
-                      transition: 'background 0.2s',
-                    }}
-                    onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.4)'}
-                    onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.25)'}
-                  >
-                    ✕
-                  </button>
-                </div>
-              )}
-              
               {/* Templates Submenu */}
               {item.id === 'templates' && activeMenu === 'templates' && (
                 <div className="submenu">
@@ -333,102 +255,194 @@ const Dashboard = ({ currentUser, onLogout }) => {
                     className={`submenu-item ${templatesMenu === 'interviewTemplates' ? 'active' : ''}`}
                     onClick={() => setTemplatesMenu('interviewTemplates')}
                   >
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <Video size={16} color="#6B7280" />
-                      {t('templates.interviewTemplates')}
-                    </span>
+                    {t('templates.interviewTemplates')}
                   </button>
                   <button
                     className={`submenu-item ${templatesMenu === 'likertTemplates' ? 'active' : ''}`}
                     onClick={() => setTemplatesMenu('likertTemplates')}
                   >
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <ListChecks size={16} color="#6B7280" />
-                      {t('templates.likertTemplates')}
-                    </span>
+                    {t('templates.likertTemplates')}
                   </button>
                   <button
                     className={`submenu-item ${templatesMenu === 'agreementTemplates' ? 'active' : ''}`}
                     onClick={() => setTemplatesMenu('agreementTemplates')}
                   >
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <ScrollText size={16} color="#6B7280" />
-                      {t('templates.agreementTemplates')}
-                    </span>
+                    {t('templates.agreementTemplates')}
                   </button>
                   <button
                     className={`submenu-item ${templatesMenu === 'jobIntroTemplates' ? 'active' : ''}`}
                     onClick={() => setTemplatesMenu('jobIntroTemplates')}
                   >
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <FileText size={16} color="#6B7280" />
-                      {t('templates.jobIntroTemplates')}
-                    </span>
+                    {t('templates.jobIntroTemplates')}
                   </button>
                   <button
                     className={`submenu-item ${templatesMenu === 'jobOutroTemplates' ? 'active' : ''}`}
                     onClick={() => setTemplatesMenu('jobOutroTemplates')}
                   >
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <FileText size={16} color="#6B7280" />
-                      {t('templates.jobOutroTemplates')}
-                    </span>
+                    {t('templates.jobOutroTemplates')}
                   </button>
                   <button
                     className={`submenu-item ${templatesMenu === 'rejectionTemplates' ? 'active' : ''}`}
                     onClick={() => setTemplatesMenu('rejectionTemplates')}
                   >
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <MailX size={16} color="#6B7280" />
-                      {t('templates.rejectionTemplates', 'Red Mesajları')}
-                    </span>
+                    {t('templates.rejectionTemplates')}
                   </button>
                 </div>
               )}
               
-              {/* Settings Submenu */}
-              {item.id === 'settings' && activeMenu === 'settings' && (
-                <div className="submenu">
-                  {isAdmin && (
-                    <button
-                      className={`submenu-item ${settingsMenu === 'company' ? 'active' : ''}`}
-                      onClick={() => setSettingsMenu('company')}
-                    >
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <Building2 size={16} color="#6B7280" />
-                        {t('settings.companyInfo')}
-                      </span>
-                    </button>
-                  )}
-                  {isAdmin && (
-                    <button
-                      className={`submenu-item ${settingsMenu === 'users' ? 'active' : ''}`}
-                      onClick={() => setSettingsMenu('users')}
-                    >
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <Users size={16} color="#6B7280" />
-                        {t('sidebar.users')}
-                      </span>
-                    </button>
-                  )}
-                  <button
-                    className={`submenu-item ${settingsMenu === 'password' ? 'active' : ''}`}
-                    onClick={() => setSettingsMenu('password')}
-                  >
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <KeyRound size={16} color="#6B7280" />
-                      {t('settings.changePassword')}
-                    </span>
-                  </button>
-                </div>
-              )}
             </div>
           ))}
         </nav>
 
-        <div className="sidebar-footer">
-          <SubscriptionUsageWidget />
-        </div>
+        {/* Departments Quick Access Section */}
+        {isAdmin && sidebarOpen && (
+          <div style={{
+            padding: '16px 20px',
+            borderTop: '1px solid #E5E7EB',
+            marginTop: 12,
+            background: '#F9FAFB',
+          }}>
+            {/* Header with title and add button */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: 16,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <ChevronDown size={14} color="#6B7280" />
+                <span style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: '#6B7280',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                }}>
+                  {t('sidebar.departments')}
+                </span>
+              </div>
+              <button
+                onClick={() => {
+                  setDepartmentsInitialAdd(true);
+                  setActiveMenu('departments');
+                  setSettingsMenu(null);
+                  setTemplatesMenu(null);
+                  dismissDepartmentTooltip();
+                }}
+                title={t('departments.addDepartment')}
+                className="dept-add-btn"
+                style={{
+                  background: '#EEF2FF',
+                  border: 'none',
+                  borderRadius: 6,
+                  width: 28,
+                  height: 28,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+              >
+                <Plus size={16} color="#6366F1" />
+              </button>
+            </div>
+
+            {/* Department list (max 4, alphabetically sorted) */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {departments.length === 0 ? (
+                <span style={{
+                  fontSize: 13,
+                  color: '#9CA3AF',
+                  fontStyle: 'italic',
+                }}>
+                  {t('departments.noDepartments')}
+                </span>
+              ) : (
+                [...departments]
+                  .sort((a, b) => a.name.localeCompare(b.name, 'tr'))
+                  .slice(0, 4)
+                  .map((dept) => {
+                    // Use color from database, fallback to blue
+                    const dotColor = dept.color || '#3B82F6';
+                    return (
+                      <button
+                        key={dept.id}
+                        onClick={() => {
+                          setDepartmentsInitialAdd(false);
+                          setActiveMenu('departments');
+                          setSettingsMenu(null);
+                          setTemplatesMenu(null);
+                          dismissDepartmentTooltip();
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 10,
+                          padding: '6px 8px',
+                          cursor: 'pointer',
+                          background: 'transparent',
+                          border: 'none',
+                          borderRadius: 6,
+                          width: '100%',
+                          textAlign: 'left',
+                          transition: 'background 0.15s',
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = '#E5E7EB'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                      >
+                        {/* Colored dot */}
+                        <div style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: '50%',
+                          background: dotColor,
+                          flexShrink: 0,
+                        }} />
+                        <span style={{
+                          fontSize: 14,
+                          color: '#374151',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          flex: 1,
+                        }}>
+                          {dept.name}
+                        </span>
+                      </button>
+                    );
+                  })
+              )}
+
+              {/* Show more link if more than 4 departments */}
+              {departments.length > 4 && (
+                <div
+                  onClick={() => {
+                    setDepartmentsInitialAdd(false);
+                    setActiveMenu('departments');
+                    setSettingsMenu(null);
+                    setTemplatesMenu(null);
+                    dismissDepartmentTooltip();
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '8px 0 0 0',
+                    cursor: 'pointer',
+                    fontSize: 13,
+                    color: '#6366F1',
+                    fontWeight: 500,
+                  }}
+                >
+                  <span>{t('sidebar.showAllDepartments', { count: departments.length - 4 })}</span>
+                  <ChevronRight size={14} />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
       </aside>
 
   {/* Main content */}
@@ -436,40 +450,122 @@ const Dashboard = ({ currentUser, onLogout }) => {
         {/* Top bar */}
         <header className="topbar">
           <div className="topbar-left">
-            <h1 className="page-title">{activeMenu === 'settings' && settingsMenu === 'password' ? t('settings.changePassword') : t('header.welcome', { name: displayName })}</h1>
-            {!(activeMenu === 'settings' && settingsMenu === 'password') && (
-              <p className="page-subtitle">{t('header.subtitle')}</p>
-            )}
-          </div>
-          <div className="topbar-right">
-            <LanguageSwitcher />
-            <button className="icon-button">
-              <Bell size={20} />
-            </button>
-            {isAdmin && (
-              <button className="icon-button" onClick={() => setShowAddUser(true)} title={t('header.addUser')}>
-                <UserPlus size={20} />
+            {/* Hamburger Menu Button */}
+            {!sidebarOpen && (
+              <button 
+                className="hamburger-btn"
+                onClick={() => setSidebarOpen(true)}
+                title="Menüyü Aç"
+              >
+                <Menu size={24} />
               </button>
             )}
             
-            {/* User Profile Dropdown */}
-            <div className="user-menu-container">
-              <button 
-                className="user-menu-trigger"
+            {/* Company Branding - Moved to Header */}
+            <div className="header-branding">
+              <div className="header-logo-wrapper">
+                {currentUser?.companyLogo ? (
+                  <img 
+                    src={currentUser.companyLogo} 
+                    alt="Logo" 
+                    className="header-logo-img"
+                  />
+                ) : (
+                  <div className="header-logo-icon">👔</div>
+                )}
+              </div>
+              <div className="header-brand-text">
+                <span className="header-app-name">{t('sidebar.appName')}</span>
+                {currentUser?.companyName && (
+                  <span className="header-company-name">{currentUser.companyName}</span>
+                )}
+              </div>
+            </div>
+          </div>
+          
+          {/* Date Widget */}
+          <div className="topbar-date-widget">
+            <div className="date-circle">
+              <span className="date-day">{new Date().getDate()}</span>
+            </div>
+            <div className="date-text">
+              <span className="date-weekday">
+                {new Date().toLocaleDateString(i18n.language === 'tr' ? 'tr-TR' : 'en-US', { weekday: 'short' })},
+              </span>
+              <span className="date-month">
+                {new Date().toLocaleDateString(i18n.language === 'tr' ? 'tr-TR' : 'en-US', { month: 'long' })}
+              </span>
+            </div>
+          </div>
+          
+          <div className="topbar-right">
+            <LanguageSwitcher />
+            
+            {/* Add User Button - Clean Circle */}
+            {isAdmin && (
+              <button className="header-add-btn" onClick={() => setShowAddUser(true)} title={t('header.addUser')}>
+                <span className="plus-icon">+</span>
+              </button>
+            )}
+            
+            {/* User Profile - Clean Design */}
+            <div className="user-menu-container" style={{ position: 'relative' }}>
+              <div 
+                className="user-profile-section"
                 onClick={() => setShowUserMenu(!showUserMenu)}
+                style={{ cursor: 'pointer' }}
               >
-                <div className="user-avatar-small">
+                <div className="user-avatar-circle">
                   {avatarInitial}
                 </div>
-                <div className="user-menu-info">
-                  <span className="user-menu-name">{displayName}</span>
-                  <span className="user-menu-role">{t('sidebar.userRole')}</span>
+                <div className="user-profile-info">
+                  <span className="user-profile-name">{displayName}</span>
+                  <span className="user-profile-role">{t('sidebar.userRole')}</span>
                 </div>
-                <ChevronDown size={16} className={`user-menu-chevron ${showUserMenu ? 'open' : ''}`} />
-              </button>
+                <ChevronDown size={18} className={`user-menu-chevron ${showUserMenu ? 'open' : ''}`} style={{ color: '#6B7280', marginLeft: 8 }} />
+              </div>
               
+              {/* User Dropdown Menu */}
               {showUserMenu && (
                 <div className="user-dropdown">
+                  {isAdmin && (
+                    <button 
+                      className="user-dropdown-item" 
+                      onClick={() => { 
+                        setActiveMenu('settings'); 
+                        setSettingsMenu('company'); 
+                        setShowUserMenu(false); 
+                      }}
+                    >
+                      <Building2 size={16} />
+                      <span>{t('settings.companyInfo')}</span>
+                    </button>
+                  )}
+                  {isAdmin && (
+                    <button 
+                      className="user-dropdown-item" 
+                      onClick={() => { 
+                        setActiveMenu('settings'); 
+                        setSettingsMenu('users'); 
+                        setShowUserMenu(false); 
+                      }}
+                    >
+                      <Users size={16} />
+                      <span>{t('sidebar.users')}</span>
+                    </button>
+                  )}
+                  <button 
+                    className="user-dropdown-item" 
+                    onClick={() => { 
+                      setActiveMenu('settings'); 
+                      setSettingsMenu('password'); 
+                      setShowUserMenu(false); 
+                    }}
+                  >
+                    <KeyRound size={16} />
+                    <span>{t('settings.changePassword')}</span>
+                  </button>
+                  <div style={{ height: 1, background: '#E5E7EB', margin: '8px 0' }} />
                   <button className="user-dropdown-item" onClick={() => { onLogout(); setShowUserMenu(false); }}>
                     <LogOut size={16} />
                     <span>{t('common.logout')}</span>
@@ -487,7 +583,10 @@ const Dashboard = ({ currentUser, onLogout }) => {
 
         {/* Departments (admin) */}
         {activeMenu === 'departments' && isAdmin && (
-          <DepartmentsPage />
+          <DepartmentsPage 
+            initialShowAddForm={departmentsInitialAdd} 
+            onAddFormClosed={() => setDepartmentsInitialAdd(false)} 
+          />
         )}
 
         {/* Jobs */}
@@ -574,6 +673,13 @@ const Dashboard = ({ currentUser, onLogout }) => {
         {!(activeMenu === 'settings' && settingsMenu) && activeMenu === 'dashboard' && (
           <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
             <UsageIndicator />
+          </div>
+        )}
+
+        {/* Daily Activity Widget */}
+        {!(activeMenu === 'settings' && settingsMenu) && activeMenu === 'dashboard' && (
+          <div style={{ marginTop: 24 }}>
+            <DailyActivityWidget />
           </div>
         )}
 
@@ -808,7 +914,19 @@ const Dashboard = ({ currentUser, onLogout }) => {
                         <div style={{ 
                           color: '#6B7280', 
                           fontSize: 13,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
                         }}>
+                          {job.department && (
+                            <span style={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: '50%',
+                              background: job.department.color || '#6B7280',
+                              flexShrink: 0,
+                            }} />
+                          )}
                           {job.department?.name || '-'}
                         </div>
 

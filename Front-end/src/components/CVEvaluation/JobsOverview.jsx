@@ -190,7 +190,16 @@ const JobsOverview = ({ onGoToAIEvaluation, onOpenDetails }) => {
                     {job.title}
                   </h3>
                   
-                  <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 16 }}>
+                  <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {job.department && (
+                      <span style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        background: job.department.color || '#6B7280',
+                        flexShrink: 0,
+                      }} />
+                    )}
                     {job.department?.name || '-'}
                   </p>
                   
@@ -310,7 +319,18 @@ const JobsOverview = ({ onGoToAIEvaluation, onOpenDetails }) => {
               alignItems: 'center' 
             }}>
               <div style={{ fontWeight: 600, color: '#111827' }}>{job.title}</div>
-              <div style={{ color: '#6B7280', fontSize: 13 }}>{job.department?.name || '-'}</div>
+              <div style={{ color: '#6B7280', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+                {job.department && (
+                  <span style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    background: job.department.color || '#6B7280',
+                    flexShrink: 0,
+                  }} />
+                )}
+                {job.department?.name || '-'}
+              </div>
               <div style={{ color: '#6B7280' }}>{new Date(job.createdAt).toLocaleDateString(locale)}</div>
               
               {/* Applicants with Avatars */}

@@ -52,7 +52,8 @@ const AIJobCreator = ({ isOpen, onClose, onGenerate }) => {
     requiredSkills: [],
     requiredLanguages: [],
     additionalNotes: '',
-    jobLanguage: 'turkish' // İlan dili seçimi
+    jobLanguage: 'turkish', // İlan dili seçimi
+    isDisabledFriendly: false // Engelli dostu ilan
   });
   
   const [currentSkill, setCurrentSkill] = useState('');
@@ -296,6 +297,9 @@ const AIJobCreator = ({ isOpen, onClose, onGenerate }) => {
         setTimeout(() => {
           setShowProgressModal(false);
           
+          // Get selected outro template name for preview
+          const selectedOutroTemplate = selectedOutroId ? outroTemplates.find(t => t.id === selectedOutroId) : null;
+          
           // Pass to parent component
           onGenerate({
             ...jobData,
@@ -306,7 +310,9 @@ const AIJobCreator = ({ isOpen, onClose, onGenerate }) => {
             introText: useIntro && introText ? introText : null,
             outroText: useOutro && outroText ? outroText : null,
             selectedIntroId: useIntro && selectedIntroId ? selectedIntroId : null,
-            selectedOutroId: useOutro && selectedOutroId ? selectedOutroId : null
+            selectedOutroId: useOutro && selectedOutroId ? selectedOutroId : null,
+            outroTemplateName: useOutro && selectedOutroTemplate ? selectedOutroTemplate.name : null,
+            isDisabledFriendly: formData.isDisabledFriendly
           });
           
           handleClose();
@@ -344,7 +350,8 @@ const AIJobCreator = ({ isOpen, onClose, onGenerate }) => {
       requiredSkills: [],
       requiredLanguages: [],
       additionalNotes: '',
-      jobLanguage: 'turkish'
+      jobLanguage: 'turkish',
+      isDisabledFriendly: false
     });
     setCurrentSkill('');
     setCurrentLanguage({ name: '', level: '' });
@@ -467,8 +474,8 @@ const AIJobCreator = ({ isOpen, onClose, onGenerate }) => {
                 onFocus={(e) => e.target.style.borderColor = '#667eea'}
                 onBlur={(e) => e.target.style.borderColor = '#E5E7EB'}
               >
-                <option value="turkish">🇹🇷 Türkçe</option>
-                <option value="english">🇬🇧 English</option>
+                <option value="turkish">TR - Türkçe</option>
+                <option value="english">EN - English</option>
               </select>
               <p style={{ 
                 fontSize: 12, 
@@ -1101,6 +1108,64 @@ const AIJobCreator = ({ isOpen, onClose, onGenerate }) => {
               <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>
                 {t('aiJobCreator.notesNote')}
               </p>
+            </div>
+
+            {/* Engelli Dostu İlan */}
+            <div 
+              onClick={() => handleInputChange('isDisabledFriendly', !formData.isDisabledFriendly)}
+              style={{ 
+                gridColumn: '1 / -1',
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 12, 
+                padding: '16px',
+                background: formData.isDisabledFriendly ? '#EFF6FF' : '#F9FAFB',
+                border: formData.isDisabledFriendly ? '2px solid #3B82F6' : '2px solid #E5E7EB',
+                borderRadius: 12,
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <div style={{
+                width: 44,
+                height: 44,
+                borderRadius: 10,
+                background: formData.isDisabledFriendly ? '#3B82F6' : '#D1D5DB',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'background 0.2s',
+              }}>
+                <span style={{ fontSize: 24 }}>♿</span>
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ 
+                  fontSize: 15, 
+                  fontWeight: 600, 
+                  color: formData.isDisabledFriendly ? '#1E40AF' : '#374151',
+                  marginBottom: 2 
+                }}>
+                  {t('jobForm.disabledFriendly')}
+                </div>
+                <div style={{ fontSize: 13, color: '#6B7280' }}>
+                  {t('jobForm.disabledFriendlyHint')}
+                </div>
+              </div>
+              <div style={{
+                width: 24,
+                height: 24,
+                borderRadius: 6,
+                border: formData.isDisabledFriendly ? '2px solid #3B82F6' : '2px solid #D1D5DB',
+                background: formData.isDisabledFriendly ? '#3B82F6' : 'white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s',
+              }}>
+                {formData.isDisabledFriendly && (
+                  <span style={{ color: 'white', fontWeight: 700 }}>✓</span>
+                )}
+              </div>
             </div>
           </div>
         </div>

@@ -176,7 +176,8 @@ Yukarıdaki bilgilere dayanarak profesyonel bir iş ilanı oluştur. İlan şu b
    - "immediate" (Hemen), "1month" (1 Ay İçinde), "3months" (3 Ay İçinde), veya "flexible" (Esnek)
 
 **ÖNEMLİ KURALLAR:**
-- Tüm metinler Türkçe olmalı
+- **KRİTİK: Girdi verileri hangi dilde olursa olsun, TÜM çıktı metinleri MUTLAKA TÜRKÇE olmalı!**
+- Kullanıcı İngilizce veya başka bir dilde veri girse bile, iş ilanını TÜRKÇE yaz!
 - HTML formatında description ve requirements oluştur
 - description_plain ve requirements_plain için düz metin versiyonları da ekle
 - Gerçekçi ve sektör standartlarına uygun olmalı
@@ -281,7 +282,8 @@ Based on the above information, create a professional job posting. The posting s
    - "immediate", "1month", "3months", or "flexible"
 
 **IMPORTANT RULES:**
-- All texts must be in English
+- **CRITICAL: Regardless of input language, ALL output texts MUST be in ENGLISH!**
+- Even if user provides data in Turkish or any other language, write the job posting in ENGLISH!
 - Create description and requirements in HTML format
 - Also include plain text versions (description_plain and requirements_plain)
 - Must be realistic and comply with industry standards

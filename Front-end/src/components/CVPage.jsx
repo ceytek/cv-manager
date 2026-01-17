@@ -5,11 +5,14 @@
  */
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FileText, Upload as UploadIcon, CheckCircle, Download, Mail, Phone, Linkedin, Github, User } from 'lucide-react';
+import { FileText, Upload as UploadIcon, CheckCircle, Download, Mail, Phone, Linkedin, Github, User, List, LayoutGrid, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import CVUploader from './CVUploader';
 import CandidateList from './CandidateList';
 import CVCompareView from './CVCompareView';
 import { API_BASE_URL } from '../config/api';
+
+// Pagination settings for session uploads
+const SESSION_UPLOADS_PER_PAGE = 5;
 
 const CVPage = ({ departments, initialView = 'list' }) => {
   const { t } = useTranslation();
@@ -23,6 +26,15 @@ const CVPage = ({ departments, initialView = 'list' }) => {
   
   // Session-based uploaded files (cleared on page leave/refresh)
   const [sessionUploads, setSessionUploads] = useState([]);
+  
+  // Pagination for session uploads
+  const [sessionPage, setSessionPage] = useState(1);
+  const sessionTotalPages = Math.ceil(sessionUploads.length / SESSION_UPLOADS_PER_PAGE);
+  const sessionStartIndex = (sessionPage - 1) * SESSION_UPLOADS_PER_PAGE;
+  const paginatedSessionUploads = sessionUploads.slice(sessionStartIndex, sessionStartIndex + SESSION_UPLOADS_PER_PAGE);
+  
+  // View mode for candidates list (cards or list/table)
+  const [candidateViewMode, setCandidateViewMode] = useState('cards');
 
   // If parent changes initialView (e.g., dashboard quick action), sync it here
   useEffect(() => {
@@ -111,7 +123,7 @@ const CVPage = ({ departments, initialView = 'list' }) => {
                 {t('cvManagement.uploadedInSession')} ({sessionUploads.length})
               </h2>
               <button
-                onClick={() => setSessionUploads([])}
+                onClick={() => { setSessionUploads([]); setSessionPage(1); }}
                 style={{
                   padding: '6px 12px',
                   background: '#F3F4F6',
@@ -127,9 +139,9 @@ const CVPage = ({ departments, initialView = 'list' }) => {
             </div>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {sessionUploads.map((file, index) => (
+              {paginatedSessionUploads.map((file, index) => (
                 <div
-                  key={index}
+                  key={sessionStartIndex + index}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -235,6 +247,57 @@ const CVPage = ({ departments, initialView = 'list' }) => {
                 </div>
               ))}
             </div>
+            
+            {/* Pagination Controls */}
+            {sessionTotalPages > 1 && (
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'center', 
+                alignItems: 'center', 
+                gap: 8, 
+                marginTop: 20,
+                paddingTop: 16,
+                borderTop: '1px solid #E5E7EB',
+              }}>
+                <button
+                  onClick={() => setSessionPage(p => Math.max(1, p - 1))}
+                  disabled={sessionPage === 1}
+                  style={{
+                    padding: '8px 14px',
+                    background: sessionPage === 1 ? '#F3F4F6' : 'white',
+                    border: '1px solid #D1D5DB',
+                    borderRadius: 8,
+                    cursor: sessionPage === 1 ? 'not-allowed' : 'pointer',
+                    color: sessionPage === 1 ? '#9CA3AF' : '#374151',
+                    fontSize: 13,
+                    fontWeight: 500,
+                  }}
+                >
+                  ← {t('cvManagement.previous') || 'Önceki'}
+                </button>
+                
+                <span style={{ fontSize: 14, color: '#6B7280', padding: '0 12px' }}>
+                  {sessionPage} / {sessionTotalPages}
+                </span>
+                
+                <button
+                  onClick={() => setSessionPage(p => Math.min(sessionTotalPages, p + 1))}
+                  disabled={sessionPage === sessionTotalPages}
+                  style={{
+                    padding: '8px 14px',
+                    background: sessionPage === sessionTotalPages ? '#F3F4F6' : 'white',
+                    border: '1px solid #D1D5DB',
+                    borderRadius: 8,
+                    cursor: sessionPage === sessionTotalPages ? 'not-allowed' : 'pointer',
+                    color: sessionPage === sessionTotalPages ? '#9CA3AF' : '#374151',
+                    fontSize: 13,
+                    fontWeight: 500,
+                  }}
+                >
+                  {t('cvManagement.next') || 'Sonraki'} →
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -250,34 +313,83 @@ const CVPage = ({ departments, initialView = 'list' }) => {
             <h1 style={{ fontSize: 28, fontWeight: 700, color: '#1F2937', marginBottom: 8 }}>{t('cvManagement.title')}</h1>
             <p style={{ fontSize: 14, color: '#6B7280' }}>{t('cvManagement.cvListSubtitle')}</p>
           </div>
-          <button 
-            onClick={() => setView('upload')} 
-            style={{ 
-              padding: '12px 20px', 
-              background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', 
-              border: 'none', 
-              borderRadius: 10, 
-              fontWeight: 600, 
-              color: 'white',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
-              transition: 'all 0.2s'
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.transform = 'translateY(-2px)';
-              e.target.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.4)';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.transform = 'translateY(0)';
-              e.target.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
-            }}
-          >
-            <UploadIcon size={18} />
-            {t('cvManagement.uploadNewCV')}
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            {/* View Mode Toggle */}
+            <div style={{ display: 'flex', gap: 4, background: '#F3F4F6', borderRadius: 8, padding: 4 }}>
+              <button
+                onClick={() => setCandidateViewMode('list')}
+                style={{
+                  padding: '8px 14px',
+                  background: candidateViewMode === 'list' ? 'white' : 'transparent',
+                  border: 'none',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: candidateViewMode === 'list' ? '#111827' : '#6B7280',
+                  boxShadow: candidateViewMode === 'list' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                  transition: 'all 0.15s',
+                }}
+              >
+                <List size={16} />
+                {t('cvManagement.listView', 'Liste')}
+              </button>
+              <button
+                onClick={() => setCandidateViewMode('cards')}
+                style={{
+                  padding: '8px 14px',
+                  background: candidateViewMode === 'cards' ? 'white' : 'transparent',
+                  border: 'none',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: candidateViewMode === 'cards' ? '#111827' : '#6B7280',
+                  boxShadow: candidateViewMode === 'cards' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                  transition: 'all 0.15s',
+                }}
+              >
+                <LayoutGrid size={16} />
+                {t('cvManagement.cardView', 'Kart')}
+              </button>
+            </div>
+            
+            {/* Upload Button */}
+            <button 
+              onClick={() => setView('upload')} 
+              style={{ 
+                padding: '12px 20px', 
+                background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', 
+                border: 'none', 
+                borderRadius: 10, 
+                fontWeight: 600, 
+                color: 'white',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
+              }}
+            >
+              <UploadIcon size={18} />
+              {t('cvManagement.uploadNewCV')}
+            </button>
+          </div>
         </div>
 
         {/* Search & Filters Bar */}
@@ -362,8 +474,18 @@ const CVPage = ({ departments, initialView = 'list' }) => {
                 fontWeight: 500,
                 cursor: 'pointer',
                 transition: 'all 0.15s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
               }}
             >
+              <span style={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                background: d.color || '#6B7280',
+                flexShrink: 0,
+              }} />
               {d.name}
             </button>
           ))}
@@ -408,7 +530,7 @@ const CVPage = ({ departments, initialView = 'list' }) => {
             languageFilter={lang}
             searchTerm={search}
             onCompare={(a, b) => setComparePair({ a, b })}
-            viewMode="cards"
+            viewMode={candidateViewMode}
           />
         )}
       </div>

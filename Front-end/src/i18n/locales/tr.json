@@ -22,11 +22,17 @@
     "submitting": "Gönderiliyor...",
     "active": "Aktif",
     "inactive": "Pasif",
+    "on": "Açık",
+    "off": "Kapalı",
+    "clickToActivate": "Aktif etmek için tıklayın",
+    "clickToDeactivate": "Pasif yapmak için tıklayın",
     "minutes": "dk",
     "deleting": "Siliniyor...",
+    "saving": "Kaydediliyor...",
     "show": "Göster",
     "hide": "Gizle",
-    "optional": "İsteğe bağlı"
+    "optional": "İsteğe bağlı",
+    "status": "Durum"
   },
   "jobs": {
     "deleteTitle": "İlanı Sil",
@@ -53,7 +59,8 @@
     "settings": "Ayarlar",
     "newJobButton": "Yeni İş İlanı Oluştur",
     "userRole": "İK Uzmanı",
-    "departmentTooltip": "Başlamak için önce bir departman oluşturun"
+    "departmentTooltip": "Başlamak için önce bir departman oluşturun",
+    "showAllDepartments": "+{{count}} daha fazla"
   },
   "templates": {
     "interviewTemplates": "Mülakat Şablonları",
@@ -111,6 +118,14 @@
     "department": "Departman",
     "candidate": "Aday",
     "status": "Durum"
+  },
+  "dailyActivity": {
+    "title": "Günlük Aktivite",
+    "cvUploads": "CV Yüklemeleri",
+    "cvAnalyses": "CV Analizleri",
+    "interviewInvitations": "Mülakat Davetleri",
+    "rejections": "Red Mesajları",
+    "likertInvitations": "Likert Davetleri"
   },
   "settings": {
     "changePassword": "Şifre Değiştir",
@@ -350,6 +365,12 @@
     "jobsSubtitle": "Tüm açık pozisyonları görüntüleyin ve CV değerlendirmesi için seçin.",
     "noJobsFound": "İlan bulunamadı",
     "noCandidatesFound": "Aday bulunamadı",
+    "selectAll": "Tümünü Seç",
+    "deselectAll": "Seçimi Kaldır",
+    "sortNewest": "En Yeni",
+    "sortOldest": "En Eski",
+    "sortAZ": "A-Z (Alfabetik)",
+    "sortZA": "Z-A (Ters Alfabetik)",
     "jobsOverviewTitle": "İş İlanları Genel Bakış",
     "analyzing": "Analiz ediliyor...",
     "resultsTitle": "CV Analiz Sonuçları: {{jobTitle}}",
@@ -386,7 +407,7 @@
     "statusDraft": "Taslak",
     "statusClosed": "Kapalı",
     "statusArchived": "Arşiv",
-    "aiPoweredEvaluation": "AI-Powered Evaluation",
+    "aiPoweredEvaluation": "Yapay Zeka Değerlendirmesi",
     "analysisFailed": "Analiz Başarısız",
     "timeoutError": "Analiz süresi çok uzun sürdü. Sunucu zaman aşımına uğradı. Lütfen daha az sayıda CV seçerek veya birkaç dakika sonra tekrar deneyin.",
     "genericError": "Analiz sırasında bir hata oluştu. Lütfen tekrar deneyin."
@@ -638,6 +659,7 @@
   },
   "departments": {
     "title": "Departmanlar",
+    "subtitle": "Departmanları yönetin ve iş ilanlarını organize edin",
     "nameRequired": "Departman adı gereklidir",
     "nameMinLength": "Departman adı en az 2 karakter olmalıdır",
     "updateSuccess": "Departman başarıyla güncellendi",
@@ -664,7 +686,11 @@
     "actions": "İşlemler",
     "edit": "Düzenle",
     "makeInactive": "Pasif Yap",
-    "makeActive": "Aktif Yap"
+    "makeActive": "Aktif Yap",
+    "noDepartments": "Henüz departman yok",
+    "listView": "Liste",
+    "cardView": "Kart",
+    "createdAt": "Oluşturulma"
   },
   "cvManagement": {
     "title": "CV Yönetimi",
@@ -699,7 +725,11 @@
     "clearList": "Listeyi Temizle",
     "download": "İndir",
     "uploadNewCV": "Yeni CV Yükle",
-    "backToList": "Listeye Dön"
+    "backToList": "Listeye Dön",
+    "listView": "Liste",
+    "cardView": "Kart",
+    "previous": "Geri",
+    "next": "İleri"
   },
   "cvUploader": {
     "uploadComplete": "Yükleme Tamamlandı!",
@@ -786,6 +816,7 @@
     },
     "deleteTitle": "CV'yi Sil",
     "deleteConfirm": "adlı CV'yi silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
+    "deleteWarning": "Dikkat: Analiz Edilmiş CV",
     "deleteWarningTitle": "Dikkat: Analiz Edilmiş CV",
     "deleteWarningMessage": "adlı CV daha önce analiz edilmiş. Silmek tüm analiz sonuçlarını, mülakat kayıtlarını ve test sonuçlarını da silecektir.",
     "deleteWarningConfirm": "Yine de silmek istiyor musunuz?",
@@ -812,6 +843,7 @@
     "remoteRemote": "🌐 Remote",
     "remoteHybrid": "🔀 Hybrid",
     "noJobsFound": "İlan bulunamadı",
+    "newBadge": "Yeni",
     "selectOrCreate": "Bir ilanı seçin veya yeni bir ilan oluşturun",
     "createNewJob": "Yeni İlan Oluştur",
     "createManualJob": "Manuel İlan Oluştur",
@@ -842,7 +874,7 @@
     "introText": "Ön Yazı Metni",
     "introPlaceholder": "Şirket tanıtımı veya ilan giriş metni yazın...",
     "introHint": "Bu metin ilanın en başında görünecektir",
-    "sectionOutro": "Sonuç Yazı (Sunduklarımız)",
+    "sectionOutro": "Sonuç Yazı",
     "addOutro": "İlana Sonuç Yazı Ekle",
     "selectOutroTemplate": "Şablondan Seç",
     "selectOutroPlaceholder": "Sonuç yazı şablonu seçin...",
@@ -868,7 +900,7 @@
     "contract": "Sözleşmeli (Dönemsel)",
     "internship": "Stajyer",
     "remotePolicy": "Çalışma Yeri",
-    "office": "Ofis",
+    "office": "İşyeri",
     "hybrid": "Hibrit",
     "remote": "Uzaktan Çalışma",
     "experienceLevel": "Deneyim Seviyesi",
@@ -924,7 +956,9 @@
     "errorSalaryRange": "Minimum maaş, maksimum maaştan büyük olamaz",
     "successCreated": "İlan başarıyla oluşturuldu",
     "successUpdated": "İlan başarıyla güncellendi",
-    "errorGeneral": "Bir hata oluştu"
+    "errorGeneral": "Bir hata oluştu",
+    "disabledFriendly": "Engelli Dostu İlan",
+    "disabledFriendlyHint": "Bu ilan engelli adaylara yöneliktir"
   },
   "cvCompare": {
     "title": "{{jobTitle}} Aday Karşılaştırması",
@@ -956,7 +990,7 @@
     "addIntro": "Ön Yazı Ekle",
     "selectIntroTemplate": "Şablondan seç...",
     "introPlaceholder": "Şirket tanıtımı veya ilan giriş metni yazın...",
-    "addOutro": "Sonuç Yazı Ekle (Sunduklarımız)",
+    "addOutro": "Sonuç Yazı Ekle",
     "selectOutroTemplate": "Sonuç yazı şablonu seç...",
     "outroPlaceholder": "Şirketin sunduğu imkanlar veya yan hakları yazın...",
     "location": "Lokasyon",
@@ -972,7 +1006,7 @@
     "midLevel": "Mid-Level (3-5 yıl)",
     "senior": "Senior (6+ yıl)",
     "selectExperience": "Seviye seçin",
-    "requiredSkills": "Gerekli Yetenekler",
+    "requiredSkills": "Aranan Yetkinlikler",
     "skillsPlaceholder": "Yetenek ekleyin ve Enter'a basın",
     "skillsNote": "Yetenekleri virgülle ayırın veya enter ile ekleyin",
     "requiredLanguages": "Dil Gereksinimleri",
@@ -1062,7 +1096,7 @@
     "mid": "Orta",
     "senior": "Kıdemli",
     "lead": "Lider",
-    "office": "Ofiste",
+    "office": "İşyeri",
     "hybrid": "Hibrit",
     "remote": "Uzaktan Çalışma",
     "basic": "Temel",
@@ -1072,6 +1106,11 @@
     "native": "Anadil"
   },
   "usageHistoryPage": {
+    "title": "Kullanım Takibi",
+    "subtitle": "Dönem bazlı kredi kullanımınızı inceleyin.",
+    "periodList": "Kullanım Dönem Listesi",
+    "year": "Yıl",
+    "current": "Güncel",
     "noRecordsInPeriod": "Bu dönemde kayıt bulunamadı",
     "noCvAnalysis": "CV analizi işlemi yapılmadı",
     "noCvUpload": "CV yükleme işlemi yapılmadı",
@@ -1081,7 +1120,12 @@
     "cvUploads": "CV Yüklemeleri",
     "interviewCompleted": "Mülakat Tamamlandı",
     "interviewAIAnalysis": "Mülakat AI Analizi",
+    "status": "DURUM",
+    "analysisDetails": "İŞLEM DETAYI",
+    "dateTime": "TARİH & SAAT",
     "count": "ADET",
+    "completed": "Tamamlandı",
+    "batch": "Seri",
     "descCvAnalysis": "AI destekli iş eşleştirme analizi",
     "descCvUpload": "Sisteme CV yükleme",
     "descInterviewCompleted": "Aday mülakatı tamamladı",
@@ -1095,6 +1139,8 @@
     "cvAnalysisShort": "CV Analiz",
     "cvUploadShort": "CV Yükle",
     "interviewShort": "Mülakat",
-    "aiAnalysisShort": "AI Analiz"
+    "aiAnalysisShort": "AI Analiz",
+    "showingResults": "{{total}} sonuçtan 1 ile {{count}} arası gösteriliyor",
+    "selectPeriod": "Bir dönem seçin"
   }
 }

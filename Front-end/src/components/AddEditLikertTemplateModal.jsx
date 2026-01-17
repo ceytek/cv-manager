@@ -181,7 +181,7 @@ const AddEditLikertTemplateModal = ({ isOpen, onClose, onSuccess, template }) =>
                   fontSize: '14px',
                 }}
               >
-                🇹🇷 Türkçe
+                TR - Türkçe
               </button>
               <button 
                 type="button"
@@ -197,7 +197,7 @@ const AddEditLikertTemplateModal = ({ isOpen, onClose, onSuccess, template }) =>
                   fontSize: '14px',
                 }}
               >
-                🇬🇧 English
+                EN - English
               </button>
             </div>
           </div>

@@ -104,6 +104,7 @@ const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel, isModal =
     deadline: '',
     startDate: '',
     status: 'draft',
+    isDisabledFriendly: false,
   });
 
   // Language state - kullanıcı dostu UI için
@@ -156,6 +157,7 @@ const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel, isModal =
         deadline: job.deadline || '',
         startDate: job.startDate || '',
         status: job.status || 'draft',
+        isDisabledFriendly: job.isDisabledFriendly || false,
       });
       
       setLanguages(langArray);
@@ -208,6 +210,7 @@ const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel, isModal =
         deadline: '',
         startDate: aiData.start_date || '',
         status: 'draft',
+        isDisabledFriendly: aiData.isDisabledFriendly || false,
       });
       
       setLanguages(langArray);
@@ -311,11 +314,15 @@ const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel, isModal =
       return acc;
     }, {});
 
+    // Get selected outro template name for preview
+    const selectedOutroTemplate = selectedOutroId ? outroTemplates.find(t => t.id === selectedOutroId) : null;
+    
     const jobData = {
       title: formData.title.trim(),
       departmentId: formData.departmentId,
       introText: useIntro && formData.introText ? formData.introText.trim() : null,
       outroText: useOutro && formData.outroText ? formData.outroText.trim() : null,
+      outroTemplateName: useOutro && selectedOutroTemplate ? selectedOutroTemplate.name : null,
       description: formData.description.trim(),
       requirements: formData.requirements.trim(),
       keywords,
@@ -332,6 +339,7 @@ const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel, isModal =
       deadline: formData.deadline || null,
       startDate: formData.startDate || null,
       status: formData.status,
+      isDisabledFriendly: formData.isDisabledFriendly,
     };
 
     // Show preview modal instead of direct save
@@ -341,11 +349,15 @@ const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel, isModal =
 
   const handlePublish = async () => {
     try {
+      // Remove outroTemplateName from input (it's only for preview display)
+      const { outroTemplateName, ...inputData } = previewData;
+      
+      let result;
       if (isEditing) {
-        await updateJob({ variables: { id: job.id, input: previewData } });
+        result = await updateJob({ variables: { id: job.id, input: inputData } });
         setSuccess(t('jobForm.successUpdated'));
       } else {
-        await createJob({ variables: { input: previewData } });
+        result = await createJob({ variables: { input: inputData } });
         setSuccess(t('jobForm.successCreated'));
       }
 
@@ -354,6 +366,7 @@ const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel, isModal =
         if (onSuccess) onSuccess();
       }, 1000);
     } catch (err) {
+      console.error('Job save error:', err);
       setError(err.message || t('jobForm.errorGeneral'));
     }
   };
@@ -923,6 +936,63 @@ const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel, isModal =
               <option value="closed">{t('jobForm.statusClosed')}</option>
               <option value="archived">{t('jobForm.statusArchived')}</option>
             </select>
+          </div>
+        </div>
+        
+        {/* Engelli Dostu İlan */}
+        <div 
+          onClick={() => handleChange('isDisabledFriendly', !formData.isDisabledFriendly)}
+          style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 12, 
+            padding: '16px',
+            background: formData.isDisabledFriendly ? '#EFF6FF' : '#F9FAFB',
+            border: formData.isDisabledFriendly ? '2px solid #3B82F6' : '2px solid #E5E7EB',
+            borderRadius: 12,
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+          }}
+        >
+          <div style={{
+            width: 44,
+            height: 44,
+            borderRadius: 10,
+            background: formData.isDisabledFriendly ? '#3B82F6' : '#D1D5DB',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'background 0.2s',
+          }}>
+            <span style={{ fontSize: 24 }}>♿</span>
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ 
+              fontSize: 15, 
+              fontWeight: 600, 
+              color: formData.isDisabledFriendly ? '#1E40AF' : '#374151',
+              marginBottom: 2 
+            }}>
+              {t('jobForm.disabledFriendly')}
+            </div>
+            <div style={{ fontSize: 13, color: '#6B7280' }}>
+              {t('jobForm.disabledFriendlyHint')}
+            </div>
+          </div>
+          <div style={{
+            width: 24,
+            height: 24,
+            borderRadius: 6,
+            border: formData.isDisabledFriendly ? '2px solid #3B82F6' : '2px solid #D1D5DB',
+            background: formData.isDisabledFriendly ? '#3B82F6' : 'white',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.2s',
+          }}>
+            {formData.isDisabledFriendly && (
+              <span style={{ color: 'white', fontWeight: 700 }}>✓</span>
+            )}
           </div>
         </div>
       </SectionPanel>

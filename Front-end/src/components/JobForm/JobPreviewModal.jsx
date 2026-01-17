@@ -135,6 +135,40 @@ const JobPreviewModal = ({ isOpen, onClose, jobData, departments, onPublish, isL
           overflowY: 'auto',
           padding: 32
         }}>
+          {/* Disabled Friendly Badge */}
+          {jobData.isDisabledFriendly && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              padding: '16px 20px',
+              background: 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%)',
+              border: '2px solid #3B82F6',
+              borderRadius: 12,
+              marginBottom: 24,
+            }}>
+              <div style={{
+                width: 48,
+                height: 48,
+                borderRadius: 12,
+                background: '#3B82F6',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <span style={{ fontSize: 28 }}>♿</span>
+              </div>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: '#1E40AF' }}>
+                  {t('jobForm.disabledFriendly')}
+                </div>
+                <div style={{ fontSize: 13, color: '#3B82F6' }}>
+                  {t('jobForm.disabledFriendlyHint')}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Job Title & Basic Info */}
           <div style={{
             marginBottom: 32,
@@ -412,7 +446,7 @@ const JobPreviewModal = ({ isOpen, onClose, jobData, departments, onPublish, isL
                 gap: 8
               }}>
                 <Gift size={20} color="#10B981" />
-                {t('jobPreview.outro')}
+                {jobData.outroTemplateName || t('jobPreview.outro')}
               </h3>
               <div 
                 dangerouslySetInnerHTML={{ __html: jobData.outroText }}

@@ -13,6 +13,8 @@ class Department(Base):
     # Remove global unique; enforce uniqueness per company via table args
     name = Column(String(100), nullable=False, index=True)
     is_active = Column(Boolean, default=True, nullable=False)
+    # Department color (hex format like #3B82F6)
+    color = Column(String(7), nullable=True, default=None)
     # Multi-tenancy (should be NOT NULL after migrations)
     company_id = Column(UUID(as_uuid=True), ForeignKey('companies.id'), nullable=False, index=True)
 

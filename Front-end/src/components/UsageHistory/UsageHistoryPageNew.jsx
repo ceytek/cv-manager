@@ -204,10 +204,10 @@ const UsageHistoryPageNew = () => {
           gap: 12
         }}>
           <History size={32} color="#3B82F6" />
-          Usage Tracking / Kullanım Takibi
+          {t('usageHistoryPage.title', 'Usage Tracking')}
         </h1>
         <p style={{ fontSize: 16, color: '#6B7280' }}>
-          Review your credit usage by period.
+          {t('usageHistoryPage.subtitle', 'Review your credit usage by period.')}
         </p>
       </div>
 
@@ -215,15 +215,15 @@ const UsageHistoryPageNew = () => {
         {/* Left: Period List */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <h2 style={{ fontSize: 18, fontWeight: 600, color: '#1F2937', margin: 0 }}>
-            Usage Period List / Kullanım Dönem Listesi
+            {t('usageHistoryPage.periodList', 'Usage Period List')}
           </h2>
           <p style={{ fontSize: 14, color: '#6B7280', margin: 0 }}>
-            Review your credit usage by period.
+            {t('usageHistoryPage.subtitle', 'Review your credit usage by period.')}
           </p>
 
           {/* Year Selector (always visible) */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 13, color: '#6B7280' }}>Yıl / Year</span>
+            <span style={{ fontSize: 13, color: '#6B7280' }}>{t('usageHistoryPage.year', 'Year')}</span>
             <select
               value={selectedYear || ''}
               onChange={(e) => setSelectedYear(parseInt(e.target.value, 10))}
@@ -283,7 +283,7 @@ const UsageHistoryPageNew = () => {
                       fontWeight: 600,
                       borderRadius: 6
                     }}>
-                      Current
+                      {t('usageHistoryPage.current', 'Current')}
                     </div>
                   )}
 
@@ -311,22 +311,22 @@ const UsageHistoryPageNew = () => {
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#6B21A8' }}></div>
-                      <span style={{ fontSize: 11, color: '#6B7280' }}>CV Analiz</span>
+                      <span style={{ fontSize: 11, color: '#6B7280' }}>{t('usageHistoryPage.cvAnalysisShort', 'CV Analysis')}</span>
                       <span style={{ fontSize: 12, fontWeight: 600, color: '#1F2937' }}>{stats.cvAnalysis}</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#1E40AF' }}></div>
-                      <span style={{ fontSize: 11, color: '#6B7280' }}>CV Yükle</span>
+                      <span style={{ fontSize: 11, color: '#6B7280' }}>{t('usageHistoryPage.cvUploadShort', 'CV Upload')}</span>
                       <span style={{ fontSize: 12, fontWeight: 600, color: '#1F2937' }}>{stats.cvUploads}</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#047857' }}></div>
-                      <span style={{ fontSize: 11, color: '#6B7280' }}>Mülakat</span>
+                      <span style={{ fontSize: 11, color: '#6B7280' }}>{t('usageHistoryPage.interviewShort', 'Interview')}</span>
                       <span style={{ fontSize: 12, fontWeight: 600, color: '#1F2937' }}>{stats.interviewCompleted}</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#B45309' }}></div>
-                      <span style={{ fontSize: 11, color: '#6B7280' }}>AI Analiz</span>
+                      <span style={{ fontSize: 11, color: '#6B7280' }}>{t('usageHistoryPage.aiAnalysisShort', 'AI Analysis')}</span>
                       <span style={{ fontSize: 12, fontWeight: 600, color: '#1F2937' }}>{stats.interviewAIAnalysis}</span>
                     </div>
                   </div>
@@ -410,9 +410,9 @@ const UsageHistoryPageNew = () => {
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid #E5E7EB' }}>
-                        <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase' }}>STATUS</th>
-                        <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase' }}>ANALYSIS DETAILS</th>
-                        <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase' }}>DATE & TIME</th>
+                        <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase' }}>{t('usageHistoryPage.status', 'STATUS')}</th>
+                        <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase' }}>{t('usageHistoryPage.analysisDetails', 'ANALYSIS DETAILS')}</th>
+                        <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase' }}>{t('usageHistoryPage.dateTime', 'DATE & TIME')}</th>
                         <th style={{ padding: '12px 16px', textAlign: 'right', fontSize: 12, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase' }}>
                           {t('usageHistoryPage.count', 'COUNT')}
                         </th>
@@ -439,8 +439,8 @@ const UsageHistoryPageNew = () => {
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                 <CheckCircle size={16} color="#10B981" />
                                 <div>
-                                  <div style={{ fontSize: 13, fontWeight: 600, color: '#1F2937' }}>Completed</div>
-                                  <div style={{ fontSize: 12, color: '#6B7280' }}>Batch #{activity.batchNumber}</div>
+                                  <div style={{ fontSize: 13, fontWeight: 600, color: '#1F2937' }}>{t('usageHistoryPage.completed', 'Completed')}</div>
+                                  <div style={{ fontSize: 12, color: '#6B7280' }}>{t('usageHistoryPage.batch', 'Batch')} #{activity.batchNumber}</div>
                                 </div>
                               </div>
                             </td>
@@ -532,7 +532,7 @@ const UsageHistoryPageNew = () => {
                     color: '#9CA3AF',
                     textAlign: 'center'
                   }}>
-                    Showing 1 to {currentActivities.length} of {currentActivities.length} results
+                    {t('usageHistoryPage.showingResults', 'Showing 1 to {{count}} of {{total}} results', { count: currentActivities.length, total: currentActivities.length })}
                   </div>
                 )}
               </div>
@@ -540,7 +540,7 @@ const UsageHistoryPageNew = () => {
           ) : (
             <div style={{ padding: 60, textAlign: 'center', color: '#9CA3AF' }}>
               <CalendarIcon size={48} style={{ margin: '0 auto 16px', opacity: 0.5 }} />
-              <p>Bir dönem seçin</p>
+              <p>{t('usageHistoryPage.selectPeriod', 'Select a period')}</p>
             </div>
           )}
         </div>

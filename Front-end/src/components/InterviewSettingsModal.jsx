@@ -269,7 +269,7 @@ const InterviewSettingsModal = ({ isOpen, onClose, job, onSuccess }) => {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
                       <Globe size={14} color="#3B82F6" />
-                      <span>{selectedTemplate.language === 'en' ? '🇬🇧 English' : '🇹🇷 Türkçe'}</span>
+                      <span>{selectedTemplate.language === 'en' ? 'EN - English' : 'TR - Türkçe'}</span>
                     </div>
                   </div>
                   {selectedTemplate.description && (

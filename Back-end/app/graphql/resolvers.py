@@ -38,6 +38,7 @@ from app.graphql.types import (
     GenerateJobWithAIInput,
     GenerateJobResultType,
     StatsType,
+    DailyActivityStatsType,
     ComparisonResultType,
     SubscriptionUsageType,
     UsageHistoryItem,
@@ -281,6 +282,110 @@ class Query:
         finally:
             db.close()
 
+    @strawberry.field(name="dailyActivityStats")
+    def daily_activity_stats(self, info: Info, date: Optional[str] = None) -> DailyActivityStatsType:
+        """
+        Get daily activity statistics for a specific date.
+        If no date is provided, returns today's stats.
+        CV uploads are counted from usage_tracking (all uploads).
+        Other metrics come from application_history (job-specific events).
+        """
+        from datetime import datetime, date as date_type
+        from app.modules.history.models import ApplicationHistory, ActionType
+        from app.models.subscription import UsageTracking
+        from sqlalchemy import func, and_, cast, Date
+        
+        request = info.context["request"]
+        auth_header = request.headers.get("authorization")
+        if not auth_header:
+            raise Exception("Not authenticated")
+        try:
+            scheme, token = auth_header.split()
+            if scheme.lower() != "bearer":
+                raise Exception("Invalid authentication scheme")
+        except ValueError:
+            raise Exception("Invalid authorization header")
+
+        db = get_db_session()
+        try:
+            current = get_current_user_from_token(token, db)
+            from app.api.dependencies import get_company_id_from_token
+            company_id = get_company_id_from_token(token)
+            if not company_id:
+                return DailyActivityStatsType(
+                    date=date or date_type.today().isoformat(),
+                    cv_uploads=0,
+                    cv_analyses=0,
+                    interview_invitations=0,
+                    rejections=0,
+                    likert_invitations=0
+                )
+
+            # Parse target date
+            if date:
+                try:
+                    target_date = datetime.fromisoformat(date).date()
+                except ValueError:
+                    target_date = date_type.today()
+            else:
+                target_date = date_type.today()
+
+            # Get action types for the codes we need
+            action_type_map = {}
+            action_types = db.query(ActionType).filter(
+                ActionType.code.in_(['cv_uploaded', 'cv_analyzed', 'interview_sent', 'rejected', 'likert_sent'])
+            ).all()
+            for at in action_types:
+                action_type_map[at.code] = at.id
+
+            # Count actions for each type on the target date (from application_history)
+            def count_actions(action_code):
+                action_type_id = action_type_map.get(action_code)
+                if not action_type_id:
+                    return 0
+                count = db.query(func.count(ApplicationHistory.id)).filter(
+                    and_(
+                        ApplicationHistory.company_id == company_id,
+                        ApplicationHistory.action_type_id == action_type_id,
+                        cast(ApplicationHistory.created_at, Date) == target_date
+                    )
+                ).scalar() or 0
+                return count
+
+            # CV uploads: count from usage_tracking (includes all bulk uploads)
+            cv_uploads = db.query(func.coalesce(func.sum(UsageTracking.count), 0)).filter(
+                and_(
+                    UsageTracking.company_id == company_id,
+                    UsageTracking.resource_type == "cv_upload",
+                    cast(UsageTracking.created_at, Date) == target_date
+                )
+            ).scalar() or 0
+            
+            # CV analyses: count from usage_tracking (ai_analysis resource type)
+            cv_analyses = db.query(func.coalesce(func.sum(UsageTracking.count), 0)).filter(
+                and_(
+                    UsageTracking.company_id == company_id,
+                    UsageTracking.resource_type == "ai_analysis",
+                    cast(UsageTracking.created_at, Date) == target_date
+                )
+            ).scalar() or 0
+            
+            # Other metrics from application_history
+            interview_invitations = count_actions('interview_sent')
+            rejections = count_actions('rejected')
+            likert_invitations = count_actions('likert_sent')
+
+            return DailyActivityStatsType(
+                date=target_date.isoformat(),
+                cv_uploads=int(cv_uploads),
+                cv_analyses=int(cv_analyses),
+                interview_invitations=interview_invitations,
+                rejections=rejections,
+                likert_invitations=likert_invitations
+            )
+        finally:
+            db.close()
+
     @strawberry.field(name="subscriptionUsage")
     def subscriptionUsage(self, info: Info) -> SubscriptionUsageType:
         """Return current company's subscription usage from usage_tracking table."""
@@ -420,13 +525,26 @@ class Query:
                 raise Exception("Company context required")
             
             departments = DepartmentService.list_all(db, include_inactive=include_inactive, company_id=company_id)
+            
+            # Get job counts per department
+            from app.models.job import Job
+            from sqlalchemy import func
+            job_counts = dict(
+                db.query(Job.department_id, func.count(Job.id))
+                .filter(Job.company_id == company_id)
+                .group_by(Job.department_id)
+                .all()
+            )
+            
             return [
                 DepartmentType(
                     id=d.id,
                     name=d.name,
                     is_active=d.is_active,
+                    color=d.color,
                     created_at=d.created_at,
                     updated_at=d.updated_at,
+                    job_count=job_counts.get(d.id, 0),
                 )
                 for d in departments
             ]
@@ -541,6 +659,7 @@ class Query:
                     id=dept.id,
                     name=dept.name,
                     is_active=dept.is_active,
+                            color=dept.color,
                     created_at=dept.created_at.isoformat() if dept.created_at else None,
                     updated_at=dept.updated_at.isoformat() if dept.updated_at else None,
                 )
@@ -619,6 +738,7 @@ class Query:
                 start_date=job.start_date,
                 status=job.status or "draft",
                 is_active=job.is_active,
+                is_disabled_friendly=job.is_disabled_friendly or False,
                 interview_enabled=job.interview_enabled or False,
                 interview_template_id=str(job.interview_template_id) if job.interview_template_id else None,
                 interview_deadline_hours=job.interview_deadline_hours or 72,
@@ -746,6 +866,7 @@ class Query:
                     start_date=j.start_date,
                     status=j.status,
                     is_active=j.is_active,
+                    is_disabled_friendly=j.is_disabled_friendly or False,
                     # Interview settings
                     interview_enabled=j.interview_enabled or False,
                     interview_template_id=str(j.interview_template_id) if j.interview_template_id else None,
@@ -764,6 +885,7 @@ class Query:
                             id=dep_map[j.department_id].id,
                             name=dep_map[j.department_id].name,
                             is_active=dep_map[j.department_id].is_active,
+                            color=dep_map[j.department_id].color,
                             created_at=dep_map[j.department_id].created_at.isoformat(),
                             updated_at=dep_map[j.department_id].updated_at.isoformat() if dep_map[j.department_id].updated_at else None,
                         ) if j.department_id in dep_map else None
@@ -830,6 +952,7 @@ class Query:
                         id=dept.id,
                         name=dept.name,
                         is_active=dept.is_active,
+                            color=dept.color,
                         created_at=dept.created_at.isoformat(),
                         updated_at=dept.updated_at.isoformat() if dept.updated_at else None
                     )
@@ -936,6 +1059,7 @@ class Query:
                             id=dept.id,
                             name=dept.name,
                             is_active=dept.is_active,
+                            color=dept.color,
                             created_at=dept.created_at.isoformat(),
                             updated_at=dept.updated_at.isoformat() if dept.updated_at else None
                         )
@@ -980,6 +1104,7 @@ class Query:
                             id=dept.id,
                             name=dept.name,
                             is_active=dept.is_active,
+                            color=dept.color,
                             created_at=dept.created_at.isoformat(),
                             updated_at=dept.updated_at.isoformat() if dept.updated_at else None
                         )
@@ -1921,6 +2046,7 @@ class Subscription:
                             id=dept.id,
                             name=dept.name,
                             is_active=dept.is_active,
+                            color=dept.color,
                             created_at=dept.created_at.isoformat(),
                             updated_at=dept.updated_at.isoformat() if dept.updated_at else None
                         )
@@ -1964,6 +2090,7 @@ class Subscription:
                             id=dept.id,
                             name=dept.name,
                             is_active=dept.is_active,
+                            color=dept.color,
                             created_at=dept.created_at.isoformat(),
                             updated_at=dept.updated_at.isoformat() if dept.updated_at else None
                         )
@@ -2239,6 +2366,7 @@ class Mutation(CompanyMutation):
                 email=created.email,
                 full_name=created.full_name,
                 is_active=created.is_active,
+                color=created.color,
                 is_verified=created.is_verified,
                 role=created_role,
                 created_at=created.created_at,
@@ -2302,12 +2430,13 @@ class Mutation(CompanyMutation):
                 raise Exception("Company context required")
             
             from app.schemas.department import DepartmentCreate
-            dept_data = DepartmentCreate(name=input.name, is_active=input.is_active)
+            dept_data = DepartmentCreate(name=input.name, is_active=input.is_active, color=input.color)
             created = DepartmentService.create(db, dept_data, company_id=company_id)
             result = DepartmentType(
                 id=created.id,
                 name=created.name,
                 is_active=created.is_active,
+                color=created.color,
                 created_at=created.created_at,
                 updated_at=created.updated_at,
             )
@@ -2346,12 +2475,13 @@ class Mutation(CompanyMutation):
             current = get_current_user_from_token(token, db)
             ensure_admin(current, db)
             from app.schemas.department import DepartmentUpdate
-            dept_data = DepartmentUpdate(name=input.name, is_active=input.is_active)
+            dept_data = DepartmentUpdate(name=input.name, is_active=input.is_active, color=input.color)
             updated = DepartmentService.update(db, id, dept_data)
             result = DepartmentType(
                 id=updated.id,
                 name=updated.name,
                 is_active=updated.is_active,
+                color=updated.color,
                 created_at=updated.created_at,
                 updated_at=updated.updated_at,
             )
@@ -2394,6 +2524,7 @@ class Mutation(CompanyMutation):
                 id=toggled.id,
                 name=toggled.name,
                 is_active=toggled.is_active,
+                color=toggled.color,
                 created_at=toggled.created_at,
                 updated_at=toggled.updated_at,
             )
@@ -2510,6 +2641,7 @@ class Mutation(CompanyMutation):
                     start_date=input.start_date,
                     status=input.status,
                     is_active=input.is_active,
+                    is_disabled_friendly=input.is_disabled_friendly,
                 )
             except ValueError as ve:
                 # Pydantic validation errors - translate to Turkish
@@ -2545,6 +2677,8 @@ class Mutation(CompanyMutation):
                 start_date=created.start_date,
                 status=created.status,
                 is_active=created.is_active,
+                color=created.color,
+                is_disabled_friendly=created.is_disabled_friendly,
                 created_at=created.created_at.isoformat(),
                 updated_at=created.updated_at.isoformat(),
             )
@@ -2643,6 +2777,8 @@ class Mutation(CompanyMutation):
                     update_dict['status'] = input.status
                 if input.is_active is not None:
                     update_dict['is_active'] = input.is_active
+                if input.is_disabled_friendly is not None:
+                    update_dict['is_disabled_friendly'] = input.is_disabled_friendly
                 
                 # Interview settings
                 if input.interview_enabled is not None:
@@ -2697,6 +2833,8 @@ class Mutation(CompanyMutation):
                 start_date=updated.start_date,
                 status=updated.status,
                 is_active=updated.is_active,
+                color=updated.color,
+                is_disabled_friendly=updated.is_disabled_friendly or False,
                 # Interview settings
                 interview_enabled=updated.interview_enabled or False,
                 interview_template_id=updated.interview_template_id,
@@ -2765,6 +2903,7 @@ class Mutation(CompanyMutation):
                 start_date=toggled.start_date,
                 status=toggled.status,
                 is_active=toggled.is_active,
+                color=toggled.color,
                 created_at=toggled.created_at.isoformat(),
                 updated_at=toggled.updated_at.isoformat(),
             )

@@ -36,6 +36,7 @@ class JobCreate(BaseModel):
     start_date: Optional[str] = Field(None, description="immediate/1month/3months/flexible")
     status: str = Field(default='draft', description="draft/active/closed/archived")
     is_active: bool = Field(default=True, description="Soft delete flag")
+    is_disabled_friendly: bool = Field(default=False, description="Disabled-friendly job flag")
 
     @field_validator('remote_policy')
     @classmethod
@@ -118,6 +119,9 @@ class JobUpdate(BaseModel):
     likert_enabled: Optional[bool] = None
     likert_template_id: Optional[str] = None
     likert_deadline_hours: Optional[int] = Field(None, ge=1)
+    
+    # Disabled-friendly flag
+    is_disabled_friendly: Optional[bool] = None
 
     @field_validator('remote_policy')
     @classmethod
@@ -186,6 +190,7 @@ class JobResponse(BaseModel):
     start_date: Optional[str]
     status: str
     is_active: bool
+    is_disabled_friendly: bool
     
     created_at: datetime
     updated_at: datetime

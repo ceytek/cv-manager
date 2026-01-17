@@ -119,8 +119,9 @@ const AgreementTemplatesPage = () => {
                 )}
               </div>
               <div style={{ padding: '12px 20px', borderTop: '1px solid #F3F4F6', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                <button onClick={() => handleToggle(template.id)} disabled={toggling} style={{ padding: '8px 12px', border: 'none', borderRadius: '8px', background: '#F3F4F6', color: '#374151', cursor: 'pointer' }}>
+                <button onClick={() => handleToggle(template.id)} disabled={toggling} title={template.isActive ? t('common.clickToDeactivate') : t('common.clickToActivate')} style={{ padding: '8px 12px', border: 'none', borderRadius: '8px', background: template.isActive ? '#D1FAE5' : '#F3F4F6', color: template.isActive ? '#059669' : '#6B7280', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: '500' }}>
                   {template.isActive ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
+                  <span>{template.isActive ? t('common.on') : t('common.off')}</span>
                 </button>
                 <button onClick={() => { setEditingTemplate(template); setShowModal(true); }} style={{ padding: '8px 12px', border: 'none', borderRadius: '8px', background: '#D1FAE5', color: '#059669', cursor: 'pointer' }}>
                   <Edit2 size={16} />

@@ -22,11 +22,17 @@
     "submitting": "Submitting...",
     "active": "Active",
     "inactive": "Inactive",
+    "on": "On",
+    "off": "Off",
+    "clickToActivate": "Click to activate",
+    "clickToDeactivate": "Click to deactivate",
     "minutes": "min",
     "deleting": "Deleting...",
+    "saving": "Saving...",
     "show": "Show",
     "hide": "Hide",
-    "optional": "Optional"
+    "optional": "Optional",
+    "status": "Status"
   },
   "jobs": {
     "deleteTitle": "Delete Job",
@@ -53,7 +59,8 @@
     "settings": "Settings",
     "newJobButton": "Create New Job Posting",
     "userRole": "HR Specialist",
-    "departmentTooltip": "Create a department first to get started"
+    "departmentTooltip": "Create a department first to get started",
+    "showAllDepartments": "+{{count}} more"
   },
   "templates": {
     "interviewTemplates": "Interview Templates",
@@ -111,6 +118,14 @@
     "department": "Department",
     "candidate": "Candidate",
     "status": "Status"
+  },
+  "dailyActivity": {
+    "title": "Daily Activity",
+    "cvUploads": "CV Uploads",
+    "cvAnalyses": "CV Analyses",
+    "interviewInvitations": "Interview Invitations",
+    "rejections": "Rejections",
+    "likertInvitations": "Likert Invitations"
   },
   "settings": {
     "changePassword": "Change Password",
@@ -350,6 +365,12 @@
     "jobsSubtitle": "View all open positions and select for CV evaluation.",
     "noJobsFound": "No jobs found",
     "noCandidatesFound": "No candidates found",
+    "selectAll": "Select All",
+    "deselectAll": "Deselect All",
+    "sortNewest": "Newest First",
+    "sortOldest": "Oldest First",
+    "sortAZ": "A-Z (Alphabetical)",
+    "sortZA": "Z-A (Reverse Alphabetical)",
     "jobsOverviewTitle": "Job Listings Overview",
     "analyzing": "Analyzing...",
     "resultsTitle": "CV Analysis Results: {{jobTitle}}",
@@ -638,6 +659,7 @@
   },
   "departments": {
     "title": "Departments",
+    "subtitle": "Manage departments and organize job listings",
     "nameRequired": "Department name is required",
     "nameMinLength": "Department name must be at least 2 characters",
     "updateSuccess": "Department successfully updated",
@@ -664,7 +686,11 @@
     "actions": "Actions",
     "edit": "Edit",
     "makeInactive": "Deactivate",
-    "makeActive": "Activate"
+    "makeActive": "Activate",
+    "noDepartments": "No departments yet",
+    "listView": "List",
+    "cardView": "Card",
+    "createdAt": "Created"
   },
   "cvManagement": {
     "title": "CV Management",
@@ -699,7 +725,11 @@
     "clearList": "Clear List",
     "download": "Download",
     "uploadNewCV": "Upload New CV",
-    "backToList": "Back to List"
+    "backToList": "Back to List",
+    "listView": "List",
+    "cardView": "Card",
+    "previous": "Previous",
+    "next": "Next"
   },
   "cvUploader": {
     "uploadComplete": "Upload Complete!",
@@ -786,6 +816,7 @@
     },
     "deleteTitle": "Delete CV",
     "deleteConfirm": "Are you sure you want to delete this CV? This action cannot be undone.",
+    "deleteWarning": "Warning: Analyzed CV",
     "deleteWarningTitle": "Warning: Analyzed CV",
     "deleteWarningMessage": "has been analyzed before. Deleting will also remove all analysis results, interview records, and test scores.",
     "deleteWarningConfirm": "Do you still want to delete?",
@@ -812,6 +843,7 @@
     "remoteRemote": "🌐 Remote",
     "remoteHybrid": "🔀 Hybrid",
     "noJobsFound": "No jobs found",
+    "newBadge": "New",
     "selectOrCreate": "Select a job or create a new one",
     "createNewJob": "Create New Job",
     "createManualJob": "Create New Job",
@@ -842,7 +874,7 @@
     "introText": "Introduction Text",
     "introPlaceholder": "Write company introduction or job preamble...",
     "introHint": "This text will appear at the beginning of the job posting",
-    "sectionOutro": "Conclusion (What We Offer)",
+    "sectionOutro": "Conclusion",
     "addOutro": "Add Conclusion to Job",
     "selectOutroTemplate": "Select from Template",
     "selectOutroPlaceholder": "Select conclusion template...",
@@ -868,7 +900,7 @@
     "contract": "Contract (Seasonal)",
     "internship": "Internship",
     "remotePolicy": "Work Location",
-    "office": "Office",
+    "office": "Workplace",
     "hybrid": "Hybrid",
     "remote": "Remote Work",
     "experienceLevel": "Experience Level",
@@ -924,7 +956,9 @@
     "errorSalaryRange": "Minimum salary cannot be greater than maximum",
     "successCreated": "Job created successfully",
     "successUpdated": "Job updated successfully",
-    "errorGeneral": "An error occurred"
+    "errorGeneral": "An error occurred",
+    "disabledFriendly": "Disabled-Friendly Job",
+    "disabledFriendlyHint": "This job is intended for candidates with disabilities"
   },
   "cvCompare": {
     "title": "{{jobTitle}} Candidate Comparison",
@@ -956,7 +990,7 @@
     "addIntro": "Add Introduction",
     "selectIntroTemplate": "Select from template...",
     "introPlaceholder": "Write company introduction or job preamble...",
-    "addOutro": "Add Conclusion (What We Offer)",
+    "addOutro": "Add Conclusion",
     "selectOutroTemplate": "Select conclusion template...",
     "outroPlaceholder": "Write what your company offers or benefits...",
     "location": "Location",
@@ -972,7 +1006,7 @@
     "midLevel": "Mid-Level (3-5 years)",
     "senior": "Senior (6+ years)",
     "selectExperience": "Select experience level",
-    "requiredSkills": "Required Skills",
+    "requiredSkills": "Required Competencies",
     "skillsPlaceholder": "Add skills and press Enter",
     "skillsNote": "Separate skills with commas or press Enter",
     "requiredLanguages": "Language Requirements",
@@ -1062,7 +1096,7 @@
     "mid": "Mid-Level",
     "senior": "Senior",
     "lead": "Lead",
-    "office": "Office",
+    "office": "Workplace",
     "hybrid": "Hybrid",
     "remote": "Remote Work",
     "basic": "Basic",
@@ -1072,6 +1106,11 @@
     "native": "Native"
   },
   "usageHistoryPage": {
+    "title": "Usage Tracking",
+    "subtitle": "Review your credit usage by period.",
+    "periodList": "Usage Period List",
+    "year": "Year",
+    "current": "Current",
     "noRecordsInPeriod": "No records found in this period",
     "noCvAnalysis": "No CV analysis was performed",
     "noCvUpload": "No CV upload was performed",
@@ -1081,7 +1120,12 @@
     "cvUploads": "CV Uploads",
     "interviewCompleted": "Interview Completed",
     "interviewAIAnalysis": "Interview AI Analysis",
+    "status": "STATUS",
+    "analysisDetails": "ANALYSIS DETAILS",
+    "dateTime": "DATE & TIME",
     "count": "COUNT",
+    "completed": "Completed",
+    "batch": "Batch",
     "descCvAnalysis": "AI-powered job matching analysis",
     "descCvUpload": "CV upload to system",
     "descInterviewCompleted": "Candidate completed interview",
@@ -1095,6 +1139,8 @@
     "cvAnalysisShort": "CV Analysis",
     "cvUploadShort": "CV Upload",
     "interviewShort": "Interview",
-    "aiAnalysisShort": "AI Analysis"
+    "aiAnalysisShort": "AI Analysis",
+    "showingResults": "Showing 1 to {{count}} of {{total}} results",
+    "selectPeriod": "Select a period"
   }
 }

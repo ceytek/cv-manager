@@ -21,3 +21,16 @@ export const STATS_SUBSCRIPTION = gql`
     }
   }
 `;
+
+export const DAILY_ACTIVITY_STATS_QUERY = gql`
+  query DailyActivityStats($date: String) {
+    dailyActivityStats(date: $date) {
+      date
+      cvUploads
+      cvAnalyses
+      interviewInvitations
+      rejections
+      likertInvitations
+    }
+  }
+`;

@@ -23,7 +23,7 @@ export const JOBS_QUERY = gql`
       id
       title
       departmentId
-      department { id name }
+      department { id name color }
       introText
       outroText
       description
@@ -52,6 +52,7 @@ export const JOBS_QUERY = gql`
       likertEnabled
       likertTemplateId
       likertDeadlineHours
+      isDisabledFriendly
       createdAt
       updatedAt
       analysisCount
@@ -66,7 +67,7 @@ export const JOB_QUERY = gql`
       id
       title
       departmentId
-      department { id name }
+      department { id name color }
       description
       descriptionPlain
       requirements
@@ -107,6 +108,7 @@ export const JOB_QUERY = gql`
         questionCount
         language
       }
+      isDisabledFriendly
       createdAt
       updatedAt
       analysisCount
@@ -160,6 +162,7 @@ export const CREATE_JOB_MUTATION = gql`
       startDate
       status
       isActive
+      isDisabledFriendly
       createdAt
       updatedAt
     }
@@ -196,6 +199,7 @@ export const UPDATE_JOB_MUTATION = gql`
       startDate
       status
       isActive
+      isDisabledFriendly
       createdAt
       updatedAt
     }

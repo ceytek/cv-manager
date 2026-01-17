@@ -41,25 +41,43 @@ const JobsPage = ({ departments = [], initialCreate = false }) => {
     }
   }, [initialCreate]);
 
-  // Fetch jobs
+  // Fetch ALL jobs (without status filter) to get accurate counts
   const { data, loading, error, refetch } = useQuery(JOBS_QUERY, {
     variables: {
-      includeInactive: activeFilter === 'archived',
-      status: activeFilter === 'all' ? null : activeFilter,
+      includeInactive: true, // Always include all to get accurate counts
+      status: null, // No status filter - we filter in frontend
       searchTerm: searchTerm || null,
     },
     fetchPolicy: 'cache-and-network',
   });
 
-  const jobs = data?.jobs || [];
+  const allJobs = data?.jobs || [];
+  
+  // Filter jobs based on active filter
+  const jobs = allJobs.filter(job => {
+    if (activeFilter === 'active') return job.status === 'active';
+    if (activeFilter === 'draft') return job.status === 'draft';
+    if (activeFilter === 'closed') return job.status === 'closed';
+    if (activeFilter === 'archived') return job.status === 'archived';
+    return true;
+  });
 
-  // Filter buttons
+  // Filter buttons with accurate counts from all jobs
   const filters = [
-    { id: 'active', label: t('jobsPage.filterActive'), count: jobs.filter(j => j.status === 'active').length },
-    { id: 'draft', label: t('jobsPage.filterDraft'), count: jobs.filter(j => j.status === 'draft').length },
-    { id: 'closed', label: t('jobsPage.filterClosed'), count: jobs.filter(j => j.status === 'closed').length },
-    { id: 'archived', label: t('jobsPage.filterArchived'), count: jobs.filter(j => j.status === 'archived').length },
+    { id: 'active', label: t('jobsPage.filterActive'), count: allJobs.filter(j => j.status === 'active').length },
+    { id: 'draft', label: t('jobsPage.filterDraft'), count: allJobs.filter(j => j.status === 'draft').length },
+    { id: 'closed', label: t('jobsPage.filterClosed'), count: allJobs.filter(j => j.status === 'closed').length },
+    { id: 'archived', label: t('jobsPage.filterArchived'), count: allJobs.filter(j => j.status === 'archived').length },
   ];
+  
+  // Check if a job is new (created within last 24 hours)
+  const isNewJob = (createdAt) => {
+    if (!createdAt) return false;
+    const created = new Date(createdAt);
+    const now = new Date();
+    const hoursDiff = (now - created) / (1000 * 60 * 60);
+    return hoursDiff <= 24;
+  };
 
   const handleEditJob = (job, e) => {
     e?.stopPropagation();
@@ -86,10 +104,13 @@ const JobsPage = ({ departments = [], initialCreate = false }) => {
   };
 
   const handleFormSuccess = () => {
-    refetch();
     setShowJobFormModal(false);
     setSelectedJob(null);
     setAiGeneratedData(null);
+    // Delay refetch to ensure modal is fully closed
+    setTimeout(() => {
+      refetch();
+    }, 100);
   };
 
   const handleFormCancel = () => {
@@ -138,6 +159,30 @@ const JobsPage = ({ departments = [], initialCreate = false }) => {
   const getDepartmentName = (deptId) => {
     const dept = departments.find(d => d.id === deptId);
     return dept ? dept.name : t('jobsPage.unknownDepartment');
+  };
+
+  // Get department color by ID
+  const getDepartmentColor = (deptId) => {
+    const dept = departments.find(d => d.id === deptId);
+    return dept?.color || '#6B7280';
+  };
+
+  // Render department with color dot
+  const DepartmentWithColor = ({ deptId }) => {
+    const color = getDepartmentColor(deptId);
+    const name = getDepartmentName(deptId);
+    return (
+      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span style={{
+          width: 8,
+          height: 8,
+          borderRadius: '50%',
+          background: color,
+          flexShrink: 0,
+        }} />
+        {name}
+      </span>
+    );
   };
 
   // Status badge helper
@@ -438,7 +483,24 @@ const JobsPage = ({ departments = [], initialCreate = false }) => {
                   background: '#FAFAFA',
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    {getStatusBadge(job.status)}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {getStatusBadge(job.status)}
+                      {/* New Badge - next to status */}
+                      {isNewJob(job.createdAt) && (
+                        <span style={{
+                          padding: '3px 10px',
+                          background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                          color: 'white',
+                          borderRadius: 12,
+                          fontSize: 10,
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)',
+                        }}>
+                          {t('jobsPage.newBadge', 'Yeni')}
+                        </span>
+                      )}
+                    </div>
                     <div style={{ display: 'flex', gap: 4 }}>
                       <button
                         onClick={(e) => handleEditJob(job, e)}
@@ -459,21 +521,35 @@ const JobsPage = ({ departments = [], initialCreate = false }) => {
                 
                 {/* Card Body */}
                 <div style={{ padding: 20 }}>
-                  <h3 style={{ 
-                    fontSize: 16, 
-                    fontWeight: 600, 
-                    color: '#1F2937', 
-                    margin: 0, 
-                    marginBottom: 8,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}>
-                    {job.title}
-                  </h3>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <h3 style={{ 
+                      fontSize: 16, 
+                      fontWeight: 600, 
+                      color: '#1F2937', 
+                      margin: 0, 
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      flex: 1,
+                    }}>
+                      {job.title}
+                    </h3>
+                    {job.isDisabledFriendly && (
+                      <span 
+                        title={t('jobForm.disabledFriendly')} 
+                        style={{ 
+                          fontSize: 18, 
+                          cursor: 'help',
+                          flexShrink: 0,
+                        }}
+                      >
+                        ♿
+                      </span>
+                    )}
+                  </div>
                   
                   <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 16 }}>
-                    {getDepartmentName(job.departmentId)}
+                    <DepartmentWithColor deptId={job.departmentId} />
                   </p>
                   
                   {/* Info Tags */}
@@ -674,11 +750,38 @@ const JobsPage = ({ departments = [], initialCreate = false }) => {
                       <h3 style={{ fontSize: 18, fontWeight: 600, color: '#1F2937', margin: 0 }}>
                         {job.title}
                       </h3>
+                      {/* Disabled Friendly Icon */}
+                      {job.isDisabledFriendly && (
+                        <span 
+                          title={t('jobForm.disabledFriendly')} 
+                          style={{ 
+                            fontSize: 18, 
+                            cursor: 'help',
+                          }}
+                        >
+                          ♿
+                        </span>
+                      )}
+                      {/* New Badge for List View */}
+                      {isNewJob(job.createdAt) && (
+                        <span style={{
+                          padding: '3px 10px',
+                          background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                          color: 'white',
+                          borderRadius: 12,
+                          fontSize: 10,
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)',
+                        }}>
+                          {t('jobsPage.newBadge', 'Yeni')}
+                        </span>
+                      )}
                       {getStatusBadge(job.status)}
                     </div>
                     
                     <p style={{ fontSize: 14, color: '#6B7280', marginBottom: 16 }}>
-                      {getDepartmentName(job.departmentId)}
+                      <DepartmentWithColor deptId={job.departmentId} />
                     </p>
                     
                     <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', fontSize: 13, color: '#6B7280' }}>
@@ -940,7 +1043,7 @@ const JobsPage = ({ departments = [], initialCreate = false }) => {
         onGenerate={handleAIGenerate}
       />
 
-      {/* Job Preview Modal */}
+      {/* Job Preview Modal - View Only */}
       {showPreview && previewJob && (
         <JobPreviewModal
           isOpen={showPreview}
@@ -950,11 +1053,7 @@ const JobsPage = ({ departments = [], initialCreate = false }) => {
           }}
           jobData={previewJob}
           departments={departments}
-          onPublish={() => {
-            setShowPreview(false);
-            setPreviewJob(null);
-          }}
-          isLoading={false}
+          viewOnly={true}
         />
       )}
 

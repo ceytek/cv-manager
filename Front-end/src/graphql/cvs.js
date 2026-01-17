@@ -30,6 +30,7 @@ export const CANDIDATES_QUERY = gql`
       department {
         id
         name
+        color
       }
     }
   }

@@ -83,6 +83,9 @@ class Job(Base):
     likert_enabled = Column(Boolean, default=False)
     likert_template_id = Column(UUID(as_uuid=True), ForeignKey('likert_templates.id', ondelete='SET NULL'), nullable=True)
     likert_deadline_hours = Column(Integer, default=72)
+    
+    # Disabled-friendly job flag (Engelli dostu ilan)
+    is_disabled_friendly = Column(Boolean, default=False, index=True)
 
     # AI Embeddings (pgvector) - optional, for semantic search
     if VECTOR_AVAILABLE:

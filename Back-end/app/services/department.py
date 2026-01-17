@@ -3,7 +3,7 @@ from fastapi import HTTPException, status
 from app.models.department import Department
 from app.models.candidate import Candidate
 from app.models.job import Job
-from app.schemas.department import DepartmentCreate, DepartmentUpdate
+from app.schemas.department import DepartmentCreate, DepartmentUpdate, DEPARTMENT_COLORS
 from typing import Optional, List
 from uuid import UUID
 
@@ -38,6 +38,17 @@ class DepartmentService:
         return query.order_by(Department.name).all()
     
     @staticmethod
+    def _get_next_color(db: Session, company_id: Optional[UUID] = None) -> str:
+        """Get the next available color from the palette for this company"""
+        # Count existing departments for this company
+        query = db.query(Department)
+        if company_id:
+            query = query.filter(Department.company_id == company_id)
+        dept_count = query.count()
+        # Return color based on index (cycles through the palette)
+        return DEPARTMENT_COLORS[dept_count % len(DEPARTMENT_COLORS)]
+    
+    @staticmethod
     def create(db: Session, department_data: DepartmentCreate, company_id: Optional[UUID] = None) -> Department:
         """Create a new department"""
         # Check if department already exists
@@ -48,9 +59,15 @@ class DepartmentService:
                 detail="Bu isimde bir departman zaten mevcut"
             )
         
+        # Auto-assign color if not provided
+        color = department_data.color
+        if not color:
+            color = DepartmentService._get_next_color(db, company_id)
+        
         new_department = Department(
             name=department_data.name,
             is_active=department_data.is_active,
+            color=color,
             company_id=company_id
         )
         
@@ -81,6 +98,9 @@ class DepartmentService:
         
         if department_data.is_active is not None:
             department.is_active = department_data.is_active
+        
+        if department_data.color is not None:
+            department.color = department_data.color
         
         db.commit()
         db.refresh(department)

@@ -143,6 +143,7 @@ class JobService:
             start_date=job_data.start_date,
             status=job_data.status,
             is_active=job_data.is_active,
+            is_disabled_friendly=job_data.is_disabled_friendly,
             company_id=company_id
         )
 

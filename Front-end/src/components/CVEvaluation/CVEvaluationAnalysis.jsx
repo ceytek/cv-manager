@@ -3,10 +3,10 @@
  * AI-powered CV to Job matching interface
  * 3-column layout: Job Selection | Candidate Selection | Summary & Analysis
  */
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation } from '@apollo/client/react';
-import { Search, CheckCircle2, ArrowLeft } from 'lucide-react';
+import { Search, CheckCircle2, ArrowLeft, ArrowUpDown } from 'lucide-react';
 import { JOBS_QUERY } from '../../graphql/jobs';
 import { CANDIDATES_QUERY } from '../../graphql/cvs';
 import { DEPARTMENTS_QUERY } from '../../graphql/departments';
@@ -90,6 +90,29 @@ const CVEvaluationAnalysis = ({ onBack }) => {
         return [...prev, candidate];
       }
     });
+  };
+
+  // Handle select all candidates
+  const selectAllCandidates = () => {
+    // Check if all filtered candidates are already selected
+    const allSelected = filteredCandidates.every(c => 
+      selectedCandidates.some(sc => sc.id === c.id)
+    );
+    
+    if (allSelected) {
+      // Deselect all filtered candidates
+      setSelectedCandidates(prev => 
+        prev.filter(sc => !filteredCandidates.some(fc => fc.id === sc.id))
+      );
+    } else {
+      // Select all filtered candidates (add ones not already selected)
+      setSelectedCandidates(prev => {
+        const newCandidates = filteredCandidates.filter(
+          fc => !prev.some(sc => sc.id === fc.id)
+        );
+        return [...prev, ...newCandidates];
+      });
+    }
   };
 
   // Handle start analysis - Call real GraphQL mutation
@@ -233,6 +256,7 @@ const CVEvaluationAnalysis = ({ onBack }) => {
           candidates={filteredCandidates}
           selectedCandidates={selectedCandidates}
           onToggleCandidate={toggleCandidateSelection}
+          onSelectAll={selectAllCandidates}
           searchTerm={candidateSearchTerm}
           onSearchChange={setCandidateSearchTerm}
           loading={candidatesLoading}
@@ -267,6 +291,26 @@ const CVEvaluationAnalysis = ({ onBack }) => {
 // ========================================
 const JobSelectionPanel = ({ jobs, selectedJob, onSelectJob, searchTerm, onSearchChange, loading }) => {
   const { t } = useTranslation();
+  const [sortBy, setSortBy] = useState('newest'); // newest, oldest, az, za
+  
+  // Sort jobs based on selected option
+  const sortedJobs = useMemo(() => {
+    if (!jobs || jobs.length === 0) return [];
+    
+    const sorted = [...jobs];
+    switch (sortBy) {
+      case 'newest':
+        return sorted.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+      case 'oldest':
+        return sorted.sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+      case 'az':
+        return sorted.sort((a, b) => (a.title || '').localeCompare(b.title || '', 'tr'));
+      case 'za':
+        return sorted.sort((a, b) => (b.title || '').localeCompare(a.title || '', 'tr'));
+      default:
+        return sorted;
+    }
+  }, [jobs, sortBy]);
   
   return (
     <div style={{
@@ -283,7 +327,7 @@ const JobSelectionPanel = ({ jobs, selectedJob, onSelectJob, searchTerm, onSearc
           {t('cvEvaluation.step1')}
         </h2>
         {/* Search */}
-        <div style={{ position: 'relative' }}>
+        <div style={{ position: 'relative', marginBottom: 12 }}>
           <Search
             size={18}
             style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }}
@@ -303,17 +347,41 @@ const JobSelectionPanel = ({ jobs, selectedJob, onSelectJob, searchTerm, onSearc
             }}
           />
         </div>
+        {/* Sort Dropdown */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <ArrowUpDown size={14} color="#6B7280" />
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            style={{
+              flex: 1,
+              padding: '8px 12px',
+              border: '1px solid #D1D5DB',
+              borderRadius: 6,
+              fontSize: 13,
+              color: '#374151',
+              background: 'white',
+              cursor: 'pointer',
+              outline: 'none',
+            }}
+          >
+            <option value="newest">{t('cvEvaluation.sortNewest')}</option>
+            <option value="oldest">{t('cvEvaluation.sortOldest')}</option>
+            <option value="az">{t('cvEvaluation.sortAZ')}</option>
+            <option value="za">{t('cvEvaluation.sortZA')}</option>
+          </select>
+        </div>
       </div>
 
       {/* Job List */}
       <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
         {loading ? (
           <div style={{ textAlign: 'center', padding: 40, color: '#9CA3AF' }}>{t('common.loading')}</div>
-        ) : jobs.length === 0 ? (
+        ) : sortedJobs.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 40, color: '#9CA3AF' }}>{t('cvEvaluation.noJobsFound')}</div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {jobs.map(job => (
+            {sortedJobs.map(job => (
               <JobCard
                 key={job.id}
                 job={job}
@@ -381,11 +449,37 @@ const CandidateSelectionPanel = ({
   candidates,
   selectedCandidates,
   onToggleCandidate,
+  onSelectAll,
   searchTerm,
   onSearchChange,
   loading,
 }) => {
   const { t } = useTranslation();
+  const [dropdownOpen, setDropdownOpen] = React.useState(false);
+  
+  // Check if all candidates are selected
+  const allSelected = candidates.length > 0 && candidates.every(c => 
+    selectedCandidates.some(sc => sc.id === c.id)
+  );
+  
+  // Get selected department name
+  const selectedDeptName = selectedDepartment 
+    ? departments.find(d => d.id === selectedDepartment)?.name 
+    : t('cvEvaluation.allDepartments');
+  const selectedDeptColor = selectedDepartment 
+    ? departments.find(d => d.id === selectedDepartment)?.color 
+    : null;
+  
+  // Close dropdown when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownOpen && !e.target.closest('.dept-dropdown-container')) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [dropdownOpen]);
   
   return (
     <div style={{
@@ -402,28 +496,118 @@ const CandidateSelectionPanel = ({
           {t('cvEvaluation.step2')}
         </h2>
 
-        {/* Department Dropdown */}
-        <select
-          value={selectedDepartment}
-          onChange={(e) => onDepartmentChange(e.target.value)}
-          style={{
-            width: '100%',
-            padding: '10px 12px',
-            border: '1px solid #D1D5DB',
-            borderRadius: 8,
-            fontSize: 14,
-            marginBottom: 12,
-            outline: 'none',
-            cursor: 'pointer',
-          }}
-        >
-          <option value="">{t('cvEvaluation.allDepartments')}</option>
-          {departments.map(dept => (
-            <option key={dept.id} value={dept.id}>
-              {dept.name}
-            </option>
-          ))}
-        </select>
+        {/* Custom Department Dropdown with Colors */}
+        <div className="dept-dropdown-container" style={{ position: 'relative', marginBottom: 12 }}>
+          <button
+            onClick={() => setDropdownOpen(!dropdownOpen)}
+            style={{
+              width: '100%',
+              padding: '10px 12px',
+              border: '1px solid #D1D5DB',
+              borderRadius: 8,
+              fontSize: 14,
+              background: 'white',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              textAlign: 'left',
+            }}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {selectedDeptColor && (
+                <span style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: '50%',
+                  background: selectedDeptColor,
+                  flexShrink: 0,
+                }} />
+              )}
+              {selectedDeptName}
+            </span>
+            <span style={{ 
+              transform: dropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+              transition: 'transform 0.2s',
+              color: '#6B7280',
+            }}>▼</span>
+          </button>
+          
+          {dropdownOpen && (
+            <div style={{
+              position: 'absolute',
+              top: '100%',
+              left: 0,
+              right: 0,
+              background: 'white',
+              border: '1px solid #D1D5DB',
+              borderRadius: 8,
+              marginTop: 4,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              zIndex: 50,
+              maxHeight: 250,
+              overflowY: 'auto',
+            }}>
+              {/* All Departments Option */}
+              <button
+                onClick={() => { onDepartmentChange(''); setDropdownOpen(false); }}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  border: 'none',
+                  background: selectedDepartment === '' ? '#EEF2FF' : 'white',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontSize: 14,
+                  color: '#1F2937',
+                  textAlign: 'left',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#F3F4F6'}
+                onMouseLeave={(e) => e.currentTarget.style.background = selectedDepartment === '' ? '#EEF2FF' : 'white'}
+              >
+                {selectedDepartment === '' && <span style={{ color: '#4F46E5' }}>✓</span>}
+                {t('cvEvaluation.allDepartments')}
+              </button>
+              
+              {departments.map(dept => (
+                <button
+                  key={dept.id}
+                  onClick={() => { onDepartmentChange(dept.id); setDropdownOpen(false); }}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    border: 'none',
+                    background: selectedDepartment === dept.id ? '#EEF2FF' : 'white',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    fontSize: 14,
+                    color: '#1F2937',
+                    textAlign: 'left',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = '#F3F4F6'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = selectedDepartment === dept.id ? '#EEF2FF' : 'white'}
+                >
+                  {selectedDepartment === dept.id && <span style={{ color: '#4F46E5' }}>✓</span>}
+                  {dept.color && (
+                    <span style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: '50%',
+                      background: dept.color,
+                      flexShrink: 0,
+                      marginLeft: selectedDepartment === dept.id ? 0 : 18,
+                    }} />
+                  )}
+                  {dept.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Search */}
         <div style={{ position: 'relative' }}>
@@ -460,6 +644,33 @@ const CandidateSelectionPanel = ({
           <div style={{ textAlign: 'center', padding: 40, color: '#9CA3AF' }}>{t('cvEvaluation.noCandidatesFound')}</div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {/* Select All Button */}
+            <button
+              onClick={onSelectAll}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                padding: '10px 16px',
+                background: allSelected ? '#EEF2FF' : '#F9FAFB',
+                border: allSelected ? '2px solid #6366F1' : '1px solid #D1D5DB',
+                borderRadius: 8,
+                fontSize: 14,
+                fontWeight: 600,
+                color: allSelected ? '#4F46E5' : '#374151',
+                cursor: 'pointer',
+                marginBottom: 8,
+                transition: 'all 0.2s',
+              }}
+            >
+              <CheckCircle2 size={18} color={allSelected ? '#4F46E5' : '#9CA3AF'} />
+              {allSelected ? t('cvEvaluation.deselectAll') : t('cvEvaluation.selectAll')}
+              <span style={{ fontSize: 12, color: '#6B7280', fontWeight: 400 }}>
+                ({candidates.length})
+              </span>
+            </button>
+            
             {candidates.map(candidate => (
               <CandidateCard
                 key={candidate.id}

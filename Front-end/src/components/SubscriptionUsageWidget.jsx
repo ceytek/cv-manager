@@ -3,14 +3,29 @@ import { useQuery } from '@apollo/client/react';
 import { SUBSCRIPTION_USAGE_QUERY } from '../graphql/multiTenancy';
 import './SubscriptionUsageWidget.css';
 
-const SubscriptionUsageWidget = () => {
+const SubscriptionUsageWidget = ({ compact = false }) => {
   const { data, loading, error } = useQuery(SUBSCRIPTION_USAGE_QUERY, {
     fetchPolicy: 'cache-and-network',
     pollInterval: 60000,
   });
 
+  // Compact style for header placement
+  const compactStyle = compact ? {
+    background: '#F3F4F6',
+    borderRadius: 8,
+    padding: '6px 10px',
+    border: '1px solid #E5E7EB',
+  } : {};
+
   // Show loading state
   if (loading) {
+    if (compact) {
+      return (
+        <div style={{ ...compactStyle, fontSize: 11, color: '#6B7280' }}>
+          Yükleniyor...
+        </div>
+      );
+    }
     return (
       <div className="subscription-usage-widget">
         <div className="su-header">
@@ -23,7 +38,13 @@ const SubscriptionUsageWidget = () => {
   // Show error or fallback
   if (error) {
     console.error('Subscription usage GraphQL error:', error);
-    console.log('Error details:', JSON.stringify(error, null, 2));
+    if (compact) {
+      return (
+        <div style={{ ...compactStyle, fontSize: 11, color: '#dc2626' }}>
+          Hata
+        </div>
+      );
+    }
     return (
       <div className="subscription-usage-widget">
         <div className="su-header">
@@ -39,8 +60,14 @@ const SubscriptionUsageWidget = () => {
   }
 
   if (!data?.subscriptionUsage) {
-    console.warn('No subscription usage data returned from backend');
-    console.log('Full response data:', data);
+    if (compact) {
+      return (
+        <div style={compactStyle}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: '#374151' }}>Paket Yok</div>
+          <div style={{ fontSize: 10, color: '#10B981' }}>Sınırsız CV</div>
+        </div>
+      );
+    }
     return (
       <div className="subscription-usage-widget">
         <div className="su-header">
@@ -63,6 +90,24 @@ const SubscriptionUsageWidget = () => {
   const { planName, cvLimit, usedCvCount, usagePercent } = data.subscriptionUsage;
   const unlimited = cvLimit === null || cvLimit === 0;
   const percent = unlimited ? 0 : Math.min(Math.round(usagePercent), 100);
+
+  // Compact mode rendering
+  if (compact) {
+    return (
+      <div style={compactStyle}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: '#374151' }}>
+          {planName || 'Paket Yok'}
+        </div>
+        {unlimited ? (
+          <div style={{ fontSize: 10, color: '#10B981' }}>Sınırsız CV</div>
+        ) : (
+          <div style={{ fontSize: 10, color: '#6B7280' }}>
+            {usedCvCount}/{cvLimit} CV
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="subscription-usage-widget">

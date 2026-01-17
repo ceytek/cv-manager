@@ -4,12 +4,14 @@ import { useTranslation } from 'react-i18next';
 import client from './apolloClient';
 import publicClient from './publicApolloClient';
 import authService from './services/authService';
+import useFavicon from './hooks/useFavicon';
 import './App.css';
 import LoginPage from './components/LoginPage';
 import Dashboard from './components/Dashboard';
 import PublicCareers from './pages/PublicCareers';
 import InterviewPage from './pages/interview/InterviewPage';
 import LikertPage from './pages/likert/LikertPage';
+import TestHeaderPage from './pages/TestHeaderPage';
 import ErrorBoundary from './components/ErrorBoundary';
 import './i18n'; // i18n konfigürasyonunu yükle
 
@@ -21,6 +23,9 @@ function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [publicPage, setPublicPage] = useState(null); // 'careers' | 'interview' | 'likert' | null
+
+  // Dinamik favicon ve sayfa başlığı - şirket bilgilerine göre güncelle
+  useFavicon(currentUser?.companyLogo, currentUser?.companyName);
 
   // Check if URL is for public pages
   useEffect(() => {
@@ -40,6 +45,12 @@ function App() {
     
     if (path.startsWith('/likert/')) {
       setPublicPage('likert');
+      setLoading(false);
+      return;
+    }
+    
+    if (path === '/test-header') {
+      setPublicPage('test-header');
       setLoading(false);
       return;
     }
@@ -106,6 +117,11 @@ function App() {
         <LikertPage token={token} />
       </ApolloProvider>
     );
+  }
+  
+  // Test Header Page - Geliştirme için
+  if (publicPage === 'test-header') {
+    return <TestHeaderPage />;
   }
 
   return (

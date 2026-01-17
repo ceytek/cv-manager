@@ -1,6 +1,7 @@
 /**
  * CVUploader Component - Drag & Drop File Upload
  * Modular, reusable component for CV uploads
+ * Supports batch uploading to prevent timeout errors
  */
 import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -10,12 +11,22 @@ import { Upload, FileText, X, CheckCircle, AlertCircle } from 'lucide-react';
 import CVUploadProgressModal from './CVUploadProgressModal';
 import { GRAPHQL_URL } from '../config/api';
 
+// Batch size for uploads - prevents timeout errors
+// Reduced to 3 for safer AI processing time
+const BATCH_SIZE = 3;
+
+// Pagination settings
+const FILES_PER_PAGE = 5;
+
 const CVUploader = ({ onUploadComplete, departments }) => {
   const { t } = useTranslation();
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const [uploadResult, setUploadResult] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
+  
+  // Pagination for selected files
+  const [currentPage, setCurrentPage] = useState(1);
   
   // Progress modal state
   const [showProgressModal, setShowProgressModal] = useState(false);
@@ -26,10 +37,21 @@ const CVUploader = ({ onUploadComplete, departments }) => {
     currentFileName: '',
     status: 'processing' // 'processing', 'success', 'error'
   });
+  
+  // Calculate pagination for selected files
+  const totalPages = Math.ceil(selectedFiles.length / FILES_PER_PAGE);
+  const startIndex = (currentPage - 1) * FILES_PER_PAGE;
+  const paginatedFiles = selectedFiles.slice(startIndex, startIndex + FILES_PER_PAGE);
+  
+  // Reset to page 1 when files change
+  const handleFilesChange = (files) => {
+    setSelectedFiles(files);
+    setCurrentPage(1);
+  };
 
   // Dropzone configuration
   const onDrop = useCallback((acceptedFiles) => {
-    setSelectedFiles(acceptedFiles);
+    handleFilesChange(acceptedFiles);
     setUploadResult(null);
   }, []);
 
@@ -42,12 +64,75 @@ const CVUploader = ({ onUploadComplete, departments }) => {
     multiple: true,
   });
 
-  // Remove file from selection
+  // Remove file from selection (index is relative to full list)
   const removeFile = (index) => {
-    setSelectedFiles(selectedFiles.filter((_, i) => i !== index));
+    const newFiles = selectedFiles.filter((_, i) => i !== index);
+    setSelectedFiles(newFiles);
+    
+    // Adjust page if current page becomes empty
+    const newTotalPages = Math.ceil(newFiles.length / FILES_PER_PAGE);
+    if (currentPage > newTotalPages && newTotalPages > 0) {
+      setCurrentPage(newTotalPages);
+    }
   };
 
-  // Upload files using a single multipart GraphQL request
+  // Upload a single batch of files
+  const uploadBatch = async (batchFiles, token) => {
+    const formData = new FormData();
+
+    const operations = {
+      query: `
+        mutation UploadCVs($files: [Upload!]!, $departmentId: String!) {
+          uploadCvs(files: $files, departmentId: $departmentId) {
+            successful {
+              fileName
+              filePath
+              fileSize
+              candidateName
+              candidateEmail
+              candidatePhone
+              candidateLinkedin
+              candidateGithub
+            }
+            failed {
+              fileName
+              reason
+            }
+            totalUploaded
+            totalFailed
+          }
+        }
+      `,
+      variables: {
+        files: Array(batchFiles.length).fill(null),
+        departmentId: selectedDepartment
+      }
+    };
+
+    // Map each file to its variables.files index
+    const map = {};
+    batchFiles.forEach((file, idx) => {
+      map[idx] = [`variables.files.${idx}`];
+    });
+
+    formData.append('operations', JSON.stringify(operations));
+    formData.append('map', JSON.stringify(map));
+    batchFiles.forEach((file, idx) => {
+      formData.append(String(idx), file);
+    });
+
+    const response = await fetch(GRAPHQL_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : '',
+      },
+      body: formData,
+    });
+
+    return await response.json();
+  };
+
+  // Upload files in batches to prevent timeout
   const handleUpload = async () => {
     if (selectedFiles.length === 0) {
       alert(t('cvUploader.selectAtLeastOneFile'));
@@ -72,93 +157,71 @@ const CVUploader = ({ onUploadComplete, departments }) => {
       status: 'processing'
     });
 
+    // Aggregate results from all batches
+    const results = {
+      successful: [],
+      failed: [],
+      totalUploaded: 0,
+      totalFailed: 0
+    };
+
+    const token = sessionStorage.getItem('accessToken');
+
     try {
-      // Prepare a single multipart request containing all files
-      const results = {
-        successful: [],
-        failed: [],
-        totalUploaded: 0,
-        totalFailed: 0
-      };
+      // Split files into batches
+      const batches = [];
+      for (let i = 0; i < selectedFiles.length; i += BATCH_SIZE) {
+        batches.push(selectedFiles.slice(i, i + BATCH_SIZE));
+      }
 
-      const formData = new FormData();
+      let processedCount = 0;
 
-      const operations = {
-        query: `
-          mutation UploadCVs($files: [Upload!]!, $departmentId: String!) {
-            uploadCvs(files: $files, departmentId: $departmentId) {
-              successful {
-                fileName
-                filePath
-                fileSize
-                candidateName
-                candidateEmail
-                candidatePhone
-                candidateLinkedin
-                candidateGithub
-              }
-              failed {
-                fileName
-                reason
-              }
-              totalUploaded
-              totalFailed
-            }
+      // Process batches sequentially
+      for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+        const batch = batches[batchIndex];
+        
+        // Update progress - show current batch files being processed
+        setUploadProgress(prev => ({
+          ...prev,
+          currentFileName: batch.map(f => f.name).join(', ')
+        }));
+
+        try {
+          const result = await uploadBatch(batch, token);
+
+          if (result.errors) {
+            // If GraphQL errors returned, mark batch as failed
+            batch.forEach((file) => {
+              results.failed.push({
+                fileName: file.name,
+                reason: result.errors?.[0]?.message || t('cvUploader.uploadFailed')
+              });
+            });
+            results.totalFailed += batch.length;
+          } else {
+            const data = result.data.uploadCvs;
+            results.successful.push(...data.successful);
+            results.failed.push(...data.failed);
+            results.totalUploaded += data.totalUploaded;
+            results.totalFailed += data.totalFailed;
           }
-        `,
-        variables: {
-          files: Array(selectedFiles.length).fill(null),
-          departmentId: selectedDepartment
-        }
-      };
-
-      // Map each file to its variables.files index
-      const map = {};
-      selectedFiles.forEach((file, idx) => {
-        map[idx] = [`variables.files.${idx}`];
-      });
-
-      formData.append('operations', JSON.stringify(operations));
-      formData.append('map', JSON.stringify(map));
-      selectedFiles.forEach((file, idx) => {
-        formData.append(String(idx), file);
-      });
-
-      const token = sessionStorage.getItem('accessToken');
-
-      // Optional: indicate bulk processing in progress UI
-      setUploadProgress(prev => ({
-        ...prev,
-        currentFile: selectedFiles.length,
-        processedFiles: 0,
-        currentFileName: selectedFiles.map(f => f.name).join(', ')
-      }));
-
-      const response = await fetch(GRAPHQL_URL, {
-        method: 'POST',
-        headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
-        },
-        body: formData,
-      });
-
-      const result = await response.json();
-
-      if (result.errors) {
-        // If GraphQL errors returned, mark all as failed
-        selectedFiles.forEach((file) => {
-          results.failed.push({
-            fileName: file.name,
-            reason: result.errors?.[0]?.message || t('cvUploader.uploadFailed')
+        } catch (batchError) {
+          // Handle batch-level errors
+          batch.forEach((file) => {
+            results.failed.push({
+              fileName: file.name,
+              reason: batchError.message || t('cvUploader.uploadFailed')
+            });
           });
-        });
-        results.totalFailed = selectedFiles.length;
-      } else {
-        const data = result.data.uploadCvs;
-        results.successful.push(...data.successful);
-        results.failed.push(...data.failed);
-        results.totalUploaded = data.totalUploaded;
-        results.totalFailed = data.totalFailed;
+          results.totalFailed += batch.length;
+        }
+
+        // Update processed count after each batch
+        processedCount += batch.length;
+        setUploadProgress(prev => ({
+          ...prev,
+          processedFiles: processedCount
+        }));
       }
 
       // Update final progress
@@ -166,7 +229,7 @@ const CVUploader = ({ onUploadComplete, departments }) => {
         ...prev,
         processedFiles: selectedFiles.length,
         currentFileName: '',
-        status: results.totalFailed === 0 ? 'success' : 'error'
+        status: results.totalFailed === 0 ? 'success' : (results.totalUploaded > 0 ? 'error' : 'error')
       }));
 
       setUploadResult(results);
@@ -192,13 +255,16 @@ const CVUploader = ({ onUploadComplete, departments }) => {
       }));
       
       setUploadResult({
-        successful: [],
-        failed: selectedFiles.map(f => ({
-          fileName: f.name,
-          reason: error.message || t('cvUploader.uploadFailed'),
-        })),
-        totalUploaded: 0,
-        totalFailed: selectedFiles.length,
+        successful: results.successful,
+        failed: [
+          ...results.failed,
+          ...selectedFiles.slice(results.successful.length + results.failed.length).map(f => ({
+            fileName: f.name,
+            reason: error.message || t('cvUploader.uploadFailed'),
+          }))
+        ],
+        totalUploaded: results.totalUploaded,
+        totalFailed: selectedFiles.length - results.totalUploaded,
       });
 
       setTimeout(() => {
@@ -365,46 +431,112 @@ const CVUploader = ({ onUploadComplete, departments }) => {
             {t('cvUploader.selectedFiles', { count: selectedFiles.length })}
           </h4>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {selectedFiles.map((file, index) => (
-              <div
-                key={index}
+            {paginatedFiles.map((file, index) => {
+              const actualIndex = startIndex + index; // Real index in full array
+              return (
+                <div
+                  key={actualIndex}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: 12,
+                    background: 'white',
+                    border: '1px solid #E5E7EB',
+                    borderRadius: 8,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <FileText size={20} color="#3B82F6" />
+                    <div>
+                      <p style={{ fontSize: 14, fontWeight: 500, color: '#1F2937' }}>
+                        {file.name}
+                      </p>
+                      <p style={{ fontSize: 12, color: '#6B7280' }}>
+                        {formatFileSize(file.size)}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeFile(actualIndex)}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: 4,
+                    }}
+                    disabled={isUploading}
+                  >
+                    <X size={20} color="#EF4444" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'center', 
+              alignItems: 'center', 
+              gap: 8, 
+              marginTop: 16,
+              padding: '12px 0',
+            }}>
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: 12,
-                  background: 'white',
-                  border: '1px solid #E5E7EB',
-                  borderRadius: 8,
+                  padding: '6px 12px',
+                  background: currentPage === 1 ? '#F3F4F6' : 'white',
+                  border: '1px solid #D1D5DB',
+                  borderRadius: 6,
+                  cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                  color: currentPage === 1 ? '#9CA3AF' : '#374151',
+                  fontSize: 13,
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <FileText size={20} color="#3B82F6" />
-                  <div>
-                    <p style={{ fontSize: 14, fontWeight: 500, color: '#1F2937' }}>
-                      {file.name}
-                    </p>
-                    <p style={{ fontSize: 12, color: '#6B7280' }}>
-                      {formatFileSize(file.size)}
-                    </p>
-                  </div>
-                </div>
+                ←
+              </button>
+              
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
                 <button
-                  type="button"
-                  onClick={() => removeFile(index)}
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
                   style={{
-                    background: 'transparent',
-                    border: 'none',
+                    padding: '6px 12px',
+                    background: currentPage === page ? '#3B82F6' : 'white',
+                    border: currentPage === page ? '1px solid #3B82F6' : '1px solid #D1D5DB',
+                    borderRadius: 6,
                     cursor: 'pointer',
-                    padding: 4,
+                    color: currentPage === page ? 'white' : '#374151',
+                    fontSize: 13,
+                    fontWeight: currentPage === page ? 600 : 400,
                   }}
-                  disabled={isUploading}
                 >
-                  <X size={20} color="#EF4444" />
+                  {page}
                 </button>
-              </div>
-            ))}
-          </div>
+              ))}
+              
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                style={{
+                  padding: '6px 12px',
+                  background: currentPage === totalPages ? '#F3F4F6' : 'white',
+                  border: '1px solid #D1D5DB',
+                  borderRadius: 6,
+                  cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                  color: currentPage === totalPages ? '#9CA3AF' : '#374151',
+                  fontSize: 13,
+                }}
+              >
+                →
+              </button>
+            </div>
+          )}
 
           {/* Upload Button */}
           <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
@@ -426,7 +558,7 @@ const CVUploader = ({ onUploadComplete, departments }) => {
               {isUploading ? t('cvUploader.uploading') : t('cvUploader.uploadAll', { count: selectedFiles.length })}
             </button>
             <button
-              onClick={() => setSelectedFiles([])}
+              onClick={() => handleFilesChange([])}
               disabled={isUploading}
               style={{
                 padding: '12px 24px',

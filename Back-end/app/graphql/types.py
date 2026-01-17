@@ -24,6 +24,16 @@ class StatsType:
     department_count: int = strawberry.field(name="departmentCount")
 
 @strawberry.type
+class DailyActivityStatsType:
+    """Daily activity statistics for dashboard widget"""
+    date: str  # ISO format date string
+    cv_uploads: int = strawberry.field(name="cvUploads")
+    cv_analyses: int = strawberry.field(name="cvAnalyses")
+    interview_invitations: int = strawberry.field(name="interviewInvitations")
+    rejections: int = strawberry.field(name="rejections")
+    likert_invitations: int = strawberry.field(name="likertInvitations")
+
+@strawberry.type
 class SubscriptionUsageType:
     """Per-company subscription usage for sidebar widget"""
     plan_name: str = strawberry.field(name="planName")
@@ -59,8 +69,10 @@ class DepartmentType:
     id: str
     name: str
     is_active: bool = strawberry.field(name="isActive")
+    color: Optional[str] = None
     created_at: datetime = strawberry.field(name="createdAt")
     updated_at: datetime = strawberry.field(name="updatedAt")
+    job_count: int = strawberry.field(name="jobCount", default=0)
 
 
 @strawberry.type
@@ -136,6 +148,7 @@ class DepartmentInput:
     """Input for creating a department"""
     name: str
     is_active: bool = strawberry.field(name="isActive", default=True)
+    color: Optional[str] = None
 
 
 @strawberry.input
@@ -143,6 +156,7 @@ class DepartmentUpdateInput:
     """Input for updating a department"""
     name: Optional[str] = None
     is_active: Optional[bool] = strawberry.field(name="isActive", default=None)
+    color: Optional[str] = None
 
 
 # ============ Job Types ============
@@ -190,6 +204,9 @@ class JobType:
     likert_template_id: Optional[str] = strawberry.field(name="likertTemplateId", default=None)
     likert_deadline_hours: int = strawberry.field(name="likertDeadlineHours", default=72)
     
+    # Disabled-friendly job flag
+    is_disabled_friendly: bool = strawberry.field(name="isDisabledFriendly", default=False)
+    
     created_at: str = strawberry.field(name="createdAt")  # ISO datetime string
     updated_at: str = strawberry.field(name="updatedAt")
 
@@ -236,6 +253,7 @@ class JobInput:
     start_date: Optional[str] = strawberry.field(name="startDate", default=None)
     status: str = "draft"
     is_active: bool = strawberry.field(name="isActive", default=True)
+    is_disabled_friendly: bool = strawberry.field(name="isDisabledFriendly", default=False)
 
 
 @strawberry.input
@@ -279,6 +297,9 @@ class JobUpdateInput:
     likert_enabled: Optional[bool] = strawberry.field(name="likertEnabled", default=None)
     likert_template_id: Optional[str] = strawberry.field(name="likertTemplateId", default=None)
     likert_deadline_hours: Optional[int] = strawberry.field(name="likertDeadlineHours", default=None)
+    
+    # Disabled-friendly job flag
+    is_disabled_friendly: Optional[bool] = strawberry.field(name="isDisabledFriendly", default=None)
 
 
 # ============ CV Upload Types ============

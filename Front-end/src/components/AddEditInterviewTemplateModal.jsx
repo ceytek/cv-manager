@@ -228,8 +228,8 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
               {isEnglish ? 'Interview Language' : 'Mülakat Dili'}
             </label>
             <select value={language} onChange={(e) => setLanguage(e.target.value)} className="text-input" style={{ width: '100%' }}>
-              <option value="tr">🇹🇷 Türkçe</option>
-              <option value="en">🇬🇧 English</option>
+              <option value="tr">TR - Türkçe</option>
+              <option value="en">EN - English</option>
             </select>
           </div>
 

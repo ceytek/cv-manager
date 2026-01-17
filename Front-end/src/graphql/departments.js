@@ -13,8 +13,10 @@ export const DEPARTMENTS_QUERY = gql`
       id
       name
       isActive
+      color
       createdAt
       updatedAt
+      jobCount
     }
   }
 `;
@@ -28,6 +30,7 @@ export const CREATE_DEPARTMENT_MUTATION = gql`
       id
       name
       isActive
+      color
       createdAt
       updatedAt
     }
@@ -43,6 +46,7 @@ export const UPDATE_DEPARTMENT_MUTATION = gql`
       id
       name
       isActive
+      color
       createdAt
       updatedAt
     }
@@ -58,6 +62,7 @@ export const TOGGLE_DEPARTMENT_ACTIVE_MUTATION = gql`
       id
       name
       isActive
+      color
       createdAt
       updatedAt
     }

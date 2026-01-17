@@ -198,14 +198,15 @@ const InterviewTemplatesPage = () => {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', background: '#EFF6FF', borderRadius: '8px', fontSize: '13px', color: '#1D4ED8' }}>
                   <Globe size={14} />
-                  {template.language === 'en' ? '🇬🇧 English' : '🇹🇷 Türkçe'}
+                  {template.language === 'en' ? 'EN' : 'TR'}
                 </div>
               </div>
 
               {/* Card Actions */}
               <div style={{ padding: '12px 20px', borderTop: '1px solid #F3F4F6', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                <button onClick={() => handleToggle(template.id)} disabled={toggling} style={{ padding: '8px 12px', border: 'none', borderRadius: '8px', background: '#F3F4F6', color: '#374151', cursor: 'pointer' }}>
+                <button onClick={() => handleToggle(template.id)} disabled={toggling} title={template.isActive ? t('common.clickToDeactivate') : t('common.clickToActivate')} style={{ padding: '8px 12px', border: 'none', borderRadius: '8px', background: template.isActive ? '#D1FAE5' : '#F3F4F6', color: template.isActive ? '#059669' : '#6B7280', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: '500' }}>
                   {template.isActive ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
+                  <span>{template.isActive ? t('common.on') : t('common.off')}</span>
                 </button>
                 <button onClick={() => handleEdit(template)} style={{ padding: '8px 12px', border: 'none', borderRadius: '8px', background: '#EFF6FF', color: '#3B82F6', cursor: 'pointer' }}>
                   <Edit2 size={16} />

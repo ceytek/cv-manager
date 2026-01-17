@@ -5,7 +5,7 @@
 import React from 'react';
 import { useQuery, useMutation, useLazyQuery } from '@apollo/client/react';
 import { CANDIDATES_QUERY, CANDIDATE_HAS_ANALYSIS_QUERY, DELETE_CANDIDATE_MUTATION } from '../graphql/cvs';
-import { User, Mail, Phone, Calendar, FileText, Contact, Linkedin, Github, X, ExternalLink, Copy, Check, Download, Trash2, AlertTriangle } from 'lucide-react';
+import { User, Mail, Phone, Calendar, FileText, Contact, Linkedin, Github, X, ExternalLink, Copy, Check, Download, Trash2, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { API_BASE_URL } from '../config/api';
 
@@ -332,6 +332,9 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
   // Selection state MUST be declared before any conditional returns to keep hook order stable
   const [selected, setSelected] = React.useState([]);
   
+  // Sorting state for table view
+  const [sortConfig, setSortConfig] = React.useState({ key: 'uploadedAt', direction: 'desc' });
+  
   // Contact card state
   const [contactCard, setContactCard] = React.useState({ open: false, candidate: null, position: { top: 0, left: 0 } });
   
@@ -430,6 +433,70 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
       (c.cvFileName || '').toLowerCase().includes(q)
     ));
   }
+
+  // Apply sorting for table view
+  const handleSort = (key) => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
+
+  // Sort candidates
+  const sortedCandidates = React.useMemo(() => {
+    if (!sortConfig.key) return candidates;
+    
+    return [...candidates].sort((a, b) => {
+      let aVal, bVal;
+      
+      switch (sortConfig.key) {
+        case 'name':
+          aVal = (a.name || '').toLowerCase();
+          bVal = (b.name || '').toLowerCase();
+          break;
+        case 'email':
+          aVal = (a.email || '').toLowerCase();
+          bVal = (b.email || '').toLowerCase();
+          break;
+        case 'department':
+          aVal = (a.department?.name || '').toLowerCase();
+          bVal = (b.department?.name || '').toLowerCase();
+          break;
+        case 'cvLanguage':
+          aVal = (a.cvLanguage || '').toLowerCase();
+          bVal = (b.cvLanguage || '').toLowerCase();
+          break;
+        case 'cvFileSize':
+          aVal = a.cvFileSize || 0;
+          bVal = b.cvFileSize || 0;
+          break;
+        case 'uploadedAt':
+          aVal = new Date(a.uploadedAt).getTime();
+          bVal = new Date(b.uploadedAt).getTime();
+          break;
+        case 'status':
+          aVal = (a.status || '').toLowerCase();
+          bVal = (b.status || '').toLowerCase();
+          break;
+        default:
+          return 0;
+      }
+      
+      if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [candidates, sortConfig]);
+
+  // Get sort icon for column header
+  const getSortIcon = (key) => {
+    if (sortConfig.key !== key) {
+      return <ArrowUpDown size={14} color="#9CA3AF" />;
+    }
+    return sortConfig.direction === 'asc' 
+      ? <ArrowUp size={14} color="#3B82F6" /> 
+      : <ArrowDown size={14} color="#3B82F6" />;
+  };
 
   // Language badge colors
   const getLanguageBadge = (language) => {
@@ -602,9 +669,23 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
           gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
           gap: 20,
         }}>
-          {candidates.map((candidate) => (
+          {sortedCandidates.map((candidate) => (
             <div
               key={candidate.id}
+              onClick={(e) => {
+                // Don't open card if clicking on action buttons
+                if (e.target.closest('button') || e.target.closest('a')) return;
+                
+                const rect = e.currentTarget.getBoundingClientRect();
+                setContactCard({
+                  open: true,
+                  candidate,
+                  position: {
+                    top: Math.min(rect.top + 50, window.innerHeight - 450),
+                    left: Math.min(rect.left + rect.width / 2 - 160, window.innerWidth - 340),
+                  }
+                });
+              }}
               style={{
                 background: 'white',
                 borderRadius: 12,
@@ -692,35 +773,6 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
                     </div>
                   )}
                 </div>
-
-                {/* Menu dots */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    setContactCard({
-                      open: true,
-                      candidate,
-                      position: {
-                        top: Math.min(rect.bottom + 8, window.innerHeight - 450),
-                        left: Math.min(rect.left - 280, window.innerWidth - 340),
-                      }
-                    });
-                  }}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    padding: 4,
-                    cursor: 'pointer',
-                    color: '#9CA3AF',
-                  }}
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                    <circle cx="12" cy="5" r="2"/>
-                    <circle cx="12" cy="12" r="2"/>
-                    <circle cx="12" cy="19" r="2"/>
-                  </svg>
-                </button>
               </div>
 
               {/* Department & Language Tags */}
@@ -739,7 +791,17 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
                     color: '#4B5563',
                     fontSize: 12,
                     fontWeight: 500,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
                   }}>
+                    <span style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      background: candidate.department.color || '#6B7280',
+                      flexShrink: 0,
+                    }} />
                     {candidate.department.name}
                   </span>
                 )}
@@ -827,7 +889,7 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
         </div>
 
         {/* Compare Footer */}
-        {candidates.length > 0 && (
+        {sortedCandidates.length > 0 && (
           <div style={{ 
             display: 'flex', 
             justifyContent: 'center', 
@@ -836,7 +898,7 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
             borderTop: '1px solid #E5E7EB',
           }}>
             <span style={{ color: '#9CA3AF', fontSize: 14 }}>
-              {t('candidateList.totalCandidates', { count: candidates.length })}
+              {t('candidateList.totalCandidates', { count: sortedCandidates.length })}
             </span>
           </div>
         )}
@@ -1009,32 +1071,117 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
         <thead>
           <tr style={{ borderBottom: '2px solid #E5E7EB', background: '#F9FAFB' }}>
-            <th style={{ padding: 12 }}></th>
-            <th style={{ padding: 12, textAlign: 'left', fontWeight: 600, color: '#374151' }}>
-              {t('candidateList.candidateName')}
+            <th style={{ padding: 12, width: 40 }}></th>
+            <th 
+              onClick={() => handleSort('name')}
+              style={{ 
+                padding: 12, 
+                textAlign: 'left', 
+                fontWeight: 600, 
+                color: sortConfig.key === 'name' ? '#3B82F6' : '#374151',
+                cursor: 'pointer',
+                userSelect: 'none',
+                transition: 'color 0.15s',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {t('candidateList.candidateName')}
+                {getSortIcon('name')}
+              </div>
             </th>
-            <th style={{ padding: 12, textAlign: 'left', fontWeight: 600, color: '#374151' }}>
+            <th style={{ padding: 12, textAlign: 'left', fontWeight: 600, color: '#374151', width: 60 }}>
               {t('candidateList.contact')}
             </th>
-            <th style={{ padding: 12, textAlign: 'left', fontWeight: 600, color: '#374151' }}>
-              {t('candidateList.department')}
+            <th 
+              onClick={() => handleSort('department')}
+              style={{ 
+                padding: 12, 
+                textAlign: 'left', 
+                fontWeight: 600, 
+                color: sortConfig.key === 'department' ? '#3B82F6' : '#374151',
+                cursor: 'pointer',
+                userSelect: 'none',
+                transition: 'color 0.15s',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {t('candidateList.department')}
+                {getSortIcon('department')}
+              </div>
             </th>
-            <th style={{ padding: 12, textAlign: 'left', fontWeight: 600, color: '#374151' }}>
-              {t('candidateList.cvLanguage')}
+            <th 
+              onClick={() => handleSort('cvLanguage')}
+              style={{ 
+                padding: 12, 
+                textAlign: 'left', 
+                fontWeight: 600, 
+                color: sortConfig.key === 'cvLanguage' ? '#3B82F6' : '#374151',
+                cursor: 'pointer',
+                userSelect: 'none',
+                transition: 'color 0.15s',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {t('candidateList.cvLanguage')}
+                {getSortIcon('cvLanguage')}
+              </div>
             </th>
-            <th style={{ padding: 12, textAlign: 'left', fontWeight: 600, color: '#374151' }}>
-              {t('candidateList.cvFile')}
+            <th 
+              onClick={() => handleSort('cvFileSize')}
+              style={{ 
+                padding: 12, 
+                textAlign: 'left', 
+                fontWeight: 600, 
+                color: sortConfig.key === 'cvFileSize' ? '#3B82F6' : '#374151',
+                cursor: 'pointer',
+                userSelect: 'none',
+                transition: 'color 0.15s',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {t('candidateList.cvFile')}
+                {getSortIcon('cvFileSize')}
+              </div>
             </th>
-            <th style={{ padding: 12, textAlign: 'left', fontWeight: 600, color: '#374151' }}>
-              {t('candidateList.uploadDate')}
+            <th 
+              onClick={() => handleSort('uploadedAt')}
+              style={{ 
+                padding: 12, 
+                textAlign: 'left', 
+                fontWeight: 600, 
+                color: sortConfig.key === 'uploadedAt' ? '#3B82F6' : '#374151',
+                cursor: 'pointer',
+                userSelect: 'none',
+                transition: 'color 0.15s',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {t('candidateList.uploadDate')}
+                {getSortIcon('uploadedAt')}
+              </div>
             </th>
-            <th style={{ padding: 12, textAlign: 'left', fontWeight: 600, color: '#374151' }}>
-              {t('candidateList.status')}
+            <th 
+              onClick={() => handleSort('status')}
+              style={{ 
+                padding: 12, 
+                textAlign: 'left', 
+                fontWeight: 600, 
+                color: sortConfig.key === 'status' ? '#3B82F6' : '#374151',
+                cursor: 'pointer',
+                userSelect: 'none',
+                transition: 'color 0.15s',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {t('candidateList.status')}
+                {getSortIcon('status')}
+              </div>
             </th>
+            <th style={{ padding: 12, width: 60 }}></th>
           </tr>
         </thead>
         <tbody>
-          {candidates.map((candidate) => (
+          {sortedCandidates.map((candidate) => (
             <tr
               key={candidate.id}
               style={{
@@ -1106,7 +1253,16 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
 
               {/* Departman */}
               <td style={{ padding: 12 }}>
-                <span style={{ fontSize: 13, color: '#4B5563' }}>
+                <span style={{ fontSize: 13, color: '#4B5563', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {candidate.department && (
+                    <span style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      background: candidate.department.color || '#6B7280',
+                      flexShrink: 0,
+                    }} />
+                  )}
                   {candidate.department?.name || '—'}
                 </span>
               </td>
@@ -1178,6 +1334,40 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
 
               {/* Durum */}
               <td style={{ padding: 12 }}>{getStatusBadge(candidate.status)}</td>
+
+              {/* Actions */}
+              <td style={{ padding: 12 }}>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {/* Delete Button */}
+                  <button
+                    onClick={(e) => handleDeleteClick(candidate, e)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: 32,
+                      height: 32,
+                      borderRadius: 6,
+                      background: '#FEE2E2',
+                      border: 'none',
+                      color: '#DC2626',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#DC2626';
+                      e.currentTarget.style.color = 'white';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = '#FEE2E2';
+                      e.currentTarget.style.color = '#DC2626';
+                    }}
+                    title={t('common.delete')}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </td>
             </tr>
           ))}
         </tbody>
