@@ -2366,7 +2366,6 @@ class Mutation(CompanyMutation):
                 email=created.email,
                 full_name=created.full_name,
                 is_active=created.is_active,
-                color=created.color,
                 is_verified=created.is_verified,
                 role=created_role,
                 created_at=created.created_at,
@@ -2677,7 +2676,6 @@ class Mutation(CompanyMutation):
                 start_date=created.start_date,
                 status=created.status,
                 is_active=created.is_active,
-                color=created.color,
                 is_disabled_friendly=created.is_disabled_friendly,
                 created_at=created.created_at.isoformat(),
                 updated_at=created.updated_at.isoformat(),
@@ -2833,7 +2831,6 @@ class Mutation(CompanyMutation):
                 start_date=updated.start_date,
                 status=updated.status,
                 is_active=updated.is_active,
-                color=updated.color,
                 is_disabled_friendly=updated.is_disabled_friendly or False,
                 # Interview settings
                 interview_enabled=updated.interview_enabled or False,
