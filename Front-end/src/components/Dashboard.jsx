@@ -309,18 +309,15 @@ const Dashboard = ({ currentUser, onLogout }) => {
               justifyContent: 'space-between',
               marginBottom: 16,
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <ChevronDown size={14} color="#6B7280" />
-                <span style={{
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: '#6B7280',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px',
-                }}>
-                  {t('sidebar.departments')}
-                </span>
-              </div>
+              <span style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: '#6B7280',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+              }}>
+                {t('sidebar.departments')}
+              </span>
               <button
                 onClick={() => {
                   setDepartmentsInitialAdd(true);
@@ -366,30 +363,17 @@ const Dashboard = ({ currentUser, onLogout }) => {
                     // Use color from database, fallback to blue
                     const dotColor = dept.color || '#3B82F6';
                     return (
-                      <button
+                      <div
                         key={dept.id}
-                        onClick={() => {
-                          setDepartmentsInitialAdd(false);
-                          setActiveMenu('departments');
-                          setSettingsMenu(null);
-                          setTemplatesMenu(null);
-                          dismissDepartmentTooltip();
-                        }}
                         style={{
                           display: 'flex',
                           alignItems: 'center',
                           gap: 10,
                           padding: '6px 8px',
-                          cursor: 'pointer',
                           background: 'transparent',
-                          border: 'none',
                           borderRadius: 6,
                           width: '100%',
-                          textAlign: 'left',
-                          transition: 'background 0.15s',
                         }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = '#E5E7EB'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                       >
                         {/* Colored dot */}
                         <div style={{
@@ -409,7 +393,7 @@ const Dashboard = ({ currentUser, onLogout }) => {
                         }}>
                           {dept.name}
                         </span>
-                      </button>
+                      </div>
                     );
                   })
               )}
