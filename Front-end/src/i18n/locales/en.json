@@ -159,6 +159,16 @@
     "searchTags": "Search tags...",
     "systemTags": "System Tags",
     "customTags": "Custom Tags",
+    "systemTagNames": {
+      "İletişim Güçlü": "Strong Communication",
+      "Dil Becerisi": "Language Skills",
+      "Teknik Yetkinlik": "Technical Expertise",
+      "Liderlik Potansiyeli": "Leadership Potential",
+      "Yeni Mezun": "Recent Graduate",
+      "Deneyimli (5+ yıl)": "Experienced (5+ years)",
+      "Uzaktan Çalışmaya Uygun": "Remote Work Ready",
+      "Esnek Çalışma Saatleri": "Flexible Working Hours"
+    },
     "noCustomTags": "No custom tags created yet",
     "createTag": "Create New Tag",
     "editTag": "Edit Tag",
@@ -223,7 +233,8 @@
     "today": "Today",
     "yesterday": "Yesterday",
     "daysAgo": "{{count}} days ago",
-    "weeksAgo": "{{count}} weeks ago"
+    "weeksAgo": "{{count}} weeks ago",
+    "allTags": "All Tags"
   },
   "interviewTemplates": {
     "title": "Interview Templates",
@@ -485,7 +496,16 @@
     "aiPoweredEvaluation": "AI-Powered Evaluation",
     "analysisFailed": "Analysis Failed",
     "timeoutError": "The analysis took too long and timed out. Please try again with fewer CVs or wait a few minutes and retry.",
-    "genericError": "An error occurred during analysis. Please try again."
+    "genericError": "An error occurred during analysis. Please try again.",
+    "successCount": "candidate(s) successful",
+    "errorCount": "candidate(s) failed",
+    "departmentsTab": "Departments",
+    "talentPoolTab": "Talent Pool",
+    "allTags": "All Tags",
+    "selectTagToFilter": "Select a tag",
+    "noCandidatesInPool": "No candidates in pool",
+    "poolCandidateSource": "Pool",
+    "tagsSelected": "tags selected"
   },
   "candidateDetail": {
     "breadcrumb": "Candidates / {{name}}",
@@ -846,7 +866,12 @@
     "aiProcessing": "AI is comparing each candidate with the job description and calculating match scores...",
     "completed": "✅ All candidates analyzed successfully!",
     "error": "⚠️ An error occurred during analysis",
-    "pleaseWait": "This process may take 1-2 minutes depending on the number of candidates."
+    "pleaseWait": "This process may take 1-2 minutes depending on the number of candidates.",
+    "progress": "Progress",
+    "batchProgress": "Processing batch {{current}} / {{total}}",
+    "currentlyAnalyzing": "Currently analyzing:",
+    "partialComplete": "⚠️ Partially completed",
+    "partialInfo": "{{success}} successful, {{error}} failed"
   },
   "jobCreation": {
     "title": "AI-Powered Job Posting Creator",
@@ -915,6 +940,7 @@
     "applications": "Applications",
     "applicants": "Applications",
     "noApplicants": "No applications yet",
+    "viewApplications": "View evaluations",
     "lastDate": "Due:",
     "remoteOffice": "🏢 Office",
     "remoteRemote": "🌐 Remote",

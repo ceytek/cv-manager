@@ -2,17 +2,24 @@
  * CV Evaluation Analysis Component
  * AI-powered CV to Job matching interface
  * 3-column layout: Job Selection | Candidate Selection | Summary & Analysis
+ * Supports batch processing to prevent timeout errors
  */
 import React, { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useQuery, useMutation } from '@apollo/client/react';
-import { Search, CheckCircle2, ArrowLeft, ArrowUpDown } from 'lucide-react';
+import { useQuery, useApolloClient } from '@apollo/client/react';
+import { Search, CheckCircle2, ArrowLeft, ArrowUpDown, FolderOpen, Sparkles } from 'lucide-react';
 import { JOBS_QUERY } from '../../graphql/jobs';
 import { CANDIDATES_QUERY } from '../../graphql/cvs';
 import { DEPARTMENTS_QUERY } from '../../graphql/departments';
 import { ANALYZE_JOB_CANDIDATES_MUTATION, APPLICATIONS_QUERY } from '../../graphql/applications';
+import { GET_TALENT_POOL_ENTRIES, GET_TALENT_POOL_TAGS } from '../../graphql/talentPool';
 import CVAnalysisResults from './CVAnalysisResults';
 import CVAnalysisProgressModal from '../CVAnalysisProgressModal';
+import { GRAPHQL_URL } from '../../config/api';
+
+// Batch size for analysis - prevents timeout errors
+// Reduced to 3 for safer AI processing time (matches CV upload)
+const BATCH_SIZE = 3;
 
 const CVEvaluationAnalysis = ({ onBack }) => {
   const { t, i18n } = useTranslation();
@@ -27,6 +34,10 @@ const CVEvaluationAnalysis = ({ onBack }) => {
   const [showResults, setShowResults] = useState(false);
   const [analysisError, setAnalysisError] = useState(null);
   
+  // Source type: 'departments' or 'talentPool'
+  const [sourceType, setSourceType] = useState('departments');
+  const [selectedPoolTags, setSelectedPoolTags] = useState([]);
+  
   // Progress modal state
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [progressState, setProgressState] = useState({
@@ -37,15 +48,8 @@ const CVEvaluationAnalysis = ({ onBack }) => {
     status: 'analyzing'
   });
 
-  // GraphQL Mutation for analysis
-  const [analyzeJobCandidates] = useMutation(ANALYZE_JOB_CANDIDATES_MUTATION, {
-    refetchQueries: [
-      {
-        query: APPLICATIONS_QUERY,
-        variables: { jobId: selectedJob?.id }
-      }
-    ]
-  });
+  // Apollo client for manual mutations (batch processing)
+  const apolloClient = useApolloClient();
 
   // Fetch departments
   const { data: departmentsData } = useQuery(DEPARTMENTS_QUERY, { variables: { includeInactive: false } });
@@ -65,9 +69,42 @@ const CVEvaluationAnalysis = ({ onBack }) => {
     variables: {
       departmentId: selectedDepartment || null,
     },
-    skip: !selectedDepartment,
+    skip: !selectedDepartment || sourceType !== 'departments',
   });
   const candidates = candidatesData?.candidates || [];
+
+  // Fetch talent pool tags
+  const { data: poolTagsData } = useQuery(GET_TALENT_POOL_TAGS, {
+    skip: sourceType !== 'talentPool',
+  });
+  const poolTags = poolTagsData?.talentPoolTags?.filter(t => t.isActive) || [];
+
+  // Fetch talent pool entries
+  const { data: poolEntriesData, loading: poolEntriesLoading } = useQuery(GET_TALENT_POOL_ENTRIES, {
+    variables: {
+      filter: {
+        status: 'active',
+        tagIds: selectedPoolTags.length > 0 ? selectedPoolTags : null,
+      },
+    },
+    skip: sourceType !== 'talentPool',
+  });
+  
+  // Transform pool entries to candidate format for compatibility
+  const poolCandidates = useMemo(() => {
+    if (!poolEntriesData?.talentPoolEntries) return [];
+    return poolEntriesData.talentPoolEntries.map(entry => ({
+      id: entry.candidate.id,
+      name: entry.candidate.name,
+      email: entry.candidate.email,
+      phone: entry.candidate.phone,
+      cvPhotoPath: entry.candidate.cvPhotoPath,
+      department: null,
+      poolTags: entry.tags,
+      poolEntryId: entry.id,
+      isFromPool: true,
+    }));
+  }, [poolEntriesData]);
 
   // Filter jobs by search term
   const filteredJobs = jobs.filter(job =>
@@ -75,8 +112,12 @@ const CVEvaluationAnalysis = ({ onBack }) => {
     (job.id && job.id.toLowerCase().includes(jobSearchTerm.toLowerCase()))
   );
 
+  // Get active candidates based on source type
+  const activeCandidates = sourceType === 'departments' ? candidates : poolCandidates;
+  const activeCandidatesLoading = sourceType === 'departments' ? candidatesLoading : poolEntriesLoading;
+
   // Filter candidates by search term
-  const filteredCandidates = candidates.filter(candidate =>
+  const filteredCandidates = activeCandidates.filter(candidate =>
     candidate.name?.toLowerCase().includes(candidateSearchTerm.toLowerCase())
   );
 
@@ -115,7 +156,39 @@ const CVEvaluationAnalysis = ({ onBack }) => {
     }
   };
 
-  // Handle start analysis - Call real GraphQL mutation
+  // Analyze a single batch of candidates
+  const analyzeBatch = async (candidateIds, jobId, language) => {
+    const token = sessionStorage.getItem('accessToken');
+    
+    const response = await fetch(GRAPHQL_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : '',
+      },
+      body: JSON.stringify({
+        query: `
+          mutation AnalyzeJobCandidates($input: AnalyzeJobCandidatesInput!, $language: String) {
+            analyzeJobCandidates(input: $input, language: $language) {
+              success
+              message
+            }
+          }
+        `,
+        variables: {
+          input: {
+            jobId: jobId,
+            candidateIds: candidateIds
+          },
+          language: language
+        }
+      }),
+    });
+
+    return await response.json();
+  };
+
+  // Handle start analysis - Process candidates in batches to prevent timeout
   const handleStartAnalysis = async () => {
     if (!selectedJob || selectedCandidates.length === 0) {
       return;
@@ -132,27 +205,85 @@ const CVEvaluationAnalysis = ({ onBack }) => {
       totalCandidates: selectedCandidates.length,
       processedCandidates: 0,
       currentCandidateName: '',
+      currentBatch: 0,
+      totalBatches: Math.ceil(selectedCandidates.length / BATCH_SIZE),
       status: 'analyzing'
     });
 
-    try {
-      // Call the mutation
-      const { data } = await analyzeJobCandidates({
-        variables: {
-          input: {
-            jobId: selectedJob.id,
-            candidateIds: selectedCandidates.map(c => c.id)
-          },
-          language: i18n.language === 'tr' ? 'turkish' : 'english'
-        }
-      });
+    // Track results
+    let successCount = 0;
+    let errorCount = 0;
+    let lastError = null;
 
-      if (data?.analyzeJobCandidates?.success) {
-        // Show success
+    try {
+      // Split candidates into batches
+      const batches = [];
+      for (let i = 0; i < selectedCandidates.length; i += BATCH_SIZE) {
+        batches.push(selectedCandidates.slice(i, i + BATCH_SIZE));
+      }
+
+      const language = i18n.language === 'tr' ? 'turkish' : 'english';
+      let processedCount = 0;
+
+      // Process batches sequentially
+      for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+        const batch = batches[batchIndex];
+        const candidateIds = batch.map(c => c.id);
+        const candidateNames = batch.map(c => c.name || 'Aday').join(', ');
+        
+        // Update progress - show current batch being processed
         setProgressState(prev => ({
           ...prev,
+          currentBatch: batchIndex + 1,
+          currentCandidateName: candidateNames,
+        }));
+
+        try {
+          const result = await analyzeBatch(candidateIds, selectedJob.id, language);
+
+          if (result.errors) {
+            // GraphQL errors
+            errorCount += batch.length;
+            lastError = result.errors?.[0]?.message || t('cvEvaluation.genericError');
+            console.error('Batch error:', result.errors);
+          } else if (result.data?.analyzeJobCandidates?.success) {
+            successCount += batch.length;
+          } else {
+            errorCount += batch.length;
+            lastError = result.data?.analyzeJobCandidates?.message || t('cvEvaluation.genericError');
+          }
+        } catch (batchError) {
+          // Network/timeout errors
+          errorCount += batch.length;
+          lastError = batchError.message || t('cvEvaluation.genericError');
+          console.error('Batch fetch error:', batchError);
+        }
+
+        // Update processed count after each batch
+        processedCount += batch.length;
+        setProgressState(prev => ({
+          ...prev,
+          processedCandidates: processedCount
+        }));
+
+        // Update progress percentage
+        setAnalysisProgress(Math.round((processedCount / selectedCandidates.length) * 100));
+      }
+
+      // Final status
+      if (errorCount === 0) {
+        // All successful
+        setProgressState(prev => ({
+          ...prev,
+          processedCandidates: selectedCandidates.length,
+          currentCandidateName: '',
           status: 'success'
         }));
+        
+        // Refetch applications to show results
+        apolloClient.refetchQueries({
+          include: [APPLICATIONS_QUERY]
+        });
         
         // Close modal and show results after delay
         setTimeout(() => {
@@ -160,8 +291,30 @@ const CVEvaluationAnalysis = ({ onBack }) => {
           setIsAnalyzing(false);
           setShowResults(true);
         }, 2000);
+      } else if (successCount > 0) {
+        // Partial success
+        setProgressState(prev => ({
+          ...prev,
+          status: 'partial',
+          successCount,
+          errorCount
+        }));
+        
+        // Refetch to show partial results
+        apolloClient.refetchQueries({
+          include: [APPLICATIONS_QUERY]
+        });
+        
+        setAnalysisError(`${successCount} ${t('cvEvaluation.successCount')}, ${errorCount} ${t('cvEvaluation.errorCount')}`);
+        
+        setTimeout(() => {
+          setShowProgressModal(false);
+          setIsAnalyzing(false);
+          setShowResults(true);
+        }, 3000);
       } else {
-        throw new Error(data?.analyzeJobCandidates?.message || 'Analysis failed');
+        // All failed
+        throw new Error(lastError || t('cvEvaluation.genericError'));
       }
 
     } catch (error) {
@@ -171,7 +324,7 @@ const CVEvaluationAnalysis = ({ onBack }) => {
       if (error.message && (error.message.includes('524') || error.message.includes('timeout'))) {
         errorMessage = t('cvEvaluation.timeoutError');
       } else {
-        errorMessage = t('cvEvaluation.genericError');
+        errorMessage = error.message || t('cvEvaluation.genericError');
       }
       setAnalysisError(errorMessage);
       setProgressState(prev => ({
@@ -259,7 +412,12 @@ const CVEvaluationAnalysis = ({ onBack }) => {
           onSelectAll={selectAllCandidates}
           searchTerm={candidateSearchTerm}
           onSearchChange={setCandidateSearchTerm}
-          loading={candidatesLoading}
+          loading={activeCandidatesLoading}
+          sourceType={sourceType}
+          onSourceTypeChange={setSourceType}
+          poolTags={poolTags}
+          selectedPoolTags={selectedPoolTags}
+          onPoolTagsChange={setSelectedPoolTags}
         />
 
         {/* Column 3: Summary & Analysis */}
@@ -280,6 +438,10 @@ const CVEvaluationAnalysis = ({ onBack }) => {
         totalCandidates={progressState.totalCandidates}
         processedCandidates={progressState.processedCandidates}
         currentCandidateName={progressState.currentCandidateName}
+        currentBatch={progressState.currentBatch}
+        totalBatches={progressState.totalBatches}
+        successCount={progressState.successCount}
+        errorCount={progressState.errorCount}
         status={progressState.status}
       />
     </div>
@@ -453,9 +615,15 @@ const CandidateSelectionPanel = ({
   searchTerm,
   onSearchChange,
   loading,
+  sourceType,
+  onSourceTypeChange,
+  poolTags,
+  selectedPoolTags,
+  onPoolTagsChange,
 }) => {
   const { t } = useTranslation();
   const [dropdownOpen, setDropdownOpen] = React.useState(false);
+  const [tagDropdownOpen, setTagDropdownOpen] = React.useState(false);
   
   // Check if all candidates are selected
   const allSelected = candidates.length > 0 && candidates.every(c => 
@@ -469,6 +637,32 @@ const CandidateSelectionPanel = ({
   const selectedDeptColor = selectedDepartment 
     ? departments.find(d => d.id === selectedDepartment)?.color 
     : null;
+
+  // Get display text for selected tags
+  const getSelectedTagsDisplay = () => {
+    if (selectedPoolTags.length === 0) {
+      return t('cvEvaluation.allTags');
+    }
+    if (selectedPoolTags.length === 1) {
+      const tag = poolTags.find(t => t.id === selectedPoolTags[0]);
+      return tag?.name || t('cvEvaluation.allTags');
+    }
+    return `${selectedPoolTags.length} ${t('cvEvaluation.tagsSelected')}`;
+  };
+
+  // Toggle tag selection
+  const toggleTagSelection = (tagId) => {
+    if (selectedPoolTags.includes(tagId)) {
+      onPoolTagsChange(selectedPoolTags.filter(id => id !== tagId));
+    } else {
+      onPoolTagsChange([...selectedPoolTags, tagId]);
+    }
+  };
+
+  // Clear all tag selections
+  const clearTagSelection = () => {
+    onPoolTagsChange([]);
+  };
   
   // Close dropdown when clicking outside
   React.useEffect(() => {
@@ -476,10 +670,23 @@ const CandidateSelectionPanel = ({
       if (dropdownOpen && !e.target.closest('.dept-dropdown-container')) {
         setDropdownOpen(false);
       }
+      if (tagDropdownOpen && !e.target.closest('.tag-dropdown-container')) {
+        setTagDropdownOpen(false);
+      }
     };
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
-  }, [dropdownOpen]);
+  }, [dropdownOpen, tagDropdownOpen]);
+
+  // Handle source type change - reset filters
+  const handleSourceTypeChange = (newType) => {
+    onSourceTypeChange(newType);
+    if (newType === 'departments') {
+      onPoolTagsChange([]);
+    } else {
+      onDepartmentChange('');
+    }
+  };
   
   return (
     <div style={{
@@ -496,90 +703,123 @@ const CandidateSelectionPanel = ({
           {t('cvEvaluation.step2')}
         </h2>
 
-        {/* Custom Department Dropdown with Colors */}
-        <div className="dept-dropdown-container" style={{ position: 'relative', marginBottom: 12 }}>
+        {/* Source Type Tabs */}
+        <div style={{
+          display: 'flex',
+          background: '#F3F4F6',
+          borderRadius: 8,
+          padding: 4,
+          marginBottom: 12,
+        }}>
           <button
-            onClick={() => setDropdownOpen(!dropdownOpen)}
+            onClick={() => handleSourceTypeChange('departments')}
             style={{
-              width: '100%',
-              padding: '10px 12px',
-              border: '1px solid #D1D5DB',
-              borderRadius: 8,
-              fontSize: 14,
-              background: 'white',
-              cursor: 'pointer',
+              flex: 1,
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between',
-              textAlign: 'left',
+              justifyContent: 'center',
+              gap: 6,
+              padding: '8px 12px',
+              border: 'none',
+              borderRadius: 6,
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              background: sourceType === 'departments' ? 'white' : 'transparent',
+              color: sourceType === 'departments' ? '#1F2937' : '#6B7280',
+              boxShadow: sourceType === 'departments' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
             }}
           >
-            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {selectedDeptColor && (
-                <span style={{
-                  width: 10,
-                  height: 10,
-                  borderRadius: '50%',
-                  background: selectedDeptColor,
-                  flexShrink: 0,
-                }} />
-              )}
-              {selectedDeptName}
-            </span>
-            <span style={{ 
-              transform: dropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-              transition: 'transform 0.2s',
-              color: '#6B7280',
-            }}>▼</span>
+            <FolderOpen size={14} />
+            {t('cvEvaluation.departmentsTab')}
           </button>
-          
-          {dropdownOpen && (
-            <div style={{
-              position: 'absolute',
-              top: '100%',
-              left: 0,
-              right: 0,
-              background: 'white',
-              border: '1px solid #D1D5DB',
-              borderRadius: 8,
-              marginTop: 4,
-              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-              zIndex: 50,
-              maxHeight: 250,
-              overflowY: 'auto',
-            }}>
-              {/* All Departments Option */}
-              <button
-                onClick={() => { onDepartmentChange(''); setDropdownOpen(false); }}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  border: 'none',
-                  background: selectedDepartment === '' ? '#EEF2FF' : 'white',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  fontSize: 14,
-                  color: '#1F2937',
-                  textAlign: 'left',
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.background = '#F3F4F6'}
-                onMouseLeave={(e) => e.currentTarget.style.background = selectedDepartment === '' ? '#EEF2FF' : 'white'}
-              >
-                {selectedDepartment === '' && <span style={{ color: '#4F46E5' }}>✓</span>}
-                {t('cvEvaluation.allDepartments')}
-              </button>
-              
-              {departments.map(dept => (
+          <button
+            onClick={() => handleSourceTypeChange('talentPool')}
+            style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              padding: '8px 12px',
+              border: 'none',
+              borderRadius: 6,
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              background: sourceType === 'talentPool' ? 'white' : 'transparent',
+              color: sourceType === 'talentPool' ? '#1F2937' : '#6B7280',
+              boxShadow: sourceType === 'talentPool' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+            }}
+          >
+            <Sparkles size={14} />
+            {t('cvEvaluation.talentPoolTab')}
+          </button>
+        </div>
+
+        {/* Department Dropdown - Show when departments tab is active */}
+        {sourceType === 'departments' && (
+          <div className="dept-dropdown-container" style={{ position: 'relative', marginBottom: 12 }}>
+            <button
+              onClick={() => setDropdownOpen(!dropdownOpen)}
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                border: '1px solid #D1D5DB',
+                borderRadius: 8,
+                fontSize: 14,
+                background: 'white',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                textAlign: 'left',
+              }}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {selectedDeptColor && (
+                  <span style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: '50%',
+                    background: selectedDeptColor,
+                    flexShrink: 0,
+                  }} />
+                )}
+                {selectedDeptName}
+              </span>
+              <span style={{ 
+                transform: dropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                transition: 'transform 0.2s',
+                color: '#6B7280',
+              }}>▼</span>
+            </button>
+            
+            {dropdownOpen && (
+              <div style={{
+                position: 'absolute',
+                top: '100%',
+                left: 0,
+                right: 0,
+                background: 'white',
+                border: '1px solid #D1D5DB',
+                borderRadius: 8,
+                marginTop: 4,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                zIndex: 50,
+                maxHeight: 250,
+                overflowY: 'auto',
+              }}>
+                {/* All Departments Option */}
                 <button
-                  key={dept.id}
-                  onClick={() => { onDepartmentChange(dept.id); setDropdownOpen(false); }}
+                  onClick={() => { onDepartmentChange(''); setDropdownOpen(false); }}
                   style={{
                     width: '100%',
                     padding: '10px 12px',
                     border: 'none',
-                    background: selectedDepartment === dept.id ? '#EEF2FF' : 'white',
+                    background: selectedDepartment === '' ? '#EEF2FF' : 'white',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -589,25 +829,227 @@ const CandidateSelectionPanel = ({
                     textAlign: 'left',
                   }}
                   onMouseEnter={(e) => e.currentTarget.style.background = '#F3F4F6'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = selectedDepartment === dept.id ? '#EEF2FF' : 'white'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = selectedDepartment === '' ? '#EEF2FF' : 'white'}
                 >
-                  {selectedDepartment === dept.id && <span style={{ color: '#4F46E5' }}>✓</span>}
-                  {dept.color && (
-                    <span style={{
-                      width: 10,
-                      height: 10,
-                      borderRadius: '50%',
-                      background: dept.color,
-                      flexShrink: 0,
-                      marginLeft: selectedDepartment === dept.id ? 0 : 18,
-                    }} />
-                  )}
-                  {dept.name}
+                  {selectedDepartment === '' && <span style={{ color: '#4F46E5' }}>✓</span>}
+                  {t('cvEvaluation.allDepartments')}
                 </button>
-              ))}
-            </div>
-          )}
-        </div>
+                
+                {departments.map(dept => (
+                  <button
+                    key={dept.id}
+                    onClick={() => { onDepartmentChange(dept.id); setDropdownOpen(false); }}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      border: 'none',
+                      background: selectedDepartment === dept.id ? '#EEF2FF' : 'white',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      fontSize: 14,
+                      color: '#1F2937',
+                      textAlign: 'left',
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#F3F4F6'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = selectedDepartment === dept.id ? '#EEF2FF' : 'white'}
+                  >
+                    {selectedDepartment === dept.id && <span style={{ color: '#4F46E5' }}>✓</span>}
+                    {dept.color && (
+                      <span style={{
+                        width: 10,
+                        height: 10,
+                        borderRadius: '50%',
+                        background: dept.color,
+                        flexShrink: 0,
+                        marginLeft: selectedDepartment === dept.id ? 0 : 18,
+                      }} />
+                    )}
+                    {dept.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tag Dropdown - Show when talent pool tab is active (Multi-select) */}
+        {sourceType === 'talentPool' && (
+          <div className="tag-dropdown-container" style={{ position: 'relative', marginBottom: 12 }}>
+            <button
+              onClick={() => setTagDropdownOpen(!tagDropdownOpen)}
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                border: '1px solid #D1D5DB',
+                borderRadius: 8,
+                fontSize: 14,
+                background: 'white',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                textAlign: 'left',
+              }}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', flex: 1 }}>
+                {selectedPoolTags.length === 0 ? (
+                  <span>{t('cvEvaluation.allTags')}</span>
+                ) : selectedPoolTags.length <= 2 ? (
+                  // Show tag chips if 1-2 selected
+                  selectedPoolTags.map(tagId => {
+                    const tag = poolTags.find(t => t.id === tagId);
+                    return tag ? (
+                      <span
+                        key={tag.id}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          padding: '2px 8px',
+                          background: `${tag.color}20`,
+                          borderRadius: 4,
+                          fontSize: 12,
+                        }}
+                      >
+                        <span style={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: '50%',
+                          background: tag.color,
+                        }} />
+                        {tag.name}
+                      </span>
+                    ) : null;
+                  })
+                ) : (
+                  // Show count if more than 2 selected
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    padding: '2px 8px',
+                    background: '#EEF2FF',
+                    borderRadius: 4,
+                    fontSize: 12,
+                    color: '#4F46E5',
+                  }}>
+                    {selectedPoolTags.length} {t('cvEvaluation.tagsSelected')}
+                  </span>
+                )}
+              </span>
+              <span style={{ 
+                transform: tagDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                transition: 'transform 0.2s',
+                color: '#6B7280',
+                flexShrink: 0,
+              }}>▼</span>
+            </button>
+            
+            {tagDropdownOpen && (
+              <div style={{
+                position: 'absolute',
+                top: '100%',
+                left: 0,
+                right: 0,
+                background: 'white',
+                border: '1px solid #D1D5DB',
+                borderRadius: 8,
+                marginTop: 4,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                zIndex: 50,
+                maxHeight: 300,
+                overflowY: 'auto',
+              }}>
+                {/* Clear Selection Option */}
+                <button
+                  onClick={() => clearTagSelection()}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    border: 'none',
+                    borderBottom: '1px solid #E5E7EB',
+                    background: selectedPoolTags.length === 0 ? '#EEF2FF' : 'white',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    fontSize: 14,
+                    color: '#1F2937',
+                    textAlign: 'left',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = '#F3F4F6'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = selectedPoolTags.length === 0 ? '#EEF2FF' : 'white'}
+                >
+                  {selectedPoolTags.length === 0 && <span style={{ color: '#4F46E5' }}>✓</span>}
+                  <span style={{ marginLeft: selectedPoolTags.length === 0 ? 0 : 18 }}>
+                    {t('cvEvaluation.allTags')}
+                  </span>
+                </button>
+                
+                {poolTags.map(tag => {
+                  const isSelected = selectedPoolTags.includes(tag.id);
+                  return (
+                    <button
+                      key={tag.id}
+                      onClick={() => toggleTagSelection(tag.id)}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        border: 'none',
+                        background: isSelected ? '#EEF2FF' : 'white',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        fontSize: 14,
+                        color: '#1F2937',
+                        textAlign: 'left',
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = '#F3F4F6'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = isSelected ? '#EEF2FF' : 'white'}
+                    >
+                      {/* Checkbox */}
+                      <span style={{
+                        width: 16,
+                        height: 16,
+                        borderRadius: 3,
+                        border: isSelected ? 'none' : '2px solid #D1D5DB',
+                        background: isSelected ? '#4F46E5' : 'white',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                      }}>
+                        {isSelected && (
+                          <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                            <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        )}
+                      </span>
+                      {tag.color && (
+                        <span style={{
+                          width: 10,
+                          height: 10,
+                          borderRadius: '50%',
+                          background: tag.color,
+                          flexShrink: 0,
+                        }} />
+                      )}
+                      {tag.name}
+                      {tag.usageCount > 0 && (
+                        <span style={{ fontSize: 11, color: '#9CA3AF', marginLeft: 'auto' }}>
+                          ({tag.usageCount})
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Search */}
         <div style={{ position: 'relative' }}>
@@ -634,14 +1076,16 @@ const CandidateSelectionPanel = ({
 
       {/* Candidate List */}
       <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
-        {!selectedDepartment ? (
+        {sourceType === 'departments' && !selectedDepartment ? (
           <div style={{ textAlign: 'center', padding: 40, color: '#9CA3AF' }}>
             {t('cvEvaluation.selectJob')}
           </div>
         ) : loading ? (
           <div style={{ textAlign: 'center', padding: 40, color: '#9CA3AF' }}>{t('common.loading')}</div>
         ) : candidates.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 40, color: '#9CA3AF' }}>{t('cvEvaluation.noCandidatesFound')}</div>
+          <div style={{ textAlign: 'center', padding: 40, color: '#9CA3AF' }}>
+            {sourceType === 'talentPool' ? t('cvEvaluation.noCandidatesInPool') : t('cvEvaluation.noCandidatesFound')}
+          </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {/* Select All Button */}
@@ -677,6 +1121,7 @@ const CandidateSelectionPanel = ({
                 candidate={candidate}
                 isSelected={selectedCandidates.some(c => c.id === candidate.id)}
                 onToggle={() => onToggleCandidate(candidate)}
+                isFromPool={candidate.isFromPool}
               />
             ))}
           </div>
@@ -687,13 +1132,17 @@ const CandidateSelectionPanel = ({
 };
 
 // Candidate Card Component
-const CandidateCard = ({ candidate, isSelected, onToggle }) => {
+const CandidateCard = ({ candidate, isSelected, onToggle, isFromPool }) => {
+  const { t } = useTranslation();
   const [isHovered, setIsHovered] = useState(false);
 
   // Extract last position from parsed_data if available
   const getLastPosition = () => {
     // This would come from parsed_data.experience[0] in real implementation
     // For now, use department as fallback
+    if (isFromPool) {
+      return t('cvEvaluation.poolCandidateSource');
+    }
     return candidate.department?.name || 'Pozisyon bilgisi yok';
   };
 
@@ -731,11 +1180,51 @@ const CandidateCard = ({ candidate, isSelected, onToggle }) => {
 
       {/* Content */}
       <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: '#1F2937', marginBottom: 4 }}>
-          {candidate.name || 'İsim bilgisi yok'}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+          <span style={{ fontSize: 14, fontWeight: 600, color: '#1F2937' }}>
+            {candidate.name || 'İsim bilgisi yok'}
+          </span>
+          {isFromPool && (
+            <Sparkles size={14} color="#F59E0B" style={{ flexShrink: 0 }} />
+          )}
         </div>
         <div style={{ fontSize: 12, color: '#6B7280' }}>
-          Son Pozisyon: {getLastPosition()}
+          {isFromPool ? (
+            // Show tags for pool candidates
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+              {candidate.poolTags?.slice(0, 3).map(tag => (
+                <span
+                  key={tag.id}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    padding: '2px 6px',
+                    background: `${tag.color}20`,
+                    color: tag.color,
+                    borderRadius: 4,
+                    fontSize: 11,
+                    fontWeight: 500,
+                  }}
+                >
+                  <span style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    background: tag.color,
+                  }} />
+                  {tag.name}
+                </span>
+              ))}
+              {candidate.poolTags?.length > 3 && (
+                <span style={{ fontSize: 11, color: '#9CA3AF' }}>
+                  +{candidate.poolTags.length - 3}
+                </span>
+              )}
+            </div>
+          ) : (
+            <span>Son Pozisyon: {getLastPosition()}</span>
+          )}
         </div>
       </div>
     </div>

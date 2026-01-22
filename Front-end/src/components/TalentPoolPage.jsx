@@ -50,6 +50,14 @@ const EditEntryModal = ({ entry, tags, onClose, onSuccess }) => {
   
   const [updateEntry, { loading }] = useMutation(UPDATE_TALENT_POOL_ENTRY);
 
+  // Helper function to get translated tag name for system tags
+  const getTagDisplayName = (tag) => {
+    if (tag.isSystem) {
+      return t(`talentPool.systemTagNames.${tag.name}`, tag.name);
+    }
+    return tag.name;
+  };
+
   const toggleTag = (tagId) => {
     setSelectedTags(prev => 
       prev.includes(tagId) 
@@ -169,7 +177,7 @@ const EditEntryModal = ({ entry, tags, onClose, onSuccess }) => {
                     }}
                   >
                     <div style={{ width: 8, height: 8, borderRadius: '50%', background: tag.color }} />
-                    {tag.name}
+                    {getTagDisplayName(tag)}
                   </button>
                 );
               })}
@@ -233,6 +241,14 @@ const EditEntryModal = ({ entry, tags, onClose, onSuccess }) => {
 const TalentPoolPage = () => {
   const { t } = useTranslation();
   
+  // Helper function to get translated tag name for system tags
+  const getTagDisplayName = (tag) => {
+    if (tag.isSystem) {
+      return t(`talentPool.systemTagNames.${tag.name}`, tag.name);
+    }
+    return tag.name;
+  };
+  
   // State
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTags, setSelectedTags] = useState([]);
@@ -243,6 +259,7 @@ const TalentPoolPage = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [tagsPopup, setTagsPopup] = useState(null); // { entry, position }
 
   // Queries
   const { data: entriesData, loading: entriesLoading, refetch } = useQuery(GET_TALENT_POOL_ENTRIES, {
@@ -618,7 +635,7 @@ const TalentPoolPage = () => {
                     }}
                   >
                     <div style={{ width: 8, height: 8, borderRadius: '50%', background: tag.color }} />
-                    {tag.name}
+                    {getTagDisplayName(tag)}
                     <span style={{ color: '#9CA3AF', fontSize: 11 }}>({tag.usageCount})</span>
                   </button>
                 );
@@ -763,11 +780,29 @@ const TalentPoolPage = () => {
                         }}
                       >
                         <div style={{ width: 6, height: 6, borderRadius: '50%', background: tag.color }} />
-                        {tag.name}
+                        {getTagDisplayName(tag)}
                       </span>
                     ))}
                     {entry.tags.length > 4 && (
-                      <span style={{ fontSize: 12, color: '#6B7280' }}>+{entry.tags.length - 4}</span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          setTagsPopup({ entry, position: { x: rect.left, y: rect.top } });
+                        }}
+                        style={{
+                          fontSize: 12,
+                          color: '#6366F1',
+                          background: '#EEF2FF',
+                          border: 'none',
+                          padding: '4px 10px',
+                          borderRadius: 12,
+                          cursor: 'pointer',
+                          fontWeight: 500,
+                        }}
+                      >
+                        +{entry.tags.length - 4}
+                      </button>
                     )}
                   </div>
                 )}
@@ -977,11 +1012,29 @@ const TalentPoolPage = () => {
                             fontWeight: 500,
                           }}
                         >
-                          {tag.name}
+                          {getTagDisplayName(tag)}
                         </span>
                       ))}
                       {entry.tags && entry.tags.length > 3 && (
-                        <span style={{ fontSize: 11, color: '#9CA3AF' }}>+{entry.tags.length - 3}</span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            setTagsPopup({ entry, position: { x: rect.left, y: rect.top } });
+                          }}
+                          style={{
+                            fontSize: 11,
+                            color: '#6366F1',
+                            background: '#EEF2FF',
+                            border: 'none',
+                            padding: '3px 8px',
+                            borderRadius: 10,
+                            cursor: 'pointer',
+                            fontWeight: 500,
+                          }}
+                        >
+                          +{entry.tags.length - 3}
+                        </button>
                       )}
                     </div>
                   </td>
@@ -1040,6 +1093,83 @@ const TalentPoolPage = () => {
             setEditingEntry(null);
           }}
         />
+      )}
+
+      {/* Tags Popup */}
+      {tagsPopup && (
+        <>
+          {/* Backdrop */}
+          <div
+            onClick={() => setTagsPopup(null)}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 999,
+            }}
+          />
+          {/* Popup - Opens above the button */}
+          <div
+            style={{
+              position: 'fixed',
+              left: Math.min(tagsPopup.position.x, window.innerWidth - 280),
+              bottom: window.innerHeight - tagsPopup.position.y + 40,
+              background: 'white',
+              borderRadius: 12,
+              boxShadow: '0 -10px 40px rgba(0,0,0,0.15)',
+              border: '1px solid #E5E7EB',
+              padding: 16,
+              zIndex: 1000,
+              minWidth: 200,
+              maxWidth: 280,
+            }}
+          >
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: 12,
+              paddingBottom: 10,
+              borderBottom: '1px solid #F3F4F6',
+            }}>
+              <span style={{ fontWeight: 600, fontSize: 13, color: '#374151' }}>
+                {t('talentPool.allTags')} ({tagsPopup.entry.tags?.length || 0})
+              </span>
+              <button
+                onClick={() => setTagsPopup(null)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#9CA3AF',
+                  padding: 2,
+                }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {tagsPopup.entry.tags?.map(tag => (
+                <span
+                  key={tag.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    padding: '5px 10px',
+                    borderRadius: 12,
+                    background: `${tag.color}15`,
+                    color: tag.color,
+                    fontSize: 12,
+                    fontWeight: 500,
+                  }}
+                >
+                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: tag.color }} />
+                  {getTagDisplayName(tag)}
+                </span>
+              ))}
+            </div>
+          </div>
+        </>
       )}
 
       {/* Delete Confirmation Modal */}

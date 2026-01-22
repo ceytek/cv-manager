@@ -159,6 +159,16 @@
     "searchTags": "Etiket ara...",
     "systemTags": "Sistem Etiketleri",
     "customTags": "Özel Etiketler",
+    "systemTagNames": {
+      "İletişim Güçlü": "İletişim Güçlü",
+      "Dil Becerisi": "Dil Becerisi",
+      "Teknik Yetkinlik": "Teknik Yetkinlik",
+      "Liderlik Potansiyeli": "Liderlik Potansiyeli",
+      "Yeni Mezun": "Yeni Mezun",
+      "Deneyimli (5+ yıl)": "Deneyimli (5+ yıl)",
+      "Uzaktan Çalışmaya Uygun": "Uzaktan Çalışmaya Uygun",
+      "Esnek Çalışma Saatleri": "Esnek Çalışma Saatleri"
+    },
     "noCustomTags": "Henüz özel etiket oluşturulmadı",
     "createTag": "Yeni Etiket Oluştur",
     "editTag": "Etiketi Düzenle",
@@ -223,7 +233,8 @@
     "today": "Bugün",
     "yesterday": "Dün",
     "daysAgo": "{{count}} gün önce",
-    "weeksAgo": "{{count}} hafta önce"
+    "weeksAgo": "{{count}} hafta önce",
+    "allTags": "Tüm Etiketler"
   },
   "interviewTemplates": {
     "title": "Mülakat Şablonları",
@@ -485,7 +496,16 @@
     "aiPoweredEvaluation": "Yapay Zeka Değerlendirmesi",
     "analysisFailed": "Analiz Başarısız",
     "timeoutError": "Analiz süresi çok uzun sürdü. Sunucu zaman aşımına uğradı. Lütfen daha az sayıda CV seçerek veya birkaç dakika sonra tekrar deneyin.",
-    "genericError": "Analiz sırasında bir hata oluştu. Lütfen tekrar deneyin."
+    "genericError": "Analiz sırasında bir hata oluştu. Lütfen tekrar deneyin.",
+    "successCount": "aday başarılı",
+    "errorCount": "aday başarısız",
+    "departmentsTab": "Departmanlar",
+    "talentPoolTab": "Yetenek Havuzu",
+    "allTags": "Tüm Etiketler",
+    "selectTagToFilter": "Etiket seçin",
+    "noCandidatesInPool": "Havuzda aday bulunamadı",
+    "poolCandidateSource": "Havuz",
+    "tagsSelected": "etiket seçildi"
   },
   "candidateDetail": {
     "breadcrumb": "Adaylar / {{name}}",
@@ -846,7 +866,12 @@
     "aiProcessing": "AI, her bir adayı iş tanımıyla karşılaştırıp uygunluk skorları hesaplıyor...",
     "completed": "✅ Tüm adaylar başarıyla analiz edildi!",
     "error": "⚠️ Analiz sırasında bir hata oluştu",
-    "pleaseWait": "Bu işlem aday sayısına göre 1-2 dakika sürebilir."
+    "pleaseWait": "Bu işlem aday sayısına göre 1-2 dakika sürebilir.",
+    "progress": "İlerleme",
+    "batchProgress": "Grup {{current}} / {{total}} işleniyor",
+    "currentlyAnalyzing": "Şu an analiz ediliyor:",
+    "partialComplete": "⚠️ Kısmi tamamlandı",
+    "partialInfo": "{{success}} başarılı, {{error}} başarısız"
   },
   "jobCreation": {
     "title": "Yapay Zeka Destekli İş İlanı Oluşturucu",
@@ -915,6 +940,7 @@
     "applications": "Başvuru",
     "applicants": "Başvuru",
     "noApplicants": "Henüz başvuru yok",
+    "viewApplications": "Değerlendirmeleri görüntüle",
     "lastDate": "Son:",
     "remoteOffice": "🏢 Ofis",
     "remoteRemote": "🌐 Remote",

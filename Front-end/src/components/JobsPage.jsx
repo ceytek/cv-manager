@@ -2,7 +2,7 @@
  * Jobs Page - İş İlanları Yönetimi
  * 3. resim tasarımına göre düzenlendi
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useQuery, useMutation } from '@apollo/client/react';
 import { JOBS_QUERY, DELETE_JOB_MUTATION } from '../graphql/jobs';
 import { Search, MapPin, Users, Calendar, Sparkles, FileText, Eye, Video, ListChecks, Edit2, Trash2, Briefcase, Clock, Building2, X, List, LayoutGrid } from 'lucide-react';
@@ -13,7 +13,7 @@ import InterviewSettingsModal from './InterviewSettingsModal';
 import LikertSettingsModal from './LikertSettingsModal';
 import { useTranslation } from 'react-i18next';
 
-const JobsPage = ({ departments = [], initialCreate = false }) => {
+const JobsPage = ({ departments = [], initialCreate = false, onViewApplications }) => {
   const { t } = useTranslation();
   const [activeFilter, setActiveFilter] = useState('active');
   const [searchTerm, setSearchTerm] = useState('');
@@ -42,19 +42,31 @@ const JobsPage = ({ departments = [], initialCreate = false }) => {
   }, [initialCreate]);
 
   // Fetch ALL jobs (without status filter) to get accurate counts
+  // Search is done in frontend for better UX (no refetch on every keystroke)
   const { data, loading, error, refetch } = useQuery(JOBS_QUERY, {
     variables: {
       includeInactive: true, // Always include all to get accurate counts
       status: null, // No status filter - we filter in frontend
-      searchTerm: searchTerm || null,
     },
     fetchPolicy: 'cache-and-network',
   });
 
   const allJobs = data?.jobs || [];
   
+  // Filter jobs based on search term (frontend filtering for better UX)
+  const searchFilteredJobs = useMemo(() => {
+    if (!searchTerm.trim()) return allJobs;
+    const term = searchTerm.toLowerCase().trim();
+    return allJobs.filter(job => 
+      job.title?.toLowerCase().includes(term) ||
+      job.department?.name?.toLowerCase().includes(term) ||
+      job.location?.toLowerCase().includes(term) ||
+      job.keywords?.some(k => k.toLowerCase().includes(term))
+    );
+  }, [allJobs, searchTerm]);
+  
   // Filter jobs based on active filter
-  const jobs = allJobs.filter(job => {
+  const jobs = searchFilteredJobs.filter(job => {
     if (activeFilter === 'active') return job.status === 'active';
     if (activeFilter === 'draft') return job.status === 'draft';
     if (activeFilter === 'closed') return job.status === 'closed';
@@ -589,7 +601,33 @@ const JobsPage = ({ departments = [], initialCreate = false }) => {
                     borderTop: '1px solid #F3F4F6',
                   }}>
                     {applicantCount > 0 ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onViewApplications) {
+                            onViewApplications(job);
+                          }
+                        }}
+                        style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: 10,
+                          background: 'none',
+                          border: 'none',
+                          padding: '6px 10px',
+                          borderRadius: 8,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          marginLeft: -10,
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = '#F3F4F6';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'none';
+                        }}
+                        title={t('jobsPage.viewApplications', 'Değerlendirmeleri görüntüle')}
+                      >
                         <div style={{ display: 'flex' }}>
                           {(job.recentApplicants || []).slice(0, 2).map((initials, i) => (
                             <div
@@ -634,7 +672,7 @@ const JobsPage = ({ departments = [], initialCreate = false }) => {
                         <span style={{ fontSize: 13, color: '#374151', fontWeight: 500 }}>
                           {applicantCount} {t('jobsPage.applicants', 'Başvuru')}
                         </span>
-                      </div>
+                      </button>
                     ) : (
                       <span style={{ fontSize: 12, color: '#9CA3AF' }}>
                         {t('jobsPage.noApplicants', 'Henüz başvuru yok')}
@@ -804,8 +842,36 @@ const JobsPage = ({ departments = [], initialCreate = false }) => {
 
                   {/* Right: Applicants & Actions */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-                    {/* Applicants */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    {/* Applicants - Clickable to view applications */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (applicantCount > 0 && onViewApplications) {
+                          onViewApplications(job);
+                        }
+                      }}
+                      disabled={applicantCount === 0}
+                      style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 12,
+                        background: 'none',
+                        border: 'none',
+                        padding: '8px 12px',
+                        borderRadius: 10,
+                        cursor: applicantCount > 0 ? 'pointer' : 'default',
+                        transition: 'all 0.2s',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (applicantCount > 0) {
+                          e.currentTarget.style.background = '#F3F4F6';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'none';
+                      }}
+                      title={applicantCount > 0 ? t('jobsPage.viewApplications', 'Değerlendirmeleri görüntüle') : ''}
+                    >
                       {applicantCount > 0 ? (
                         <>
                           <div style={{ display: 'flex' }}>
@@ -862,7 +928,7 @@ const JobsPage = ({ departments = [], initialCreate = false }) => {
                           <Users size={16} /> {t('jobsPage.noApplicants', 'Henüz başvuru yok')}
                         </span>
                       )}
-                    </div>
+                    </button>
 
                     {/* Action Buttons */}
                     <div style={{ display: 'flex', gap: 8 }}>

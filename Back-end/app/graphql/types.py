@@ -365,7 +365,7 @@ class CandidateType:
     # Nested department info
     department: Optional['DepartmentType'] = None
     
-    # Talent Pool status
+    # Talent pool status
     in_talent_pool: bool = strawberry.field(name="inTalentPool", default=False)
     talent_pool_entry_id: Optional[str] = strawberry.field(name="talentPoolEntryId", default=None)
 
@@ -1082,7 +1082,6 @@ from app.modules.history.types import (
     RecentActivityType,
     RecentActivitiesResponse,
 )
-
 
 # ============================================
 # Talent Pool Types (Re-exported from module)

@@ -56,6 +56,14 @@ const TalentPoolTagsPage = () => {
   const [tagColor, setTagColor] = useState('#6366F1');
   const [formError, setFormError] = useState('');
 
+  // Helper function to get translated tag name for system tags
+  const getTagDisplayName = (tag) => {
+    if (tag.isSystem) {
+      return t(`talentPool.systemTagNames.${tag.name}`, tag.name);
+    }
+    return tag.name;
+  };
+
   const { data, loading, error, refetch } = useQuery(GET_TALENT_POOL_TAGS, { 
     fetchPolicy: 'network-only' 
   });
@@ -246,7 +254,7 @@ const TalentPoolTagsPage = () => {
                 background: tag.color,
               }} />
               <span style={{ fontSize: '14px', color: '#374151', fontWeight: 500 }}>
-                {tag.name}
+                {getTagDisplayName(tag)}
               </span>
               <span style={{ 
                 fontSize: '12px', 

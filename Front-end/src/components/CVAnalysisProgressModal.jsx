@@ -1,11 +1,12 @@
 /**
  * CV Analysis Progress Modal Component
  * Shows AI-powered analysis progress with animations
- * Displays: Current candidate being analyzed, total progress, status
+ * Displays: Current batch being analyzed, total progress, status
+ * Supports batch processing to prevent timeout errors
  */
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader, CheckCircle, AlertCircle, Sparkles, FileText } from 'lucide-react';
+import { Loader, CheckCircle, AlertCircle, Sparkles, AlertTriangle } from 'lucide-react';
 import '../styles/CVAnalysisProgressModal.css';
 
 const CVAnalysisProgressModal = ({
@@ -14,7 +15,11 @@ const CVAnalysisProgressModal = ({
   totalCandidates,
   processedCandidates,
   currentCandidateName,
-  status = 'analyzing', // 'analyzing' | 'success' | 'error'
+  currentBatch = 0,
+  totalBatches = 0,
+  successCount = 0,
+  errorCount = 0,
+  status = 'analyzing', // 'analyzing' | 'success' | 'error' | 'partial'
 }) => {
   const { t } = useTranslation();
 
@@ -28,6 +33,8 @@ const CVAnalysisProgressModal = ({
         return <CheckCircle className="modal-icon success-icon" size={64} />;
       case 'error':
         return <AlertCircle className="modal-icon error-icon" size={64} />;
+      case 'partial':
+        return <AlertTriangle className="modal-icon partial-icon" size={64} />;
       default:
         return <Loader className="modal-icon analyzing-icon" size={64} />;
     }
@@ -41,6 +48,8 @@ const CVAnalysisProgressModal = ({
         return t('cvAnalysisProgress.completed');
       case 'error':
         return t('cvAnalysisProgress.error');
+      case 'partial':
+        return t('cvAnalysisProgress.partialComplete');
       default:
         return t('cvAnalysisProgress.analyzing');
     }
@@ -68,6 +77,79 @@ const CVAnalysisProgressModal = ({
           {t('cvAnalysisProgress.description')}
         </p>
 
+        {/* Progress Bar */}
+        {status === 'analyzing' && totalCandidates > 0 && (
+          <div style={{ width: '100%', marginBottom: 16 }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              marginBottom: 8,
+              fontSize: 14,
+              color: '#6B7280'
+            }}>
+              <span>{t('cvAnalysisProgress.progress')}</span>
+              <span>{processedCandidates} / {totalCandidates} ({progressPercentage}%)</span>
+            </div>
+            <div style={{
+              width: '100%',
+              height: 8,
+              background: '#E5E7EB',
+              borderRadius: 4,
+              overflow: 'hidden'
+            }}>
+              <div style={{
+                width: `${progressPercentage}%`,
+                height: '100%',
+                background: 'linear-gradient(90deg, #6366F1 0%, #8B5CF6 100%)',
+                borderRadius: 4,
+                transition: 'width 0.3s ease'
+              }} />
+            </div>
+          </div>
+        )}
+
+        {/* Batch Info */}
+        {status === 'analyzing' && totalBatches > 1 && (
+          <p style={{
+            fontSize: 13,
+            color: '#9CA3AF',
+            marginBottom: 12,
+            textAlign: 'center'
+          }}>
+            {t('cvAnalysisProgress.batchProgress', { current: currentBatch, total: totalBatches })}
+          </p>
+        )}
+
+        {/* Current Candidate Names */}
+        {status === 'analyzing' && currentCandidateName && (
+          <div style={{
+            background: '#F3F4F6',
+            padding: '10px 16px',
+            borderRadius: 8,
+            marginBottom: 16,
+            maxWidth: '100%',
+            overflow: 'hidden'
+          }}>
+            <p style={{
+              fontSize: 12,
+              color: '#6B7280',
+              marginBottom: 4
+            }}>
+              {t('cvAnalysisProgress.currentlyAnalyzing')}
+            </p>
+            <p style={{
+              fontSize: 14,
+              color: '#1F2937',
+              fontWeight: 500,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }}>
+              {currentCandidateName}
+            </p>
+          </div>
+        )}
+
         {/* Status Icon */}
         <div className="analysis-status-icon-wrapper">
           {getStatusIcon()}
@@ -77,6 +159,18 @@ const CVAnalysisProgressModal = ({
         <div className={`analysis-status-message status-${status}`}>
           {getStatusText()}
         </div>
+
+        {/* Partial Success Info */}
+        {status === 'partial' && (
+          <p style={{
+            fontSize: 14,
+            color: '#F59E0B',
+            marginTop: 8,
+            textAlign: 'center'
+          }}>
+            {t('cvAnalysisProgress.partialInfo', { success: successCount, error: errorCount })}
+          </p>
+        )}
 
         {/* AI Processing Message */}
         {status === 'analyzing' && (

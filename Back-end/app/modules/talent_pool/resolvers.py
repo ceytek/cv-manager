@@ -308,10 +308,18 @@ def get_talent_pool_entries(info: Info, filter: Optional[TalentPoolFilterInput] 
                 )
             
             if filter.tag_ids:
-                # Filter by tags - entry must have at least one of the specified tags
-                query = query.join(TalentPoolCandidateTag).filter(
+                # Filter by tags - entry must have ALL of the specified tags (AND logic)
+                from sqlalchemy import func
+                
+                # Subquery: Get entry IDs that have ALL the required tags
+                tag_count = len(filter.tag_ids)
+                subquery = db.query(TalentPoolCandidateTag.entry_id).filter(
                     TalentPoolCandidateTag.tag_id.in_(filter.tag_ids)
-                ).distinct()
+                ).group_by(TalentPoolCandidateTag.entry_id).having(
+                    func.count(TalentPoolCandidateTag.tag_id) == tag_count
+                ).subquery()
+                
+                query = query.filter(TalentPoolEntry.id.in_(subquery))
             
             # Sorting
             sort_order = filter.sort_order or "desc"

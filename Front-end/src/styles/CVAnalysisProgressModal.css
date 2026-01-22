@@ -266,6 +266,16 @@
   color: #EF4444;
 }
 
+.analysis-status-message.status-partial {
+  color: #F59E0B;
+}
+
+/* Partial Icon (Warning) */
+.partial-icon {
+  color: #F59E0B;
+  animation: scaleIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 /* AI Processing Message */
 .analysis-ai-message {
   font-size: 13px;

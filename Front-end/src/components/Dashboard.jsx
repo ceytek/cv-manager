@@ -29,7 +29,8 @@ import {
   Building2,
   Menu,
   X,
-  Plus
+  Plus,
+  Sparkles
 } from 'lucide-react';
 import { useQuery, useMutation, useSubscription } from '@apollo/client/react';
 import { USERS_QUERY, DEACTIVATE_USER_MUTATION } from '../graphql/auth';
@@ -488,6 +489,40 @@ const Dashboard = ({ currentUser, onLogout }) => {
           <div className="topbar-right">
             <LanguageSwitcher />
             
+            {/* Talent Pool Button */}
+            <button 
+              className="header-icon-btn" 
+              onClick={() => setActiveMenu('talent-pool')} 
+              title={t('sidebar.talentPool')}
+              style={{
+                width: 42,
+                height: 42,
+                borderRadius: 12,
+                border: activeMenu === 'talent-pool' ? '2px solid #A5B4FC' : '1px solid #E5E7EB',
+                background: activeMenu === 'talent-pool' ? '#EEF2FF' : '#FAFAFA',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                boxShadow: activeMenu === 'talent-pool' ? '0 2px 8px rgba(99, 102, 241, 0.2)' : 'none',
+              }}
+              onMouseEnter={(e) => {
+                if (activeMenu !== 'talent-pool') {
+                  e.currentTarget.style.background = '#F3F4F6';
+                  e.currentTarget.style.borderColor = '#C7D2FE';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (activeMenu !== 'talent-pool') {
+                  e.currentTarget.style.background = '#FAFAFA';
+                  e.currentTarget.style.borderColor = '#E5E7EB';
+                }
+              }}
+            >
+              <Sparkles size={20} color={activeMenu === 'talent-pool' ? '#6366F1' : '#8B5CF6'} />
+            </button>
+            
             {/* Add User Button - Clean Circle */}
             {isAdmin && (
               <button className="header-add-btn" onClick={() => setShowAddUser(true)} title={t('header.addUser')}>
@@ -591,7 +626,15 @@ const Dashboard = ({ currentUser, onLogout }) => {
 
         {/* Jobs */}
         {activeMenu === 'jobs' && (
-          <JobsPage departments={departments} initialCreate={jobsInitialCreate} />
+          <JobsPage 
+            departments={departments} 
+            initialCreate={jobsInitialCreate}
+            onViewApplications={(job) => {
+              setCvEvalInitialJob(job);
+              setCvEvalInitialView('job-details');
+              setActiveMenu('cv-evaluation');
+            }}
+          />
         )}
 
         {/* CVs */}
