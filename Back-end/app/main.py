@@ -152,6 +152,50 @@ def bootstrap_roles_and_fk():
 
 bootstrap_roles_and_fk()
 
+
+def seed_talent_pool_tags():
+    """Seed system talent pool tags"""
+    from app.modules.talent_pool.models import TalentPoolTag
+    
+    system_tags = [
+        {"name": "İletişim Güçlü", "color": "#10b981"},
+        {"name": "Dil Becerisi", "color": "#3b82f6"},
+        {"name": "Teknik Yetkinlik", "color": "#8b5cf6"},
+        {"name": "Liderlik Potansiyeli", "color": "#f59e0b"},
+        {"name": "Yeni Mezun", "color": "#06b6d4"},
+        {"name": "Deneyimli (5+ yıl)", "color": "#ef4444"},
+        {"name": "Uzaktan Çalışmaya Uygun", "color": "#84cc16"},
+        {"name": "Esnek Çalışma Saatleri", "color": "#ec4899"},
+    ]
+    
+    db = SessionLocal()
+    try:
+        for tag_data in system_tags:
+            existing = db.query(TalentPoolTag).filter(
+                TalentPoolTag.is_system == True,
+                TalentPoolTag.name == tag_data["name"]
+            ).first()
+            
+            if not existing:
+                tag = TalentPoolTag(
+                    name=tag_data["name"],
+                    color=tag_data["color"],
+                    is_system=True,
+                    is_active=True,
+                    company_id=None  # System tags have no company
+                )
+                db.add(tag)
+        
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"Error seeding talent pool tags: {e}")
+    finally:
+        db.close()
+
+
+seed_talent_pool_tags()
+
 # FastAPI app
 app = FastAPI(
     title="CV Manager API",

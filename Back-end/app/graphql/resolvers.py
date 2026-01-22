@@ -110,6 +110,20 @@ from app.graphql.types import (
     HistoryListResponse,
     RecentActivityType,
     RecentActivitiesResponse,
+    # Talent Pool types
+    TalentPoolTagType,
+    TalentPoolEntryType,
+    TalentPoolTagInput,
+    TalentPoolTagUpdateInput,
+    TalentPoolEntryInput,
+    TalentPoolBulkAddInput,
+    TalentPoolEntryUpdateInput,
+    TalentPoolAssignToJobInput,
+    TalentPoolTagResponse,
+    TalentPoolEntryResponse,
+    TalentPoolBulkResponse,
+    TalentPoolStatsType,
+    TalentPoolFilterInput,
 )
 from app.services.auth import AuthService
 from app.services.department import DepartmentService
@@ -943,6 +957,18 @@ class Query:
 
             # Convert to GraphQL types
             result = []
+            
+            # Get talent pool entries for all candidates in one query
+            from app.modules.talent_pool.models import TalentPoolEntry
+            candidate_ids = [c.id for c in candidates]
+            talent_pool_entries = db.query(TalentPoolEntry).filter(
+                TalentPoolEntry.candidate_id.in_(candidate_ids),
+                TalentPoolEntry.company_id == company_id,
+                TalentPoolEntry.status != 'archived'
+            ).all()
+            # Create a lookup dict
+            talent_pool_map = {entry.candidate_id: entry.id for entry in talent_pool_entries}
+            
             for c in candidates:
                 # Get department name
                 dept = db.query(Department).filter(Department.id == c.department_id, Department.company_id == company_id).first()
@@ -952,10 +978,14 @@ class Query:
                         id=dept.id,
                         name=dept.name,
                         is_active=dept.is_active,
-                            color=dept.color,
+                        color=dept.color,
                         created_at=dept.created_at.isoformat(),
                         updated_at=dept.updated_at.isoformat() if dept.updated_at else None
                     )
+                
+                # Check talent pool status
+                in_talent_pool = c.id in talent_pool_map
+                talent_pool_entry_id = talent_pool_map.get(c.id)
 
                 result.append(CandidateType(
                     id=c.id,
@@ -978,7 +1008,9 @@ class Query:
                     department_id=c.department_id,
                     uploaded_at=c.uploaded_at.isoformat(),
                     updated_at=c.updated_at.isoformat() if c.updated_at else None,
-                    department=dept_type
+                    department=dept_type,
+                    in_talent_pool=in_talent_pool,
+                    talent_pool_entry_id=talent_pool_entry_id
                 ))
 
             return result
@@ -2005,6 +2037,37 @@ class Query:
         """Get recent activities across all applications"""
         from app.modules.history.resolvers import get_recent_activities
         return get_recent_activities(info, limit)
+
+    # ============ Talent Pool Queries ============
+    @strawberry.field
+    def talent_pool_tags(self, info: Info) -> List[TalentPoolTagType]:
+        """Get all talent pool tags for the current company"""
+        from app.modules.talent_pool.resolvers import get_talent_pool_tags
+        return get_talent_pool_tags(info)
+
+    @strawberry.field
+    def talent_pool_entries(self, info: Info, filter: Optional[TalentPoolFilterInput] = None) -> List[TalentPoolEntryType]:
+        """Get all talent pool entries with optional filtering"""
+        from app.modules.talent_pool.resolvers import get_talent_pool_entries
+        return get_talent_pool_entries(info, filter)
+
+    @strawberry.field
+    def talent_pool_entry(self, info: Info, id: str) -> Optional[TalentPoolEntryType]:
+        """Get a single talent pool entry by ID"""
+        from app.modules.talent_pool.resolvers import get_talent_pool_entry
+        return get_talent_pool_entry(info, id)
+
+    @strawberry.field
+    def talent_pool_stats(self, info: Info) -> TalentPoolStatsType:
+        """Get talent pool statistics"""
+        from app.modules.talent_pool.resolvers import get_talent_pool_stats
+        return get_talent_pool_stats(info)
+
+    @strawberry.field
+    def is_candidate_in_talent_pool(self, info: Info, candidate_id: str) -> bool:
+        """Check if a candidate is already in the talent pool"""
+        from app.modules.talent_pool.resolvers import is_candidate_in_talent_pool
+        return is_candidate_in_talent_pool(info, candidate_id)
 
 
 @strawberry.type
@@ -3963,6 +4026,67 @@ class Mutation(CompanyMutation):
             return LikertSessionResponse(success=False, message=str(e), likert_link=None, session=None)
         finally:
             db.close()
+
+    # ============ Talent Pool Mutations ============
+    @strawberry.mutation
+    async def create_talent_pool_tag(self, info: Info, input: TalentPoolTagInput) -> TalentPoolTagResponse:
+        """Create a new talent pool tag"""
+        from app.modules.talent_pool.resolvers import create_talent_pool_tag
+        return await create_talent_pool_tag(info, input)
+
+    @strawberry.mutation
+    async def update_talent_pool_tag(self, info: Info, id: str, input: TalentPoolTagUpdateInput) -> TalentPoolTagResponse:
+        """Update a talent pool tag"""
+        from app.modules.talent_pool.resolvers import update_talent_pool_tag
+        return await update_talent_pool_tag(info, id, input)
+
+    @strawberry.mutation
+    async def delete_talent_pool_tag(self, info: Info, id: str) -> MessageType:
+        """Delete a talent pool tag"""
+        from app.modules.talent_pool.resolvers import delete_talent_pool_tag
+        return await delete_talent_pool_tag(info, id)
+
+    @strawberry.mutation
+    async def add_to_talent_pool(self, info: Info, input: TalentPoolEntryInput) -> TalentPoolEntryResponse:
+        """Add a candidate to the talent pool"""
+        from app.modules.talent_pool.resolvers import add_to_talent_pool
+        return await add_to_talent_pool(info, input)
+
+    @strawberry.mutation
+    async def bulk_add_to_talent_pool(self, info: Info, input: TalentPoolBulkAddInput) -> TalentPoolBulkResponse:
+        """Bulk add candidates to the talent pool"""
+        from app.modules.talent_pool.resolvers import bulk_add_to_talent_pool
+        return await bulk_add_to_talent_pool(info, input)
+
+    @strawberry.mutation
+    async def update_talent_pool_entry(self, info: Info, id: str, input: TalentPoolEntryUpdateInput) -> TalentPoolEntryResponse:
+        """Update a talent pool entry"""
+        from app.modules.talent_pool.resolvers import update_talent_pool_entry
+        return await update_talent_pool_entry(info, id, input)
+
+    @strawberry.mutation
+    async def archive_talent_pool_entry(self, info: Info, id: str) -> TalentPoolEntryResponse:
+        """Archive a talent pool entry"""
+        from app.modules.talent_pool.resolvers import archive_talent_pool_entry
+        return await archive_talent_pool_entry(info, id)
+
+    @strawberry.mutation
+    async def restore_talent_pool_entry(self, info: Info, id: str) -> TalentPoolEntryResponse:
+        """Restore an archived talent pool entry"""
+        from app.modules.talent_pool.resolvers import restore_talent_pool_entry
+        return await restore_talent_pool_entry(info, id)
+
+    @strawberry.mutation
+    async def remove_from_talent_pool(self, info: Info, id: str) -> MessageType:
+        """Permanently remove a candidate from the talent pool"""
+        from app.modules.talent_pool.resolvers import remove_from_talent_pool
+        return await remove_from_talent_pool(info, id)
+
+    @strawberry.mutation
+    async def assign_to_job_from_pool(self, info: Info, input: TalentPoolAssignToJobInput) -> TalentPoolEntryResponse:
+        """Assign a candidate from talent pool to a job"""
+        from app.modules.talent_pool.resolvers import assign_to_job_from_pool
+        return await assign_to_job_from_pool(info, input)
 
 
 # Create schema

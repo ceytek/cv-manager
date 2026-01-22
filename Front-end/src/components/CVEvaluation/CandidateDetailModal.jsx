@@ -3,11 +3,15 @@
  * Displays detailed CV information and AI analysis results
  */
 import React, { useMemo, useState } from 'react';
+import { useQuery } from '@apollo/client/react';
 import { useTranslation } from 'react-i18next';
-import { X, Briefcase, GraduationCap, Award, MapPin, Mail, Phone, Linkedin, CheckCircle2, XCircle, AlertCircle, Video, ListChecks, MailX } from 'lucide-react';
+import { X, Briefcase, GraduationCap, Award, MapPin, Mail, Phone, Linkedin, CheckCircle2, XCircle, AlertCircle, Video, ListChecks, MailX, Sparkles, Star } from 'lucide-react';
 import InterviewInviteModal from '../InterviewInviteModal';
 import LikertInviteModal from '../LikertInviteModal';
 import SendRejectionModal from '../SendRejectionModal';
+import AddToTalentPoolModal from '../AddToTalentPoolModal';
+import EditTalentPoolEntryModal from '../EditTalentPoolEntryModal';
+import { IS_CANDIDATE_IN_TALENT_POOL, GET_TALENT_POOL_ENTRIES } from '../../graphql/talentPool';
 import { API_BASE_URL } from '../../config/api';
 
 const CandidateDetailModal = ({ candidate, onClose, jobId, jobTitle, application, onRefetch }) => {
@@ -16,6 +20,30 @@ const CandidateDetailModal = ({ candidate, onClose, jobId, jobTitle, application
   const [showInterviewModal, setShowInterviewModal] = useState(false);
   const [showLikertModal, setShowLikertModal] = useState(false);
   const [showRejectionModal, setShowRejectionModal] = useState(false);
+  const [showTalentPoolModal, setShowTalentPoolModal] = useState(false);
+  const [showEditTalentPoolModal, setShowEditTalentPoolModal] = useState(false);
+  
+  // Get candidate ID for talent pool check
+  const candidateId = candidate?.candidate?.id || candidate?.candidateId || candidate?.id;
+  
+  // Check if candidate is in talent pool
+  const { data: talentPoolData, refetch: refetchTalentPool } = useQuery(GET_TALENT_POOL_ENTRIES, {
+    variables: { 
+      filter: { 
+        status: 'active' 
+      } 
+    },
+    skip: !candidateId,
+    fetchPolicy: 'cache-and-network',
+  });
+  
+  // Find if this candidate is in talent pool
+  const talentPoolEntry = useMemo(() => {
+    if (!talentPoolData?.talentPoolEntries || !candidateId) return null;
+    return talentPoolData.talentPoolEntries.find(entry => entry.candidate?.id === candidateId);
+  }, [talentPoolData, candidateId]);
+  
+  const isInTalentPool = !!talentPoolEntry;
   
   // Check if candidate is already rejected
   const isRejected = application?.status === 'rejected' || application?.status === 'REJECTED';
@@ -166,8 +194,56 @@ const CandidateDetailModal = ({ candidate, onClose, jobId, jobTitle, application
           justifyContent: 'space-between',
           alignItems: 'flex-start',
         }}>
-          <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 8 }}>
-            {t('candidateDetail.breadcrumb', { name: detail.name })}
+          <div>
+            <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 8 }}>
+              {t('candidateDetail.breadcrumb', { name: detail.name })}
+            </div>
+            {/* Talent Pool Icon */}
+            <button
+              onClick={() => {
+                if (isInTalentPool) {
+                  setShowEditTalentPoolModal(true);
+                } else {
+                  setShowTalentPoolModal(true);
+                }
+              }}
+              title={isInTalentPool ? t('talentPool.editEntry') : t('talentPool.addToPool')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '6px 12px',
+                borderRadius: 20,
+                background: isInTalentPool ? '#FEF3C7' : '#EEF2FF',
+                border: isInTalentPool ? '2px solid #F59E0B' : '1px solid #C7D2FE',
+                color: isInTalentPool ? '#D97706' : '#6366F1',
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+                fontSize: 12,
+                fontWeight: 500,
+              }}
+              onMouseEnter={(e) => {
+                if (isInTalentPool) {
+                  e.currentTarget.style.background = '#F59E0B';
+                  e.currentTarget.style.color = 'white';
+                } else {
+                  e.currentTarget.style.background = '#6366F1';
+                  e.currentTarget.style.color = 'white';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (isInTalentPool) {
+                  e.currentTarget.style.background = '#FEF3C7';
+                  e.currentTarget.style.color = '#D97706';
+                } else {
+                  e.currentTarget.style.background = '#EEF2FF';
+                  e.currentTarget.style.color = '#6366F1';
+                }
+              }}
+            >
+              {isInTalentPool ? <Star size={14} fill="currentColor" /> : <Sparkles size={14} />}
+              {isInTalentPool ? t('talentPool.inPool') : t('talentPool.addToPool')}
+            </button>
           </div>
           <button
             onClick={onClose}
@@ -444,6 +520,31 @@ const CandidateDetailModal = ({ candidate, onClose, jobId, jobTitle, application
           }}
         />
       )}
+      
+      {/* Add to Talent Pool Modal */}
+      <AddToTalentPoolModal
+        isOpen={showTalentPoolModal}
+        onClose={() => setShowTalentPoolModal(false)}
+        onSuccess={() => {
+          setShowTalentPoolModal(false);
+          refetchTalentPool(); // Refresh to update icon state
+        }}
+        candidates={[candidate?.candidate || candidate]}
+        sourceJobId={jobId}
+        sourceJobTitle={jobTitle}
+      />
+      
+      {/* Edit Talent Pool Entry Modal */}
+      <EditTalentPoolEntryModal
+        isOpen={showEditTalentPoolModal}
+        onClose={() => setShowEditTalentPoolModal(false)}
+        onSuccess={(action) => {
+          setShowEditTalentPoolModal(false);
+          refetchTalentPool(); // Refresh to update icon state
+        }}
+        entryId={talentPoolEntry?.id}
+        candidateName={detail.name}
+      />
     </div>
   );
 };

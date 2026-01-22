@@ -5,7 +5,7 @@
  */
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FileText, Upload as UploadIcon, CheckCircle, Download, Mail, Phone, Linkedin, Github, User, List, LayoutGrid, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { FileText, Upload as UploadIcon, CheckCircle, Download, Mail, Phone, Linkedin, Github, User, List, LayoutGrid, ArrowUpDown, ArrowUp, ArrowDown, Star } from 'lucide-react';
 import CVUploader from './CVUploader';
 import CandidateList from './CandidateList';
 import CVCompareView from './CVCompareView';
@@ -22,6 +22,7 @@ const CVPage = ({ departments, initialView = 'list' }) => {
   const [deptId, setDeptId] = useState('');
   const [lang, setLang] = useState(''); // TR/EN/..
   const [search, setSearch] = useState('');
+  const [talentPoolFilter, setTalentPoolFilter] = useState(false); // Filter by talent pool
   const [comparePair, setComparePair] = useState(null); // {a,b}
   
   // Session-based uploaded files (cleared on page leave/refresh)
@@ -490,6 +491,28 @@ const CVPage = ({ departments, initialView = 'list' }) => {
             </button>
           ))}
           
+          {/* Talent Pool Filter */}
+          <button
+            onClick={() => setTalentPoolFilter(!talentPoolFilter)}
+            style={{
+              padding: '8px 14px',
+              borderRadius: 20,
+              border: talentPoolFilter ? '2px solid #F59E0B' : '1px solid #E5E7EB',
+              background: talentPoolFilter ? '#FEF3C7' : 'white',
+              color: talentPoolFilter ? '#D97706' : '#6B7280',
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.15s',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <Star size={14} fill={talentPoolFilter ? '#D97706' : 'none'} />
+            {t('talentPool.inPool')}
+          </button>
+          
           {/* Language Filter */}
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
             {['', 'TR', 'EN', 'DE'].map((l) => (
@@ -529,6 +552,7 @@ const CVPage = ({ departments, initialView = 'list' }) => {
             statusFilter={null}
             languageFilter={lang}
             searchTerm={search}
+            talentPoolFilter={talentPoolFilter}
             onCompare={(a, b) => setComparePair({ a, b })}
             viewMode={candidateViewMode}
           />

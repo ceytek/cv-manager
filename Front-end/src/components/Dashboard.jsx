@@ -56,6 +56,8 @@ import JobIntroTemplatesPage from './JobIntroTemplatesPage';
 import JobOutroTemplatesPage from './JobOutroTemplatesPage';
 import CompanySettingsForm from './CompanySettingsForm';
 import DailyActivityWidget from './DailyActivityWidget';
+import TalentPoolTagsPage from './TalentPoolTagsPage';
+import TalentPoolPage from './TalentPoolPage';
 
 const Dashboard = ({ currentUser, onLogout }) => {
   const { t, i18n } = useTranslation();
@@ -190,6 +192,7 @@ const Dashboard = ({ currentUser, onLogout }) => {
     { id: 'jobs', icon: Briefcase, label: t('sidebar.jobs') },
     { id: 'cvs', icon: FileText, label: t('sidebar.cvManagement') },
     { id: 'cv-evaluation', icon: BarChart3, label: t('sidebar.cvEvaluation') },
+    { id: 'talent-pool', icon: Users, label: t('sidebar.talentPool') },
     { id: 'usage-history', icon: History, label: t('sidebar.usageHistory') },
     { id: 'templates', icon: Layers, label: t('sidebar.templates') }
   ];
@@ -538,6 +541,19 @@ const Dashboard = ({ currentUser, onLogout }) => {
                       <span>{t('sidebar.users')}</span>
                     </button>
                   )}
+                  {isAdmin && (
+                    <button 
+                      className="user-dropdown-item" 
+                      onClick={() => { 
+                        setActiveMenu('settings'); 
+                        setSettingsMenu('talentPoolTags'); 
+                        setShowUserMenu(false); 
+                      }}
+                    >
+                      <Layers size={16} />
+                      <span>{t('settings.talentPoolTags')}</span>
+                    </button>
+                  )}
                   <button 
                     className="user-dropdown-item" 
                     onClick={() => { 
@@ -588,6 +604,11 @@ const Dashboard = ({ currentUser, onLogout }) => {
           <CVEvaluationPage initialView={cvEvalInitialView} initialJob={cvEvalInitialJob} />
         )}
 
+        {/* Talent Pool */}
+        {activeMenu === 'talent-pool' && (
+          <TalentPoolPage />
+        )}
+
         {/* Usage History */}
         {activeMenu === 'usage-history' && (
           <UsageHistoryPage />
@@ -604,6 +625,11 @@ const Dashboard = ({ currentUser, onLogout }) => {
           <div className="table-card" style={{ maxWidth: 520 }}>
             <ChangePasswordForm onLogout={onLogout} />
           </div>
+        )}
+
+        {/* Talent Pool Tags (admin) */}
+        {activeMenu === 'settings' && settingsMenu === 'talentPoolTags' && isAdmin && (
+          <TalentPoolTagsPage />
         )}
 
         {/* Templates pages */}
@@ -632,7 +658,7 @@ const Dashboard = ({ currentUser, onLogout }) => {
         )}
 
         {/* Show dashboard widgets unless a settings/templates subpage is open */}
-  {!(activeMenu === 'settings' && settingsMenu) && !(activeMenu === 'templates' && templatesMenu) && activeMenu !== 'departments' && activeMenu !== 'jobs' && activeMenu !== 'cvs' && activeMenu !== 'cv-evaluation' && activeMenu !== 'usage-history' && activeMenu !== 'templates' && (
+  {!(activeMenu === 'settings' && settingsMenu) && !(activeMenu === 'templates' && templatesMenu) && activeMenu !== 'departments' && activeMenu !== 'jobs' && activeMenu !== 'cvs' && activeMenu !== 'cv-evaluation' && activeMenu !== 'talent-pool' && activeMenu !== 'usage-history' && activeMenu !== 'templates' && (
         <div className="stats-grid-kaggle">
           {stats.map((stat, index) => {
             const IconComponent = stat.icon;

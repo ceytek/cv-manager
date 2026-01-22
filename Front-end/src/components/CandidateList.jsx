@@ -5,7 +5,9 @@
 import React from 'react';
 import { useQuery, useMutation, useLazyQuery } from '@apollo/client/react';
 import { CANDIDATES_QUERY, CANDIDATE_HAS_ANALYSIS_QUERY, DELETE_CANDIDATE_MUTATION } from '../graphql/cvs';
-import { User, Mail, Phone, Calendar, FileText, Contact, Linkedin, Github, X, ExternalLink, Copy, Check, Download, Trash2, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { User, Mail, Phone, Calendar, FileText, Contact, Linkedin, Github, X, ExternalLink, Copy, Check, Download, Trash2, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown, Sparkles, Star } from 'lucide-react';
+import AddToTalentPoolModal from './AddToTalentPoolModal';
+import EditTalentPoolEntryModal from './EditTalentPoolEntryModal';
 import { useTranslation } from 'react-i18next';
 import { API_BASE_URL } from '../config/api';
 
@@ -319,7 +321,7 @@ const ContactCard = ({ candidate, onClose, position }) => {
   );
 };
 
-const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchTerm, onRefresh, onCompare, viewMode = 'table' }) => {
+const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchTerm, talentPoolFilter, onRefresh, onCompare, viewMode = 'table' }) => {
   const { t } = useTranslation();
   const { data, loading, error, refetch } = useQuery(CANDIDATES_QUERY, {
     variables: {
@@ -342,6 +344,21 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
   const [deleteConfirmCandidate, setDeleteConfirmCandidate] = React.useState(null);
   const [deleteWarningCandidate, setDeleteWarningCandidate] = React.useState(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  
+  // Talent Pool modal state
+  const [talentPoolModal, setTalentPoolModal] = React.useState({ open: false, candidates: [] });
+  
+  // Edit Talent Pool Entry modal state
+  const [editTalentPoolModal, setEditTalentPoolModal] = React.useState({ 
+    open: false, 
+    entryId: null, 
+    candidateName: null 
+  });
+  
+  // Debug: Log talent pool modal state changes
+  React.useEffect(() => {
+    console.log('talentPoolModal state changed:', talentPoolModal);
+  }, [talentPoolModal]);
   
   // Force state update with a key
   const [, forceUpdate] = React.useReducer(x => x + 1, 0);
@@ -432,6 +449,11 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
       (c.email || '').toLowerCase().includes(q) ||
       (c.cvFileName || '').toLowerCase().includes(q)
     ));
+  }
+  
+  // Apply talent pool filter
+  if (talentPoolFilter) {
+    candidates = candidates.filter(c => c.inTalentPool === true);
   }
 
   // Apply sorting for table view
@@ -825,6 +847,59 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
 
                 {/* Action Buttons */}
                 <div style={{ display: 'flex', gap: 8 }}>
+                  {/* Talent Pool Button - Shows different state if already in pool */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (candidate.inTalentPool && candidate.talentPoolEntryId) {
+                        // Already in pool - open edit modal
+                        setEditTalentPoolModal({
+                          open: true,
+                          entryId: candidate.talentPoolEntryId,
+                          candidateName: candidate.name,
+                        });
+                      } else {
+                        // Not in pool - open add modal
+                        setTalentPoolModal({ open: true, candidates: [candidate] });
+                      }
+                    }}
+                    title={candidate.inTalentPool ? t('talentPool.editEntry') : t('talentPool.addToPool')}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: 36,
+                      height: 36,
+                      borderRadius: 8,
+                      background: candidate.inTalentPool ? '#FEF3C7' : '#EEF2FF',
+                      border: candidate.inTalentPool ? '2px solid #F59E0B' : 'none',
+                      color: candidate.inTalentPool ? '#D97706' : '#6366F1',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s',
+                      position: 'relative',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (candidate.inTalentPool) {
+                        e.currentTarget.style.background = '#F59E0B';
+                        e.currentTarget.style.color = 'white';
+                      } else {
+                        e.currentTarget.style.background = '#6366F1';
+                        e.currentTarget.style.color = 'white';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (candidate.inTalentPool) {
+                        e.currentTarget.style.background = '#FEF3C7';
+                        e.currentTarget.style.color = '#D97706';
+                      } else {
+                        e.currentTarget.style.background = '#EEF2FF';
+                        e.currentTarget.style.color = '#6366F1';
+                      }
+                    }}
+                  >
+                    {candidate.inTalentPool ? <Star size={16} fill="currentColor" /> : <Sparkles size={16} />}
+                  </button>
+                  
                   {/* Delete Button */}
                   <button
                     onClick={(e) => handleDeleteClick(candidate, e)}
@@ -1055,15 +1130,38 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
                     opacity: isDeleting ? 0.7 : 1,
                   }}
                 >
-                  {isDeleting ? t('common.deleting') : t('candidateList.deleteAnyway')}
-                </button>
-              </div>
+                {isDeleting ? t('common.deleting') : t('candidateList.deleteAnyway')}
+              </button>
             </div>
           </div>
-        )}
-      </div>
-    );
-  }
+        </div>
+      )}
+      
+      {/* Add to Talent Pool Modal - Card View */}
+      <AddToTalentPoolModal
+        isOpen={talentPoolModal.open}
+        onClose={() => setTalentPoolModal({ open: false, candidates: [] })}
+        onSuccess={() => {
+          setTalentPoolModal({ open: false, candidates: [] });
+          refetch(); // Refresh to update inTalentPool status
+        }}
+        candidates={talentPoolModal.candidates}
+      />
+      
+      {/* Edit Talent Pool Entry Modal - Card View */}
+      <EditTalentPoolEntryModal
+        isOpen={editTalentPoolModal.open}
+        onClose={() => setEditTalentPoolModal({ open: false, entryId: null, candidateName: null })}
+        onSuccess={(action) => {
+          setEditTalentPoolModal({ open: false, entryId: null, candidateName: null });
+          refetch(); // Refresh to update inTalentPool status
+        }}
+        entryId={editTalentPoolModal.entryId}
+        candidateName={editTalentPoolModal.candidateName}
+      />
+    </div>
+  );
+}
 
   // Table View (Original)
   return (
@@ -1338,6 +1436,56 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
               {/* Actions */}
               <td style={{ padding: 12 }}>
                 <div style={{ display: 'flex', gap: 6 }}>
+                  {/* Talent Pool Button */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (candidate.inTalentPool && candidate.talentPoolEntryId) {
+                        setEditTalentPoolModal({
+                          open: true,
+                          entryId: candidate.talentPoolEntryId,
+                          candidateName: candidate.name,
+                        });
+                      } else {
+                        setTalentPoolModal({ open: true, candidates: [candidate] });
+                      }
+                    }}
+                    title={candidate.inTalentPool ? t('talentPool.editEntry') : t('talentPool.addToPool')}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: 32,
+                      height: 32,
+                      borderRadius: 6,
+                      background: candidate.inTalentPool ? '#FEF3C7' : '#EEF2FF',
+                      border: candidate.inTalentPool ? '2px solid #F59E0B' : 'none',
+                      color: candidate.inTalentPool ? '#D97706' : '#6366F1',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (candidate.inTalentPool) {
+                        e.currentTarget.style.background = '#F59E0B';
+                        e.currentTarget.style.color = 'white';
+                      } else {
+                        e.currentTarget.style.background = '#6366F1';
+                        e.currentTarget.style.color = 'white';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (candidate.inTalentPool) {
+                        e.currentTarget.style.background = '#FEF3C7';
+                        e.currentTarget.style.color = '#D97706';
+                      } else {
+                        e.currentTarget.style.background = '#EEF2FF';
+                        e.currentTarget.style.color = '#6366F1';
+                      }
+                    }}
+                  >
+                    {candidate.inTalentPool ? <Star size={14} fill="currentColor" /> : <Sparkles size={14} />}
+                  </button>
+                  
                   {/* Delete Button */}
                   <button
                     onClick={(e) => handleDeleteClick(candidate, e)}
@@ -1373,6 +1521,30 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
         </tbody>
       </table>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
+        {/* Bulk Add to Talent Pool Button */}
+        {selected.length > 0 && (
+          <button
+            onClick={() => {
+              const selectedCandidates = candidates.filter(c => selected.includes(c.id));
+              setTalentPoolModal({ open: true, candidates: selectedCandidates });
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '10px 16px',
+              borderRadius: 8,
+              border: 'none',
+              background: '#6366F1',
+              color: 'white',
+              fontWeight: 600,
+              cursor: 'pointer'
+            }}
+          >
+            <Sparkles size={16} />
+            {t('talentPool.addToPool')} ({selected.length})
+          </button>
+        )}
         <button
           onClick={() => onCompare && canCompare && onCompare(selected[0], selected[1])}
           disabled={!canCompare}
@@ -1558,6 +1730,29 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
           </div>
         </div>
       )}
+      
+      {/* Add to Talent Pool Modal */}
+      <AddToTalentPoolModal
+        isOpen={talentPoolModal.open}
+        onClose={() => setTalentPoolModal({ open: false, candidates: [] })}
+        onSuccess={() => {
+          setTalentPoolModal({ open: false, candidates: [] });
+          refetch(); // Refresh to update inTalentPool status
+        }}
+        candidates={talentPoolModal.candidates}
+      />
+      
+      {/* Edit Talent Pool Entry Modal - Table View */}
+      <EditTalentPoolEntryModal
+        isOpen={editTalentPoolModal.open}
+        onClose={() => setEditTalentPoolModal({ open: false, entryId: null, candidateName: null })}
+        onSuccess={(action) => {
+          setEditTalentPoolModal({ open: false, entryId: null, candidateName: null });
+          refetch(); // Refresh to update inTalentPool status
+        }}
+        entryId={editTalentPoolModal.entryId}
+        candidateName={editTalentPoolModal.candidateName}
+      />
     </div>
   );
 };

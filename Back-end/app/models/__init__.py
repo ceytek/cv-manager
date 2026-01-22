@@ -19,6 +19,8 @@ from app.modules.likert.models import LikertTemplate, LikertQuestion, LikertSess
 # RejectionTemplate is now in the modules folder
 # Import directly from models file to avoid circular import through resolvers
 from app.modules.rejection.models import RejectionTemplate
+# TalentPool module
+from app.modules.talent_pool.models import TalentPoolEntry, TalentPoolTag, TalentPoolCandidateTag
 
 __all__ = [
     'User', 
@@ -47,5 +49,8 @@ __all__ = [
     'LikertQuestion',
     'LikertSession',
     'LikertAnswer',
-    'RejectionTemplate'
+    'RejectionTemplate',
+    'TalentPoolEntry',
+    'TalentPoolTag',
+    'TalentPoolCandidateTag'
 ]

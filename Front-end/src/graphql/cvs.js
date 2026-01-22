@@ -32,6 +32,8 @@ export const CANDIDATES_QUERY = gql`
         name
         color
       }
+      inTalentPool
+      talentPoolEntryId
     }
   }
 `;
