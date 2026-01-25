@@ -24,6 +24,9 @@ class ApplicationStatus(enum.Enum):
     INTERVIEW_COMPLETED = "interview_completed"
     LIKERT_INVITED = "likert_invited"
     LIKERT_COMPLETED = "likert_completed"
+    # 2. Görüşme status'ları
+    SECOND_INTERVIEW_INVITED = "SECOND_INTERVIEW_INVITED"
+    SECOND_INTERVIEW_COMPLETED = "SECOND_INTERVIEW_COMPLETED"
 
 
 class Application(Base):
@@ -112,6 +115,7 @@ class Application(Base):
     reviewer = relationship("User", foreign_keys=[reviewed_by])
     interview_session = relationship("InterviewSession", back_populates="application", uselist=False)
     likert_session = relationship("LikertSession", back_populates="application", uselist=False)
+    second_interview = relationship("SecondInterview", back_populates="application", uselist=False)
     history_entries = relationship("ApplicationHistory", back_populates="application", cascade="all, delete-orphan", order_by="ApplicationHistory.created_at.desc()")
     
     # Constraints

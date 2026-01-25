@@ -1,13 +1,15 @@
 /**
- * Interview Invite Modal
- * Send interview invitation to a candidate
+ * AI Interview Invite Modal
+ * Creates interview link only when user clicks "Send Invitation"
+ * Cancel button closes modal without creating anything
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery } from '@apollo/client/react';
-import { X, Video, Copy, Check, Clock, HelpCircle, Hash } from 'lucide-react';
+import { X, Sparkles, Copy, Check, Clock, AlertTriangle, Hash, Mail, Eye, ChevronDown, Link2, Send } from 'lucide-react';
 import { CREATE_INTERVIEW_SESSION } from '../graphql/interview';
 import { JOB_QUERY } from '../graphql/jobs';
+import { GET_AI_INTERVIEW_EMAIL_TEMPLATES } from '../graphql/aiInterviewTemplate';
 
 const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, onSuccess }) => {
   const { t, i18n } = useTranslation();
@@ -16,14 +18,21 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
   const [copied, setCopied] = useState(false);
   const [generatedLink, setGeneratedLink] = useState('');
   const [sessionDetails, setSessionDetails] = useState(null);
-  const [sessionStatus, setSessionStatus] = useState(null); // 'new', 'existing', 'completed', 'expired'
-  const [statusMessage, setStatusMessage] = useState('');
+  const [sessionStatus, setSessionStatus] = useState(null);
   const [error, setError] = useState('');
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
+  const [showTemplateDropdown, setShowTemplateDropdown] = useState(false);
 
-  // Fetch fresh job data
-  const { data: jobData, loading: jobLoading, error: jobError } = useQuery(JOB_QUERY, {
+  // Fetch job data
+  const { data: jobData, loading: jobLoading } = useQuery(JOB_QUERY, {
     variables: { id: jobId },
     skip: !jobId,
+    fetchPolicy: 'network-only',
+  });
+
+  // Fetch email templates
+  const { data: templatesData } = useQuery(GET_AI_INTERVIEW_EMAIL_TEMPLATES, {
+    variables: { activeOnly: true },
     fetchPolicy: 'network-only',
   });
 
@@ -34,9 +43,55 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
   const interviewTemplate = job?.interviewTemplate;
   const questionCount = interviewTemplate?.questionCount || 0;
   const language = interviewTemplate?.language || 'tr';
-  const deadlineHours = job?.interviewDeadlineHours || 72;
+  const deadlineHours = job?.interviewDeadlineHours || 48;
 
-  const handleSend = async () => {
+  const emailTemplates = templatesData?.aiInterviewEmailTemplates?.templates || [];
+
+  // Auto-select default template
+  useEffect(() => {
+    if (emailTemplates.length > 0 && !selectedTemplateId) {
+      const defaultTemplate = emailTemplates.find(t => t.isDefault) || emailTemplates[0];
+      setSelectedTemplateId(defaultTemplate?.id || '');
+    }
+  }, [emailTemplates, selectedTemplateId]);
+
+  const selectedTemplate = useMemo(() => {
+    return emailTemplates.find(t => t.id === selectedTemplateId);
+  }, [emailTemplates, selectedTemplateId]);
+
+  // Calculate expiry date
+  const expiryDate = useMemo(() => {
+    if (sessionDetails?.expiresAt) {
+      return new Date(sessionDetails.expiresAt);
+    }
+    const date = new Date();
+    date.setHours(date.getHours() + deadlineHours);
+    return date;
+  }, [deadlineHours, sessionDetails?.expiresAt]);
+
+  // Replace variables in template
+  const getPreviewText = (text) => {
+    if (!text) return '';
+    
+    const replacements = {
+      '{candidate_name}': candidate?.name || 'Aday Adı',
+      '{position}': job?.title || 'Pozisyon',
+      '{company_name}': 'Şirket Adı',
+      '{interview_link}': generatedLink || '[Link oluşturulacak]',
+      '{expiry_date}': expiryDate.toLocaleDateString(isEnglish ? 'en-US' : 'tr-TR', { day: '2-digit', month: 'long', year: 'numeric' }),
+      '{expiry_time}': expiryDate.toLocaleTimeString(isEnglish ? 'en-US' : 'tr-TR', { hour: '2-digit', minute: '2-digit' }),
+      '{duration}': `${Math.round(questionCount * 2)} ${isEnglish ? 'minutes' : 'dakika'}`,
+    };
+
+    let result = text;
+    Object.entries(replacements).forEach(([key, value]) => {
+      result = result.replace(new RegExp(key.replace(/[{}]/g, '\\$&'), 'g'), value);
+    });
+    return result;
+  };
+
+  // Send invitation - creates the link
+  const handleSendInvitation = async () => {
     setSending(true);
     setError('');
 
@@ -57,14 +112,12 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
         const message = result.data.createInterviewSession.message;
         
         setGeneratedLink(link);
-        setStatusMessage(message);
         
-        // Determine session status based on backend message and session status
         if (session?.status === 'completed') {
           setSessionStatus('completed');
         } else if (session?.status === 'expired') {
           setSessionStatus('expired');
-        } else if (message.includes('zaten gönderildi') || message.includes('Existing')) {
+        } else if (message.includes('zaten gönderildi') || message.includes('Existing') || message.includes('already')) {
           setSessionStatus('existing');
         } else {
           setSessionStatus('new');
@@ -90,18 +143,14 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
 
   const handleCopy = async () => {
     try {
-      // Try modern clipboard API first
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(generatedLink);
       } else {
-        // Fallback for HTTP (non-secure) connections
         const textArea = document.createElement('textarea');
         textArea.value = generatedLink;
         textArea.style.position = 'fixed';
         textArea.style.left = '-9999px';
-        textArea.style.top = '-9999px';
         document.body.appendChild(textArea);
-        textArea.focus();
         textArea.select();
         document.execCommand('copy');
         document.body.removeChild(textArea);
@@ -109,31 +158,14 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('Copy failed:', err);
-      // Last resort fallback
-      try {
-        const textArea = document.createElement('textarea');
-        textArea.value = generatedLink;
-        textArea.style.position = 'fixed';
-        textArea.style.left = '-9999px';
-        document.body.appendChild(textArea);
-        textArea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textArea);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      } catch (e) {
-        alert('Kopyalama başarısız. Lütfen linki manuel olarak seçip kopyalayın.');
-      }
+      alert('Kopyalama başarısız. Lütfen linki manuel olarak seçip kopyalayın.');
     }
   };
 
-  if (!isOpen) return null;
-
-  const formatDate = (isoString) => {
-    if (!isoString) return '-';
-    const date = new Date(isoString);
-    return date.toLocaleString(isEnglish ? 'en-US' : 'tr-TR', {
+  const formatDate = (date) => {
+    if (!date) return '-';
+    const d = date instanceof Date ? date : new Date(date);
+    return d.toLocaleString(isEnglish ? 'en-US' : 'tr-TR', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
@@ -144,19 +176,33 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
 
   const getLanguageLabel = (lang) => {
     const labels = isEnglish 
-      ? { tr: 'Turkish', en: 'English', de: 'German', fr: 'French' }
-      : { tr: 'Türkçe', en: 'İngilizce', de: 'Almanca', fr: 'Fransızca' };
+      ? { tr: 'Turkish', en: 'English' }
+      : { tr: 'Türkçe', en: 'İngilizce' };
     return labels[lang] || lang;
   };
 
+  // Reset state when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setGeneratedLink('');
+      setSessionDetails(null);
+      setSessionStatus(null);
+      setError('');
+      setSending(false);
+      setCopied(false);
+    }
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-      <div style={{ background: 'white', borderRadius: '16px', width: '90%', maxWidth: '500px', maxHeight: '90vh', overflow: 'auto' }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
+      <div style={{ background: 'white', borderRadius: '16px', width: '95%', maxWidth: '750px', maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         {/* Header */}
-        <div style={{ padding: '20px 24px', background: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)', borderRadius: '16px 16px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ padding: '20px 24px', background: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'white' }}>
-            <Video size={24} />
-            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '600' }}>{t('interviewInvite.title', 'Interview Invitation')}</h2>
+            <Sparkles size={24} />
+            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '600' }}>AI Görüşmesi Daveti</h2>
           </div>
           <button onClick={onClose} style={{ padding: '8px', background: 'rgba(255,255,255,0.2)', border: 'none', cursor: 'pointer', borderRadius: '8px' }}>
             <X size={20} color="white" />
@@ -164,187 +210,297 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
         </div>
 
         {/* Body */}
-        <div style={{ padding: '24px' }}>
-          {jobLoading ? (
-            <div style={{ textAlign: 'center', padding: '32px' }}>
-              <p>{t('common.loading', 'Loading...')}</p>
+        <div style={{ padding: '24px', overflowY: 'auto', flex: 1 }}>
+          {/* Loading */}
+          {jobLoading && (
+            <div style={{ textAlign: 'center', padding: '32px', color: '#6B7280' }}>
+              Yükleniyor...
             </div>
-          ) : jobError ? (
-            <div style={{ textAlign: 'center', padding: '32px' }}>
-              <p style={{ color: '#DC2626' }}>{t('common.error', 'Error')}: {jobError.message}</p>
+          )}
+
+          {/* Error */}
+          {error && (
+            <div style={{ padding: '12px 16px', background: '#FEE2E2', color: '#DC2626', borderRadius: '8px', marginBottom: '16px', fontSize: '14px' }}>
+              {error}
             </div>
-          ) : !interviewEnabled ? (
+          )}
+
+          {/* Interview Not Enabled */}
+          {!jobLoading && !interviewEnabled && (
             <div style={{ textAlign: 'center', padding: '32px' }}>
-              <HelpCircle size={48} style={{ color: '#9CA3AF', marginBottom: '16px' }} />
-              <h3 style={{ margin: '0 0 8px', fontSize: '16px', fontWeight: '600', color: '#374151' }}>{t('interviewInvite.notEnabled', 'Interview Not Active')}</h3>
-              <p style={{ margin: 0, fontSize: '14px', color: '#6B7280' }}>{t('interviewInvite.configureFirst', 'You need to configure interview settings for this job first.')}</p>
-              <p style={{ margin: '8px 0 0', fontSize: '12px', color: '#9CA3AF' }}>Job ID: {jobId}</p>
+              <AlertTriangle size={48} color="#F59E0B" style={{ marginBottom: '16px' }} />
+              <h3 style={{ margin: '0 0 8px', color: '#374151' }}>AI Görüşmesi Aktif Değil</h3>
+              <p style={{ color: '#6B7280' }}>Bu iş ilanı için önce AI görüşme ayarlarını yapılandırmanız gerekiyor.</p>
             </div>
-          ) : generatedLink ? (
+          )}
+
+          {/* Main Content */}
+          {!jobLoading && interviewEnabled && (
             <>
-              {/* Status Banner */}
-              {sessionStatus === 'completed' ? (
-                <div style={{ background: '#DBEAFE', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#1D4ED8', marginBottom: '4px' }}>
-                    <Check size={18} />
-                    <span style={{ fontWeight: '600' }}>{t('interviewInvite.interviewCompleted', 'Interview Completed')}</span>
+              {/* Status Banners - Only show after link is created */}
+              {generatedLink && sessionStatus === 'existing' && (
+                <div style={{ 
+                  background: '#FEF3C7', 
+                  border: '1px solid #F59E0B',
+                  borderRadius: '12px', 
+                  padding: '16px', 
+                  marginBottom: '20px',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '12px'
+                }}>
+                  <AlertTriangle size={24} color="#D97706" style={{ flexShrink: 0 }} />
+                  <div>
+                    <h4 style={{ margin: '0 0 4px', fontSize: '15px', fontWeight: '600', color: '#92400E' }}>
+                      Bu adayın tamamlanmamış bir görüşmesi var
+                    </h4>
+                    <p style={{ margin: 0, fontSize: '14px', color: '#A16207' }}>
+                      {candidate?.name} için daha önce AI görüşme daveti gönderilmiş. Mevcut linki kullanabilirsiniz.
+                    </p>
                   </div>
-                  <p style={{ margin: 0, fontSize: '14px', color: '#1E40AF' }}>
-                    {t('interviewInvite.interviewCompletedDesc', 'Interview has already been completed for {{name}}.', { name: candidate?.name })}
-                  </p>
-                </div>
-              ) : sessionStatus === 'expired' ? (
-                <div style={{ background: '#FEF3C7', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#B45309', marginBottom: '4px' }}>
-                    <Clock size={18} />
-                    <span style={{ fontWeight: '600' }}>{t('interviewInvite.interviewExpired', 'Interview Expired')}</span>
-                  </div>
-                  <p style={{ margin: 0, fontSize: '14px', color: '#92400E' }}>
-                    {t('interviewInvite.interviewExpiredDesc', 'Interview invitation has expired for {{name}}.', { name: candidate?.name })}
-                  </p>
-                </div>
-              ) : sessionStatus === 'existing' ? (
-                <div style={{ background: '#FEF3C7', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#B45309', marginBottom: '4px' }}>
-                    <Check size={18} />
-                    <span style={{ fontWeight: '600' }}>{t('interviewInvite.existingInvite', 'Existing Invitation Found')}</span>
-                  </div>
-                  <p style={{ margin: 0, fontSize: '14px', color: '#92400E' }}>
-                    {t('interviewInvite.existingInviteDesc', 'An interview invitation has already been sent to {{name}}. You can use the link below.', { name: candidate?.name })}
-                  </p>
-                </div>
-              ) : (
-                <div style={{ background: '#D1FAE5', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#059669', marginBottom: '4px' }}>
-                    <Check size={18} />
-                    <span style={{ fontWeight: '600' }}>{t('interviewInvite.inviteCreated', 'Interview Invitation Created')}</span>
-                  </div>
-                  <p style={{ margin: 0, fontSize: '14px', color: '#065F46' }}>
-                    {t('interviewInvite.inviteCreatedDesc', 'Interview link is ready for {{name}}.', { name: candidate?.name })}
-                  </p>
                 </div>
               )}
 
-              {/* Link */}
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: '600', color: '#6B7280', marginBottom: '8px' }}>
-                  🔗 {t('interviewInvite.interviewLink', 'INTERVIEW LINK')}
-                </label>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <input
-                    type="text"
-                    value={generatedLink}
-                    readOnly
-                    style={{ flex: 1, padding: '12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '13px', background: '#F9FAFB' }}
-                  />
-                  <button
-                    onClick={handleCopy}
-                    style={{
-                      padding: '12px 20px',
-                      background: copied ? '#10B981' : '#3B82F6',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      fontWeight: '600',
-                      fontSize: '14px',
-                      transition: 'background 0.2s',
-                    }}
-                  >
-                    {copied ? <Check size={16} /> : <Copy size={16} />}
-                    {copied ? t('interviewInvite.copied', 'Copied!') : t('interviewInvite.copy', 'Copy')}
-                  </button>
-                </div>
-              </div>
-
-              {/* Session Details */}
-              <div style={{ background: '#F9FAFB', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
-                <h4 style={{ margin: '0 0 12px', fontSize: '14px', fontWeight: '600', color: '#374151' }}>{t('interviewInvite.inviteDetails', 'Invitation Details')}</h4>
-                <div style={{ display: 'grid', gap: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
-                    <span style={{ color: '#6B7280' }}>{t('interviewInvite.status', 'Status')}</span>
-                    <span style={{ 
-                      color: sessionDetails?.status === 'completed' ? '#059669' : 
-                             sessionDetails?.status === 'expired' ? '#DC2626' :
-                             sessionDetails?.status === 'in_progress' ? '#3B82F6' : '#F59E0B', 
-                      fontWeight: '600' 
-                    }}>
-                      {sessionDetails?.status === 'completed' ? t('interviewInvite.statusCompleted', 'Completed') : 
-                       sessionDetails?.status === 'expired' ? t('interviewInvite.statusExpired', 'Expired') :
-                       sessionDetails?.status === 'in_progress' ? t('interviewInvite.statusInProgress', 'In Progress') : t('interviewInvite.statusPending', 'Pending')}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
-                    <span style={{ color: '#6B7280', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <Clock size={14} /> {t('interviewInvite.expiresAt', 'Expires At')}
-                    </span>
-                    <span style={{ color: '#374151' }}>{formatDate(sessionDetails?.expiresAt)}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
-                    <span style={{ color: '#6B7280' }}>{t('interviewInvite.interviewTemplate', 'Interview Template')}</span>
-                    <span style={{ color: '#374151' }}>{sessionDetails?.templateName || '-'}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
-                    <span style={{ color: '#6B7280' }}>{t('interviewInvite.questionCount', 'Question Count')}</span>
-                    <span style={{ color: '#374151' }}>{sessionDetails?.questionCount || 0}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
-                    <span style={{ color: '#6B7280' }}>{t('interviewInvite.language', 'Language')}</span>
-                    <span style={{ color: '#374151' }}>{getLanguageLabel(sessionDetails?.language)}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Info Box */}
-              <div style={{ background: '#FEF3C7', borderRadius: '12px', padding: '16px', fontSize: '14px', color: '#92400E' }}>
-                💡 {t('interviewInvite.infoBox', 'You can send this link to the candidate via email, WhatsApp or SMS. The link can be used only once.')}
-              </div>
-            </>
-          ) : (
-            <>
-              {error && <div style={{ padding: '12px', background: '#FEE2E2', color: '#DC2626', borderRadius: '8px', marginBottom: '16px', fontSize: '14px' }}>{error}</div>}
-
-              {/* Candidate Info */}
-              <div style={{ background: '#F9FAFB', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
-                <h4 style={{ margin: '0 0 12px', fontSize: '14px', fontWeight: '600', color: '#374151' }}>{t('interviewInvite.candidateInfo', 'Candidate Information')}</h4>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'linear-gradient(135deg, #3B82F6, #1D4ED8)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '600', fontSize: '18px' }}>
-                    {candidate?.name?.charAt(0) || '?'}
-                  </div>
+              {generatedLink && sessionStatus === 'completed' && (
+                <div style={{ 
+                  background: '#DBEAFE', 
+                  border: '1px solid #3B82F6',
+                  borderRadius: '12px', 
+                  padding: '16px', 
+                  marginBottom: '20px',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '12px'
+                }}>
+                  <Check size={24} color="#1D4ED8" style={{ flexShrink: 0 }} />
                   <div>
-                    <div style={{ fontWeight: '600', color: '#111827' }}>{candidate?.name || t('interviewInvite.unknown', 'Unknown')}</div>
-                    <div style={{ fontSize: '13px', color: '#6B7280' }}>{candidate?.email || t('interviewInvite.noEmail', 'No email')}</div>
+                    <h4 style={{ margin: '0 0 4px', fontSize: '15px', fontWeight: '600', color: '#1E40AF' }}>
+                      Görüşme Tamamlandı
+                    </h4>
+                    <p style={{ margin: 0, fontSize: '14px', color: '#1E40AF' }}>
+                      {candidate?.name} AI görüşmesini zaten tamamlamış.
+                    </p>
                   </div>
+                </div>
+              )}
+
+              {generatedLink && sessionStatus === 'new' && (
+                <div style={{ 
+                  background: '#D1FAE5', 
+                  border: '1px solid #10B981',
+                  borderRadius: '12px', 
+                  padding: '16px', 
+                  marginBottom: '20px',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '12px'
+                }}>
+                  <Check size={24} color="#059669" style={{ flexShrink: 0 }} />
+                  <div>
+                    <h4 style={{ margin: '0 0 4px', fontSize: '15px', fontWeight: '600', color: '#065F46' }}>
+                      Davet Başarıyla Oluşturuldu!
+                    </h4>
+                    <p style={{ margin: 0, fontSize: '14px', color: '#047857' }}>
+                      {candidate?.name} için AI görüşme linki hazır. Linki kopyalayıp adaya gönderebilirsiniz.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Generated Link Section - Only show after created */}
+              {generatedLink && (
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: '600', color: '#6B7280', marginBottom: '8px', textTransform: 'uppercase' }}>
+                    <Link2 size={14} />
+                    AI Görüşme Linki
+                  </label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      type="text"
+                      value={generatedLink}
+                      readOnly
+                      style={{ flex: 1, padding: '12px', border: '1px solid #E5E7EB', borderRadius: '8px', fontSize: '13px', background: '#F9FAFB' }}
+                    />
+                    <button
+                      onClick={handleCopy}
+                      style={{
+                        padding: '12px 20px',
+                        background: copied ? '#10B981' : '#3B82F6',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        fontWeight: '600',
+                        fontSize: '14px',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {copied ? <Check size={16} /> : <Copy size={16} />}
+                      {copied ? 'Kopyalandı!' : 'Kopyala'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Two Column Layout */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                {/* Left Column - Candidate & Interview Info */}
+                <div>
+                  {/* Candidate Info */}
+                  <div style={{ background: '#F9FAFB', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
+                    <h4 style={{ margin: '0 0 12px', fontSize: '14px', fontWeight: '600', color: '#374151' }}>
+                      Aday Bilgileri
+                    </h4>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'linear-gradient(135deg, #3B82F6, #1D4ED8)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '600', fontSize: '18px' }}>
+                        {candidate?.name?.charAt(0) || '?'}
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: '600', color: '#111827' }}>{candidate?.name || 'Bilinmiyor'}</div>
+                        <div style={{ fontSize: '13px', color: '#6B7280' }}>{candidate?.email || 'E-posta yok'}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Interview Stats */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+                    <div style={{ padding: '14px', background: '#EFF6FF', borderRadius: '10px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#3B82F6', marginBottom: '4px' }}>
+                        <Hash size={14} />
+                        Soru Sayısı
+                      </div>
+                      <div style={{ fontSize: '20px', fontWeight: '700', color: '#1E40AF' }}>{questionCount}</div>
+                    </div>
+                    <div style={{ padding: '14px', background: '#EFF6FF', borderRadius: '10px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#3B82F6', marginBottom: '4px' }}>
+                        <Clock size={14} />
+                        Geçerlilik
+                      </div>
+                      <div style={{ fontSize: '20px', fontWeight: '700', color: '#1E40AF' }}>{deadlineHours} saat</div>
+                    </div>
+                  </div>
+
+                  {/* Interview Template */}
+                  {interviewTemplate && (
+                    <div style={{ background: '#F9FAFB', borderRadius: '12px', padding: '16px' }}>
+                      <h4 style={{ margin: '0 0 8px', fontSize: '14px', fontWeight: '600', color: '#374151' }}>
+                        AI Görüşme Şablonu
+                      </h4>
+                      <div style={{ fontSize: '16px', fontWeight: '600', color: '#1E40AF' }}>{interviewTemplate.name}</div>
+                      <div style={{ fontSize: '13px', color: '#6B7280', marginTop: '4px' }}>
+                        Dil: {getLanguageLabel(interviewTemplate.language)}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Right Column - Email Template */}
+                <div>
+                  {/* Email Template Selection */}
+                  <div style={{ marginBottom: '12px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: '600', color: '#6B7280', marginBottom: '8px', textTransform: 'uppercase' }}>
+                      <Mail size={14} />
+                      E-posta Şablonu
+                    </label>
+                    
+                    {emailTemplates.length === 0 ? (
+                      <div style={{ padding: '12px', background: '#FEF3C7', borderRadius: '8px', fontSize: '13px', color: '#92400E' }}>
+                        Henüz e-posta şablonu yok. Interview Mesaj → AI Görüşmesi'nden oluşturun.
+                      </div>
+                    ) : (
+                      <div style={{ position: 'relative' }}>
+                        <button
+                          onClick={() => setShowTemplateDropdown(!showTemplateDropdown)}
+                          style={{
+                            width: '100%',
+                            padding: '10px 12px',
+                            border: '1px solid #D1D5DB',
+                            borderRadius: '8px',
+                            background: 'white',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                          }}
+                        >
+                          <span style={{ color: selectedTemplate ? '#111827' : '#9CA3AF' }}>
+                            {selectedTemplate?.name || 'Şablon seçin...'}
+                          </span>
+                          <ChevronDown size={16} color="#6B7280" />
+                        </button>
+                        
+                        {showTemplateDropdown && (
+                          <div style={{
+                            position: 'absolute',
+                            top: '100%',
+                            left: 0,
+                            right: 0,
+                            background: 'white',
+                            border: '1px solid #E5E7EB',
+                            borderRadius: '8px',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                            zIndex: 100,
+                            maxHeight: '150px',
+                            overflowY: 'auto',
+                            marginTop: '4px',
+                          }}>
+                            {emailTemplates.map((template) => (
+                              <button
+                                key={template.id}
+                                onClick={() => {
+                                  setSelectedTemplateId(template.id);
+                                  setShowTemplateDropdown(false);
+                                }}
+                                style={{
+                                  width: '100%',
+                                  padding: '10px 12px',
+                                  border: 'none',
+                                  background: selectedTemplateId === template.id ? '#EFF6FF' : 'white',
+                                  cursor: 'pointer',
+                                  textAlign: 'left',
+                                  fontSize: '14px',
+                                }}
+                              >
+                                {template.name}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Email Preview */}
+                  {selectedTemplate && (
+                    <div>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: '600', color: '#6B7280', marginBottom: '8px', textTransform: 'uppercase' }}>
+                        <Eye size={14} />
+                        E-posta Önizlemesi
+                      </label>
+                      <div style={{ border: '1px solid #E5E7EB', borderRadius: '8px', overflow: 'hidden', maxHeight: '250px', overflowY: 'auto' }}>
+                        <div style={{ padding: '10px 14px', background: '#F3F4F6', borderBottom: '1px solid #E5E7EB' }}>
+                          <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '2px' }}>Konu:</div>
+                          <div style={{ fontSize: '13px', fontWeight: '500', color: '#1F2937' }}>
+                            {getPreviewText(selectedTemplate.subject)}
+                          </div>
+                        </div>
+                        <div style={{ padding: '14px', fontSize: '12px', color: '#374151', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
+                          {getPreviewText(selectedTemplate.body)}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Interview Info */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
-                <div style={{ padding: '16px', background: '#EFF6FF', borderRadius: '12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#3B82F6', marginBottom: '4px' }}>
-                    <Hash size={14} />
-                    {t('interviewInvite.questionCount', 'Question Count')}
-                  </div>
-                  <div style={{ fontSize: '20px', fontWeight: '700', color: '#1E40AF' }}>{questionCount}</div>
-                </div>
-                <div style={{ padding: '16px', background: '#EFF6FF', borderRadius: '12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#3B82F6', marginBottom: '4px' }}>
-                    <Clock size={14} />
-                    {t('interviewInvite.validityPeriod', 'Validity Period')}
-                  </div>
-                  <div style={{ fontSize: '20px', fontWeight: '700', color: '#1E40AF' }}>{deadlineHours} {t('interviewInvite.hours', 'hours')}</div>
-                </div>
-              </div>
-
-              {/* Template Info */}
-              {interviewTemplate && (
-                <div style={{ background: '#F9FAFB', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
-                  <h4 style={{ margin: '0 0 8px', fontSize: '14px', fontWeight: '600', color: '#374151' }}>{t('interviewInvite.interviewTemplate', 'Interview Template')}</h4>
-                  <div style={{ fontSize: '16px', fontWeight: '600', color: '#1E40AF' }}>{interviewTemplate.name}</div>
-                  <div style={{ fontSize: '13px', color: '#6B7280', marginTop: '4px' }}>{t('interviewInvite.language', 'Language')}: {getLanguageLabel(interviewTemplate.language)}</div>
+              {/* Info Box - Show after link created */}
+              {generatedLink && (
+                <div style={{ background: '#FEF3C7', borderRadius: '12px', padding: '14px', fontSize: '14px', color: '#92400E', marginTop: '20px' }}>
+                  💡 Bu linki adaya e-posta, WhatsApp veya SMS ile gönderebilirsiniz. Link sadece bir kez kullanılabilir.
                 </div>
               )}
             </>
@@ -352,21 +508,63 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
         </div>
 
         {/* Footer */}
-        {!generatedLink && interviewEnabled && (
-          <div style={{ padding: '16px 24px', borderTop: '1px solid #E5E7EB', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-            <button onClick={onClose} className="btn btn-secondary" disabled={sending}>{t('common.cancel')}</button>
-            <button onClick={handleSend} className="btn btn-primary" disabled={sending} style={{ background: '#3B82F6', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Video size={18} />
-              {sending ? t('interviewInvite.creating', 'Creating...') : t('interviewInvite.createInvite', 'Create Invitation')}
+        <div style={{ padding: '16px 24px', borderTop: '1px solid #E5E7EB', display: 'flex', justifyContent: 'flex-end', gap: '12px', flexShrink: 0 }}>
+          {!generatedLink && interviewEnabled ? (
+            <>
+              <button 
+                onClick={onClose}
+                style={{ 
+                  padding: '12px 24px', 
+                  background: '#F3F4F6', 
+                  color: '#374151',
+                  border: 'none', 
+                  borderRadius: '8px', 
+                  cursor: 'pointer', 
+                  fontWeight: '500',
+                  fontSize: '14px',
+                }}
+              >
+                Vazgeç
+              </button>
+              <button 
+                onClick={handleSendInvitation}
+                disabled={sending}
+                style={{ 
+                  padding: '12px 24px', 
+                  background: sending ? '#9CA3AF' : '#3B82F6', 
+                  color: 'white', 
+                  border: 'none', 
+                  borderRadius: '8px', 
+                  cursor: sending ? 'not-allowed' : 'pointer', 
+                  fontWeight: '600',
+                  fontSize: '14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}
+              >
+                <Send size={18} />
+                {sending ? 'Gönderiliyor...' : 'Daveti Gönder'}
+              </button>
+            </>
+          ) : (
+            <button 
+              onClick={onClose}
+              style={{ 
+                padding: '12px 24px', 
+                background: '#374151', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '8px', 
+                cursor: 'pointer', 
+                fontWeight: '600',
+                fontSize: '14px',
+              }}
+            >
+              Kapat
             </button>
-          </div>
-        )}
-
-        {generatedLink && (
-          <div style={{ padding: '16px 24px', borderTop: '1px solid #E5E7EB', display: 'flex', justifyContent: 'flex-end' }}>
-            <button onClick={onClose} className="btn" style={{ background: '#374151', color: 'white', padding: '10px 24px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '600' }}>{t('common.close', 'Close')}</button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

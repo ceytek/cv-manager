@@ -124,6 +124,29 @@ from app.graphql.types import (
     TalentPoolBulkResponse,
     TalentPoolStatsType,
     TalentPoolFilterInput,
+    # Second Interview types
+    SecondInterviewGQLType,
+    SecondInterviewInviteInput,
+    SecondInterviewFeedbackInput,
+    SecondInterviewResponse,
+    # Company Address types
+    CompanyAddressGQLType,
+    CompanyAddressInput,
+    CompanyAddressUpdateInput,
+    CompanyAddressResponse,
+    # Second Interview Template types
+    SecondInterviewTemplateGQLType,
+    SecondInterviewTemplateTypeEnum,
+    SecondInterviewTemplateInput as SecondInterviewTemplateInputType,
+    SecondInterviewTemplateUpdateInput,
+    SecondInterviewTemplateResponse,
+    TemplateVariablesResponse,
+    # AI Interview Email Template types
+    AIInterviewEmailTemplateType,
+    AIInterviewEmailTemplateInput,
+    AIInterviewEmailTemplateUpdateInput,
+    AIInterviewEmailTemplateResponse,
+    AIInterviewEmailTemplateListResponse,
 )
 from app.services.auth import AuthService
 from app.services.department import DepartmentService
@@ -839,13 +862,50 @@ class Query:
                     .all()
                 )
                 initials = []
+                # Titles to remove before extracting initials
+                titles_to_remove = [
+                    # Academic/Professional titles
+                    'Dr.', 'DR.', 'dr.', 'Dr', 'DR',
+                    'Prof.', 'PROF.', 'prof.', 'Prof', 'PROF',
+                    'Doç.', 'DOÇ.', 'doç.', 'Doç', 'DOÇ',
+                    'Yrd.', 'YRD.', 'yrd.', 'Yrd', 'YRD',
+                    'PhD', 'PHD', 'phd', 'Ph.D.', 'Ph.D',
+                    'Av.', 'AV.', 'av.',
+                    'Uzm.', 'UZM.', 'uzm.',
+                    # Software/IT job levels - English
+                    'Senior', 'SENIOR', 'senior', 'Sr.', 'SR.', 'sr.', 'Sr', 'SR',
+                    'Junior', 'JUNIOR', 'junior', 'Jr.', 'JR.', 'jr.', 'Jr', 'JR',
+                    'Mid', 'MID', 'mid', 'Mid-Level', 'Mid-level', 'MID-LEVEL',
+                    'Lead', 'LEAD', 'lead',
+                    'Principal', 'PRINCIPAL', 'principal',
+                    'Staff', 'STAFF', 'staff',
+                    'Chief', 'CHIEF', 'chief',
+                    'Head', 'HEAD', 'head',
+                    'Associate', 'ASSOCIATE', 'associate',
+                    'Intern', 'INTERN', 'intern',
+                    'Trainee', 'TRAINEE', 'trainee',
+                    # Software/IT job levels - Turkish
+                    'Kıdemli', 'KIDEMLI', 'kıdemli',
+                    'Uzman', 'UZMAN', 'uzman',
+                    'Stajyer', 'STAJYER', 'stajyer',
+                    'Baş', 'BAŞ', 'baş',
+                    'Yardımcı', 'YARDIMCI', 'yardımcı',
+                ]
                 for app, candidate in recent_apps:
                     if candidate and candidate.name:
-                        # Get initials from name (e.g., "Furkan Avcıoğlu" -> "FA")
-                        parts = candidate.name.strip().split()
+                        # Remove titles from name before getting initials
+                        clean_name = candidate.name.strip()
+                        for title in titles_to_remove:
+                            if clean_name.startswith(title + ' '):
+                                clean_name = clean_name[len(title):].strip()
+                            elif clean_name.startswith(title):
+                                clean_name = clean_name[len(title):].strip()
+                        
+                        # Get initials from cleaned name (e.g., "Furkan Avcıoğlu" -> "FA")
+                        parts = clean_name.split()
                         if len(parts) >= 2:
                             initials.append(f"{parts[0][0].upper()}{parts[-1][0].upper()}")
-                        elif len(parts) == 1:
+                        elif len(parts) == 1 and len(parts[0]) > 0:
                             initials.append(f"{parts[0][0].upper()}{parts[0][1].upper() if len(parts[0]) > 1 else parts[0][0].upper()}")
                 recent_applicants_map[j.id] = initials
 
@@ -1141,6 +1201,13 @@ class Query:
                             updated_at=dept.updated_at.isoformat() if dept.updated_at else None
                         )
 
+                    # Check talent pool status for this candidate
+                    from app.modules.talent_pool.models import TalentPoolEntry
+                    talent_pool_entry = db.query(TalentPoolEntry).filter(
+                        TalentPoolEntry.candidate_id == candidate.id,
+                        TalentPoolEntry.company_id == company_id
+                    ).first()
+                    
                     candidate_type = CandidateType(
                         id=candidate.id,
                         name=candidate.name,
@@ -1160,12 +1227,15 @@ class Query:
                         department_id=candidate.department_id,
                         uploaded_at=candidate.uploaded_at.isoformat(),
                         updated_at=candidate.updated_at.isoformat() if candidate.updated_at else None,
-                        department=dept_type
+                        department=dept_type,
+                        in_talent_pool=talent_pool_entry is not None,
+                        talent_pool_entry_id=str(talent_pool_entry.id) if talent_pool_entry else None
                     )
 
                 # Check for interview and likert sessions
                 from app.models.interview import InterviewSession
                 from app.modules.likert.models import LikertSession
+                from app.modules.second_interview.models import SecondInterview
                 
                 interview_session = db.query(InterviewSession).filter(
                     InterviewSession.application_id == app.id
@@ -1173,6 +1243,30 @@ class Query:
                 likert_session = db.query(LikertSession).filter(
                     LikertSession.application_id == app.id
                 ).first()
+                second_interview = db.query(SecondInterview).filter(
+                    SecondInterview.application_id == app.id
+                ).first()
+                
+                # Build second interview type if exists
+                second_interview_type = None
+                if second_interview:
+                    second_interview_type = SecondInterviewGQLType(
+                        id=str(second_interview.id),
+                        interview_type=second_interview.interview_type.value if second_interview.interview_type else "online",
+                        platform=second_interview.platform.value if second_interview.platform else None,
+                        meeting_link=second_interview.meeting_link,
+                        location_address=second_interview.location_address,
+                        scheduled_date=second_interview.scheduled_date.isoformat() if second_interview.scheduled_date else "",
+                        scheduled_time=second_interview.scheduled_time or "",
+                        candidate_message=second_interview.candidate_message,
+                        invitation_sent_at=second_interview.invitation_sent_at.isoformat() if second_interview.invitation_sent_at else None,
+                        status=second_interview.status.value if second_interview.status else "invited",
+                        outcome=second_interview.outcome.value if second_interview.outcome else None,
+                        feedback_notes=second_interview.feedback_notes,
+                        feedback_at=second_interview.feedback_at.isoformat() if second_interview.feedback_at else None,
+                        created_at=second_interview.created_at.isoformat() if second_interview.created_at else None,
+                        updated_at=second_interview.updated_at.isoformat() if second_interview.updated_at else None,
+                    )
                 
                 result.append(ApplicationType(
                     id=app.id,
@@ -1191,6 +1285,10 @@ class Query:
                     has_likert_session=likert_session is not None,
                     interview_session_status=interview_session.status if interview_session else None,
                     likert_session_status=likert_session.status if likert_session else None,
+                    has_second_interview=second_interview is not None,
+                    second_interview_status=second_interview.status.value if second_interview else None,
+                    second_interview_outcome=second_interview.outcome.value if second_interview and second_interview.outcome else None,
+                    second_interview=second_interview_type,
                     rejection_note=app.rejection_note,
                     rejected_at=app.rejected_at.isoformat() if app.rejected_at else None,
                     rejection_template_id=app.rejection_template_id,
@@ -2068,6 +2166,94 @@ class Query:
         """Check if a candidate is already in the talent pool"""
         from app.modules.talent_pool.resolvers import is_candidate_in_talent_pool
         return is_candidate_in_talent_pool(info, candidate_id)
+
+    # ============ Second Interview Queries ============
+    @strawberry.field
+    def second_interview(self, info: Info, id: str) -> Optional[SecondInterviewGQLType]:
+        """Get a single second interview by ID"""
+        from app.modules.second_interview.resolvers import get_second_interview
+        return get_second_interview(info, id)
+
+    @strawberry.field
+    def second_interview_by_application(
+        self, 
+        info: Info, 
+        application_id: str = strawberry.argument(name="applicationId")
+    ) -> Optional[SecondInterviewGQLType]:
+        """Get second interview for a specific application"""
+        from app.modules.second_interview.resolvers import get_second_interview_by_application
+        return get_second_interview_by_application(info, application_id)
+
+    @strawberry.field
+    def second_interviews_by_job(
+        self, 
+        info: Info, 
+        job_id: str = strawberry.argument(name="jobId")
+    ) -> List[SecondInterviewGQLType]:
+        """Get all second interviews for a specific job"""
+        from app.modules.second_interview.resolvers import get_second_interviews_by_job
+        return get_second_interviews_by_job(info, job_id)
+
+    # ============================================
+    # Second Interview Template Queries
+    # ============================================
+    
+    @strawberry.field
+    def second_interview_templates(
+        self, 
+        info: Info, 
+        template_type: Optional[SecondInterviewTemplateTypeEnum] = None
+    ) -> List[SecondInterviewTemplateGQLType]:
+        """Get all second interview templates, optionally filtered by type (online/in_person)"""
+        from app.modules.second_interview_template.resolvers import get_second_interview_templates
+        return get_second_interview_templates(info, template_type)
+
+    @strawberry.field
+    def second_interview_template(self, info: Info, id: str) -> Optional[SecondInterviewTemplateGQLType]:
+        """Get a single second interview template by ID"""
+        from app.modules.second_interview_template.resolvers import get_second_interview_template
+        return get_second_interview_template(info, id)
+
+    @strawberry.field
+    def second_interview_template_variables(self, info: Info) -> TemplateVariablesResponse:
+        """Get available template variables for second interview templates"""
+        from app.modules.second_interview_template.resolvers import get_second_interview_template_variables
+        return get_second_interview_template_variables(info)
+
+    # ============================================
+    # AI Interview Email Template Queries
+    # ============================================
+    
+    @strawberry.field
+    def ai_interview_email_templates(
+        self, 
+        info: Info, 
+        language: Optional[str] = None,
+        active_only: bool = False
+    ) -> AIInterviewEmailTemplateListResponse:
+        """Get all AI interview email templates for the company"""
+        from app.modules.ai_interview_template.resolvers import ai_interview_email_templates as get_templates
+        return get_templates(info, language, active_only)
+
+    # ============================================
+    # Company Address Queries
+    # ============================================
+    
+    @strawberry.field
+    def company_addresses(
+        self, 
+        info: Info, 
+        include_inactive: bool = False
+    ) -> List[CompanyAddressGQLType]:
+        """Get all addresses for the company"""
+        from app.modules.company_address.resolvers import get_company_addresses
+        return get_company_addresses(info, include_inactive)
+
+    @strawberry.field
+    def company_address(self, info: Info, id: str) -> Optional[CompanyAddressGQLType]:
+        """Get a single company address by ID"""
+        from app.modules.company_address.resolvers import get_company_address
+        return get_company_address(info, id)
 
 
 @strawberry.type
@@ -4087,6 +4273,141 @@ class Mutation(CompanyMutation):
         """Assign a candidate from talent pool to a job"""
         from app.modules.talent_pool.resolvers import assign_to_job_from_pool
         return await assign_to_job_from_pool(info, input)
+
+    # ============ Second Interview Mutations ============
+    @strawberry.mutation
+    async def send_second_interview_invite(
+        self, 
+        info: Info, 
+        input: SecondInterviewInviteInput
+    ) -> SecondInterviewResponse:
+        """Send second interview invitation to a candidate"""
+        from app.modules.second_interview.resolvers import send_second_interview_invite
+        return await send_second_interview_invite(info, input)
+
+    @strawberry.mutation
+    async def submit_second_interview_feedback(
+        self, 
+        info: Info, 
+        input: SecondInterviewFeedbackInput
+    ) -> SecondInterviewResponse:
+        """Submit feedback for a completed second interview"""
+        from app.modules.second_interview.resolvers import submit_second_interview_feedback
+        return await submit_second_interview_feedback(info, input)
+
+    @strawberry.mutation
+    async def cancel_second_interview(
+        self, 
+        info: Info, 
+        id: str
+    ) -> SecondInterviewResponse:
+        """Cancel a second interview"""
+        from app.modules.second_interview.resolvers import cancel_second_interview
+        return await cancel_second_interview(info, id)
+
+    # ============================================
+    # Second Interview Template Mutations
+    # ============================================
+
+    @strawberry.mutation
+    async def create_second_interview_template(
+        self, 
+        info: Info, 
+        input: SecondInterviewTemplateInputType
+    ) -> SecondInterviewTemplateResponse:
+        """Create a new second interview email template"""
+        from app.modules.second_interview_template.resolvers import create_second_interview_template
+        return await create_second_interview_template(info, input)
+
+    @strawberry.mutation
+    async def update_second_interview_template(
+        self, 
+        info: Info, 
+        id: str,
+        input: SecondInterviewTemplateUpdateInput
+    ) -> SecondInterviewTemplateResponse:
+        """Update a second interview email template"""
+        from app.modules.second_interview_template.resolvers import update_second_interview_template
+        return await update_second_interview_template(info, id, input)
+
+    @strawberry.mutation
+    async def delete_second_interview_template(
+        self, 
+        info: Info, 
+        id: str
+    ) -> MessageType:
+        """Delete a second interview email template"""
+        from app.modules.second_interview_template.resolvers import delete_second_interview_template
+        return await delete_second_interview_template(info, id)
+
+    # ============================================
+    # AI Interview Email Template Mutations
+    # ============================================
+
+    @strawberry.mutation
+    def create_ai_interview_email_template(
+        self, 
+        info: Info, 
+        input: AIInterviewEmailTemplateInput
+    ) -> AIInterviewEmailTemplateResponse:
+        """Create a new AI interview email template"""
+        from app.modules.ai_interview_template.resolvers import create_ai_interview_email_template
+        return create_ai_interview_email_template(info, input)
+
+    @strawberry.mutation
+    def update_ai_interview_email_template(
+        self, 
+        info: Info, 
+        id: str,
+        input: AIInterviewEmailTemplateUpdateInput
+    ) -> AIInterviewEmailTemplateResponse:
+        """Update an AI interview email template"""
+        from app.modules.ai_interview_template.resolvers import update_ai_interview_email_template
+        return update_ai_interview_email_template(info, id, input)
+
+    @strawberry.mutation
+    def delete_ai_interview_email_template(
+        self, 
+        info: Info, 
+        id: str
+    ) -> AIInterviewEmailTemplateResponse:
+        """Delete an AI interview email template"""
+        from app.modules.ai_interview_template.resolvers import delete_ai_interview_email_template
+        return delete_ai_interview_email_template(info, id)
+
+    # ============================================
+    # Company Address Mutations
+    # ============================================
+
+    @strawberry.mutation
+    async def create_company_address(
+        self, 
+        info: Info, 
+        input: CompanyAddressInput
+    ) -> CompanyAddressResponse:
+        """Create a new company address"""
+        from app.modules.company_address.resolvers import create_company_address
+        return await create_company_address(info, input)
+
+    @strawberry.mutation
+    async def update_company_address(
+        self, 
+        info: Info, 
+        input: CompanyAddressUpdateInput
+    ) -> CompanyAddressResponse:
+        """Update an existing company address"""
+        from app.modules.company_address.resolvers import update_company_address
+        return await update_company_address(info, input)
+
+    @strawberry.mutation
+    async def delete_company_address(
+        self, 
+        info: Info, 
+        id: str
+    ) -> CompanyAddressResponse:
+        """Delete a company address"""
+        from app.modules.company_address.resolvers import delete_company_address
+        return await delete_company_address(info, id)
 
 
 # Create schema

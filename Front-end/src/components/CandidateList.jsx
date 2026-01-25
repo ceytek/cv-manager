@@ -10,6 +10,7 @@ import AddToTalentPoolModal from './AddToTalentPoolModal';
 import EditTalentPoolEntryModal from './EditTalentPoolEntryModal';
 import { useTranslation } from 'react-i18next';
 import { API_BASE_URL } from '../config/api';
+import { getInitials } from '../utils/nameUtils';
 
 // Contact Card Component
 const ContactCard = ({ candidate, onClose, position }) => {
@@ -48,14 +49,6 @@ const ContactCard = ({ candidate, onClose, position }) => {
     } catch (err) {
       console.error('Failed to copy:', err);
     }
-  };
-
-  // Get initials from name
-  const getInitials = (name) => {
-    if (!name) return '?';
-    const parts = name.trim().split(' ');
-    if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
-    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
   };
 
   // Get avatar background color based on name
@@ -649,14 +642,6 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
   };
 
   const canCompare = selected.length === 2;
-
-  // Get initials from name
-  const getInitials = (name) => {
-    if (!name) return '?';
-    const parts = name.trim().split(' ');
-    if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
-    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
-  };
 
   // Get avatar background color based on name
   const getAvatarColor = (name) => {

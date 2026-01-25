@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@apollo/client/react';
-import { Brain, List, LayoutGrid, MapPin, Briefcase, Users, Eye, Calendar } from 'lucide-react';
+import { Brain, List, LayoutGrid, MapPin, Briefcase, Users, Eye, Calendar, Search, Filter, ChevronDown, X } from 'lucide-react';
 import { JOBS_QUERY } from '../../graphql/jobs';
+import { DEPARTMENTS_QUERY } from '../../graphql/departments';
 
 // Simple Jobs Overview list for CV Evaluation module
 const JobsOverview = ({ onGoToAIEvaluation, onOpenDetails }) => {
@@ -10,15 +11,81 @@ const JobsOverview = ({ onGoToAIEvaluation, onOpenDetails }) => {
   const locale = i18n.language === 'en' ? 'en-US' : 'tr-TR';
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'grid'
   
+  // Filter states
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedDepartment, setSelectedDepartment] = useState('all');
+  const [selectedStatuses, setSelectedStatuses] = useState(['active', 'closed', 'archived']); // Default: exclude 'draft'
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  
   const { data, loading, error } = useQuery(JOBS_QUERY, {
-    variables: { includeInactive: false },
+    variables: { includeInactive: true }, // Get all jobs including drafts, we'll filter client-side
     fetchPolicy: 'cache-and-network',
   });
 
+  const { data: departmentsData } = useQuery(DEPARTMENTS_QUERY, {
+    fetchPolicy: 'cache-and-network',
+  });
+
+  const allJobs = data?.jobs || [];
+  const departments = departmentsData?.departments || [];
+
+  // Available statuses
+  const statusOptions = [
+    { value: 'active', label: t('cvEvaluation.statusActive', 'Aktif') },
+    { value: 'draft', label: t('cvEvaluation.statusDraft', 'Taslak') },
+    { value: 'closed', label: t('cvEvaluation.statusClosed', 'Kapalı') },
+    { value: 'archived', label: t('cvEvaluation.statusArchived', 'Arşivlenmiş') },
+  ];
+
+  // Filter and sort jobs
+  const jobs = useMemo(() => {
+    let filtered = allJobs;
+
+    // Filter by search term (job title)
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase().trim();
+      filtered = filtered.filter(job => 
+        job.title?.toLowerCase().includes(term)
+      );
+    }
+
+    // Filter by department
+    if (selectedDepartment !== 'all') {
+      filtered = filtered.filter(job => job.department?.id === selectedDepartment);
+    }
+
+    // Filter by status
+    if (selectedStatuses.length > 0) {
+      filtered = filtered.filter(job => selectedStatuses.includes(job.status));
+    }
+
+    // Sort by application count (most to least)
+    filtered = [...filtered].sort((a, b) => (b.analysisCount || 0) - (a.analysisCount || 0));
+
+    return filtered;
+  }, [allJobs, searchTerm, selectedDepartment, selectedStatuses]);
+
+  const toggleStatus = (status) => {
+    if (selectedStatuses.includes(status)) {
+      // Don't allow deselecting all statuses
+      if (selectedStatuses.length > 1) {
+        setSelectedStatuses(selectedStatuses.filter(s => s !== status));
+      }
+    } else {
+      setSelectedStatuses([...selectedStatuses, status]);
+    }
+  };
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setSelectedDepartment('all');
+    setSelectedStatuses(['active', 'closed', 'archived']);
+  };
+
+  const hasActiveFilters = searchTerm || selectedDepartment !== 'all' || !selectedStatuses.includes('active') || selectedStatuses.includes('draft') || selectedStatuses.length !== 3;
+
   if (loading) return <div style={{ padding: 24 }}>{t('common.loading')}</div>;
   if (error) return <div style={{ padding: 24, color: '#DC2626' }}>{t('common.error')}: {error.message}</div>;
-
-  const jobs = data?.jobs || [];
 
   const getStatusBadge = (status) => {
     const styles = {
@@ -44,7 +111,7 @@ const JobsOverview = ({ onGoToAIEvaluation, onOpenDetails }) => {
 
   return (
     <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <h1 style={{ fontSize: 24, fontWeight: 700, color: '#111827', margin: 0 }}>{t('cvEvaluation.jobsOverviewTitle')}</h1>
         
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -117,6 +184,198 @@ const JobsOverview = ({ onGoToAIEvaluation, onOpenDetails }) => {
             <Brain size={18} />
             {t('cvEvaluation.aiPoweredEvaluation')}
           </button>
+        </div>
+      </div>
+
+      {/* Filters Bar */}
+      <div style={{ 
+        display: 'flex', 
+        gap: 12, 
+        marginBottom: 20, 
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        padding: '16px 20px',
+        background: '#F9FAFB',
+        borderRadius: 12,
+        border: '1px solid #E5E7EB',
+      }}>
+        {/* Search by Name */}
+        <div style={{ position: 'relative', flex: '1 1 250px', maxWidth: 300 }}>
+          <Search size={16} color="#9CA3AF" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder={t('cvEvaluation.searchByName', 'İlan adına göre ara...')}
+            style={{
+              width: '100%',
+              padding: '10px 12px 10px 38px',
+              border: '1px solid #E5E7EB',
+              borderRadius: 8,
+              fontSize: 14,
+              outline: 'none',
+              background: 'white',
+              transition: 'border-color 0.15s',
+            }}
+            onFocus={(e) => e.target.style.borderColor = '#3B82F6'}
+            onBlur={(e) => e.target.style.borderColor = '#E5E7EB'}
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm('')}
+              style={{
+                position: 'absolute',
+                right: 8,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: 4,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <X size={14} color="#9CA3AF" />
+            </button>
+          )}
+        </div>
+
+        {/* Department Filter */}
+        <div style={{ position: 'relative', minWidth: 180 }}>
+          <select
+            value={selectedDepartment}
+            onChange={(e) => setSelectedDepartment(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '10px 32px 10px 12px',
+              border: '1px solid #E5E7EB',
+              borderRadius: 8,
+              fontSize: 14,
+              outline: 'none',
+              background: 'white',
+              cursor: 'pointer',
+              appearance: 'none',
+              color: selectedDepartment === 'all' ? '#6B7280' : '#111827',
+            }}
+          >
+            <option value="all">{t('cvEvaluation.allDepartments', 'Tüm Departmanlar')}</option>
+            {departments.map(dept => (
+              <option key={dept.id} value={dept.id}>{dept.name}</option>
+            ))}
+          </select>
+          <ChevronDown size={16} color="#6B7280" style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+        </div>
+
+        {/* Status Filter (Multi-select dropdown) */}
+        <div style={{ position: 'relative', minWidth: 160 }}>
+          <button
+            onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+            style={{
+              width: '100%',
+              padding: '10px 32px 10px 12px',
+              border: '1px solid #E5E7EB',
+              borderRadius: 8,
+              fontSize: 14,
+              outline: 'none',
+              background: 'white',
+              cursor: 'pointer',
+              textAlign: 'left',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              color: '#111827',
+            }}
+          >
+            <Filter size={14} color="#6B7280" />
+            {t('cvEvaluation.status', 'Durum')} ({selectedStatuses.length})
+          </button>
+          <ChevronDown size={16} color="#6B7280" style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+          
+          {showStatusDropdown && (
+            <>
+              <div 
+                style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }}
+                onClick={() => setShowStatusDropdown(false)}
+              />
+              <div style={{
+                position: 'absolute',
+                top: '100%',
+                left: 0,
+                marginTop: 4,
+                background: 'white',
+                border: '1px solid #E5E7EB',
+                borderRadius: 8,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                zIndex: 100,
+                minWidth: 180,
+                padding: '8px 0',
+              }}>
+                {statusOptions.map(status => (
+                  <label
+                    key={status.value}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: '8px 14px',
+                      cursor: 'pointer',
+                      fontSize: 13,
+                      color: '#374151',
+                      transition: 'background 0.1s',
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#F3F4F6'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedStatuses.includes(status.value)}
+                      onChange={() => toggleStatus(status.value)}
+                      style={{ 
+                        width: 16, 
+                        height: 16, 
+                        accentColor: '#3B82F6',
+                        cursor: 'pointer',
+                      }}
+                    />
+                    {status.label}
+                  </label>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Clear Filters */}
+        {hasActiveFilters && (
+          <button
+            onClick={clearFilters}
+            style={{
+              padding: '10px 14px',
+              border: '1px solid #E5E7EB',
+              borderRadius: 8,
+              fontSize: 13,
+              fontWeight: 500,
+              background: 'white',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              color: '#6B7280',
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = '#FEE2E2'; e.currentTarget.style.color = '#DC2626'; e.currentTarget.style.borderColor = '#FECACA'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'white'; e.currentTarget.style.color = '#6B7280'; e.currentTarget.style.borderColor = '#E5E7EB'; }}
+          >
+            <X size={14} />
+            {t('cvEvaluation.clearFilters', 'Filtreleri Temizle')}
+          </button>
+        )}
+
+        {/* Results Count */}
+        <div style={{ marginLeft: 'auto', fontSize: 13, color: '#6B7280' }}>
+          {jobs.length} {t('cvEvaluation.jobsFound', 'ilan bulundu')}
         </div>
       </div>
 

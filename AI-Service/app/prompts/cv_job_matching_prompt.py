@@ -97,6 +97,15 @@ Analyze the candidate's qualifications against the job requirements and provide 
     - Consider level sufficiency: Native > Fluent > Advanced > Intermediate > Basic (CEFR mapping: C2≈Native, C1≈Fluent, B2≈Advanced, B1≈Intermediate, A2/A1≈Basic)
     - Score should reflect both coverage (presence) and sufficiency (meets or exceeds required level)
     - Additional languages beyond requirements may add up to +1 bonus within this 10-point cap
+    
+    **CRITICAL - Turkish Language Native Speaker Rule (MUST APPLY):**
+    - CHECK THE "CV Language" FIELD ABOVE. If cv_language = "TR":
+      → This means the CV content is written in Turkish
+      → The candidate is a NATIVE TURKISH SPEAKER (their mother tongue is Turkish)
+      → For Turkish language requirement: candidate_level = "Native", status = "exceeds"
+      → DO NOT mark Turkish as "missing" - it is IMPOSSIBLE for a Turkish CV writer to not know Turkish
+      → Give FULL POINTS for Turkish language requirement
+    - ONLY check Turkish from CV's language section if cv_language = "EN" (English CV)
 
 5. **Overall Fit (10 points):**
    - Career trajectory alignment
@@ -135,7 +144,8 @@ Respond with a valid JSON object with the following structure:
     "fit_reasoning": "<brief explanation>"
   }},
     "language_matches": [
-        {{"language": "English", "required_level": "Fluent", "candidate_level": "Advanced", "status": "meets|exceeds|insufficient|missing"}}
+        {{"language": "English", "required_level": "Fluent", "candidate_level": "Advanced", "status": "meets"}},
+        {{"language": "Turkish", "required_level": "Native", "candidate_level": "Native", "status": "exceeds"}}
     ],
     "location_match": {{"job_city": "istanbul", "candidate_city": "kocaeli", "distance_km": 35.2, "category": "near"}},
   "matched_skills": [<list of skills from CV that match job requirements>],
@@ -154,6 +164,7 @@ Respond with a valid JSON object with the following structure:
 - Provide actionable insights in strengths and weaknesses
 - Ensure all scores add up to the overall_score
 - The overall_score should equal the sum of: experience_score + education_score + skills_score + language_score + fit_score (location_score is auxiliary and should not increase the total beyond 100)
+- **TURKISH NATIVE SPEAKER RULE**: If "CV Language: TR" appears above, the candidate is a native Turkish speaker. For any Turkish language requirement, set candidate_level="Native" and status="exceeds". NEVER mark Turkish as "missing" for a Turkish CV.
 - Return ONLY the JSON object, no additional text"""
 
     return prompt

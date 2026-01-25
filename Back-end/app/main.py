@@ -14,6 +14,11 @@ from app.models.user import User
 from app.graphql.resolvers import schema
 from app.core.config import settings
 
+# Import all module models to ensure they are registered with Base
+from app.modules.second_interview.models import SecondInterview
+from app.modules.second_interview_template.models import SecondInterviewTemplate
+from app.modules.company_address.models import CompanyAddress
+
 # Create database tables (base)
 Base.metadata.create_all(bind=engine)
 

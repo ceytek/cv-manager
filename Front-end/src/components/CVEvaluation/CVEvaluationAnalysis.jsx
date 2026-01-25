@@ -27,6 +27,7 @@ const CVEvaluationAnalysis = ({ onBack }) => {
   const [selectedJob, setSelectedJob] = useState(null);
   const [selectedCandidates, setSelectedCandidates] = useState([]);
   const [selectedDepartment, setSelectedDepartment] = useState('');
+  const [jobDepartmentFilter, setJobDepartmentFilter] = useState('');
   const [jobSearchTerm, setJobSearchTerm] = useState('');
   const [candidateSearchTerm, setCandidateSearchTerm] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -399,6 +400,9 @@ const CVEvaluationAnalysis = ({ onBack }) => {
           searchTerm={jobSearchTerm}
           onSearchChange={setJobSearchTerm}
           loading={jobsLoading}
+          departments={departments}
+          selectedDepartment={jobDepartmentFilter}
+          onDepartmentChange={setJobDepartmentFilter}
         />
 
         {/* Column 2: Candidate Selection */}
@@ -451,28 +455,23 @@ const CVEvaluationAnalysis = ({ onBack }) => {
 // ========================================
 // Job Selection Panel Component
 // ========================================
-const JobSelectionPanel = ({ jobs, selectedJob, onSelectJob, searchTerm, onSearchChange, loading }) => {
+const JobSelectionPanel = ({ jobs, selectedJob, onSelectJob, searchTerm, onSearchChange, loading, departments, selectedDepartment, onDepartmentChange }) => {
   const { t } = useTranslation();
-  const [sortBy, setSortBy] = useState('newest'); // newest, oldest, az, za
   
-  // Sort jobs based on selected option
-  const sortedJobs = useMemo(() => {
+  // Filter jobs by department
+  const filteredJobs = useMemo(() => {
     if (!jobs || jobs.length === 0) return [];
     
-    const sorted = [...jobs];
-    switch (sortBy) {
-      case 'newest':
-        return sorted.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-      case 'oldest':
-        return sorted.sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
-      case 'az':
-        return sorted.sort((a, b) => (a.title || '').localeCompare(b.title || '', 'tr'));
-      case 'za':
-        return sorted.sort((a, b) => (b.title || '').localeCompare(a.title || '', 'tr'));
-      default:
-        return sorted;
+    let filtered = [...jobs];
+    
+    // Filter by department
+    if (selectedDepartment) {
+      filtered = filtered.filter(job => job.department?.id === selectedDepartment);
     }
-  }, [jobs, sortBy]);
+    
+    // Sort by newest first
+    return filtered.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  }, [jobs, selectedDepartment]);
   
   return (
     <div style={{
@@ -488,8 +487,32 @@ const JobSelectionPanel = ({ jobs, selectedJob, onSelectJob, searchTerm, onSearc
         <h2 style={{ fontSize: 16, fontWeight: 600, color: '#1F2937', marginBottom: 12 }}>
           {t('cvEvaluation.step1')}
         </h2>
+        
+        {/* Department Dropdown */}
+        <select
+          value={selectedDepartment}
+          onChange={(e) => onDepartmentChange(e.target.value)}
+          style={{
+            width: '100%',
+            padding: '10px 12px',
+            border: '1px solid #D1D5DB',
+            borderRadius: 8,
+            fontSize: 14,
+            color: selectedDepartment ? '#374151' : '#9CA3AF',
+            background: 'white',
+            cursor: 'pointer',
+            outline: 'none',
+            marginBottom: 12,
+          }}
+        >
+          <option value="">{t('cvEvaluation.allDepartments')}</option>
+          {departments?.map(dept => (
+            <option key={dept.id} value={dept.id}>{dept.name}</option>
+          ))}
+        </select>
+        
         {/* Search */}
-        <div style={{ position: 'relative', marginBottom: 12 }}>
+        <div style={{ position: 'relative' }}>
           <Search
             size={18}
             style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }}
@@ -509,41 +532,17 @@ const JobSelectionPanel = ({ jobs, selectedJob, onSelectJob, searchTerm, onSearc
             }}
           />
         </div>
-        {/* Sort Dropdown */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <ArrowUpDown size={14} color="#6B7280" />
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            style={{
-              flex: 1,
-              padding: '8px 12px',
-              border: '1px solid #D1D5DB',
-              borderRadius: 6,
-              fontSize: 13,
-              color: '#374151',
-              background: 'white',
-              cursor: 'pointer',
-              outline: 'none',
-            }}
-          >
-            <option value="newest">{t('cvEvaluation.sortNewest')}</option>
-            <option value="oldest">{t('cvEvaluation.sortOldest')}</option>
-            <option value="az">{t('cvEvaluation.sortAZ')}</option>
-            <option value="za">{t('cvEvaluation.sortZA')}</option>
-          </select>
-        </div>
       </div>
 
       {/* Job List */}
       <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
         {loading ? (
           <div style={{ textAlign: 'center', padding: 40, color: '#9CA3AF' }}>{t('common.loading')}</div>
-        ) : sortedJobs.length === 0 ? (
+        ) : filteredJobs.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 40, color: '#9CA3AF' }}>{t('cvEvaluation.noJobsFound')}</div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {sortedJobs.map(job => (
+            {filteredJobs.map(job => (
               <JobCard
                 key={job.id}
                 job={job}

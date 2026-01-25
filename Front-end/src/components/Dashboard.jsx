@@ -30,7 +30,9 @@ import {
   Menu,
   X,
   Plus,
-  Sparkles
+  Sparkles,
+  MapPin,
+  MessageSquare
 } from 'lucide-react';
 import { useQuery, useMutation, useSubscription } from '@apollo/client/react';
 import { USERS_QUERY, DEACTIVATE_USER_MUTATION } from '../graphql/auth';
@@ -53,12 +55,15 @@ import InterviewTemplatesPage from './InterviewTemplatesPage';
 import LikertTemplatesPage from './LikertTemplatesPage';
 import AgreementTemplatesPage from './AgreementTemplatesPage';
 import RejectionTemplatesPage from './RejectionTemplatesPage';
+import SecondInterviewTemplatesPage from './SecondInterviewTemplatesPage';
+import AIInterviewTemplatesPage from './AIInterviewTemplatesPage';
 import JobIntroTemplatesPage from './JobIntroTemplatesPage';
 import JobOutroTemplatesPage from './JobOutroTemplatesPage';
 import CompanySettingsForm from './CompanySettingsForm';
 import DailyActivityWidget from './DailyActivityWidget';
 import TalentPoolTagsPage from './TalentPoolTagsPage';
 import TalentPoolPage from './TalentPoolPage';
+import CompanyAddressesPage from './CompanyAddressesPage';
 
 const Dashboard = ({ currentUser, onLogout }) => {
   const { t, i18n } = useTranslation();
@@ -66,6 +71,7 @@ const Dashboard = ({ currentUser, onLogout }) => {
   const [showAddUser, setShowAddUser] = useState(false);
   const [settingsMenu, setSettingsMenu] = useState(null);
   const [templatesMenu, setTemplatesMenu] = useState(null);
+  const [interviewMessagesMenu, setInterviewMessagesMenu] = useState(null);
   const [cvEvalInitialView, setCvEvalInitialView] = useState('jobs');
   const [cvEvalInitialJob, setCvEvalInitialJob] = useState(null);
   const [cvEvalInitialApplication, setCvEvalInitialApplication] = useState(null);
@@ -194,7 +200,7 @@ const Dashboard = ({ currentUser, onLogout }) => {
     { id: 'cvs', icon: FileText, label: t('sidebar.cvManagement') },
     { id: 'cv-evaluation', icon: BarChart3, label: t('sidebar.cvEvaluation') },
     { id: 'talent-pool', icon: Users, label: t('sidebar.talentPool') },
-    { id: 'usage-history', icon: History, label: t('sidebar.usageHistory') },
+    { id: 'interview-messages', icon: MessageSquare, label: t('sidebar.interviewMessages', 'Interview Mesaj') },
     { id: 'templates', icon: Layers, label: t('sidebar.templates') }
   ];
 
@@ -212,8 +218,12 @@ const Dashboard = ({ currentUser, onLogout }) => {
           >
             <Menu size={24} />
           </button>
-          {/* Subscription Widget in Header */}
-          <div style={{ flex: 1, marginLeft: 12 }}>
+          {/* Subscription Widget in Header - Click to open Usage History */}
+          <div 
+            style={{ flex: 1, marginLeft: 12, cursor: 'pointer' }}
+            onClick={() => setActiveMenu('usage-history')}
+            title={t('sidebar.usageHistory')}
+          >
             <SubscriptionUsageWidget compact />
           </div>
         </div>
@@ -245,6 +255,7 @@ const Dashboard = ({ currentUser, onLogout }) => {
                     setActiveMenu(item.id);
                     setSettingsMenu(null);
                     setTemplatesMenu(null);
+                    setInterviewMessagesMenu(null);
                   }
                 }}
               >
@@ -252,6 +263,48 @@ const Dashboard = ({ currentUser, onLogout }) => {
                 <span>{item.label}</span>
               </button>
               
+              {/* Interview Messages Submenu */}
+              {item.id === 'interview-messages' && activeMenu === 'interview-messages' && (
+                <div className="submenu">
+                  <button
+                    className={`submenu-item ${interviewMessagesMenu === 'firstInterview' ? 'active' : ''}`}
+                    onClick={() => setInterviewMessagesMenu('firstInterview')}
+                  >
+                    {t('interviewMessages.firstInterview', '1. Interview')}
+                  </button>
+                  <button
+                    className={`submenu-item ${interviewMessagesMenu === 'secondInterview' ? 'active' : ''}`}
+                    onClick={() => setInterviewMessagesMenu('secondInterview')}
+                  >
+                    {t('interviewMessages.secondInterview', '2. Interview')}
+                  </button>
+                  <button
+                    className={`submenu-item ${interviewMessagesMenu === 'likertTest' ? 'active' : ''}`}
+                    onClick={() => setInterviewMessagesMenu('likertTest')}
+                  >
+                    {t('interviewMessages.likertTest', 'Likert Test')}
+                  </button>
+                  <button
+                    className={`submenu-item ${interviewMessagesMenu === 'rejectionTemplates' ? 'active' : ''}`}
+                    onClick={() => setInterviewMessagesMenu('rejectionTemplates')}
+                  >
+                    {t('interviewMessages.rejection', 'Red Mesajı')}
+                  </button>
+                  <button
+                    className={`submenu-item ${interviewMessagesMenu === 'offer' ? 'active' : ''}`}
+                    onClick={() => setInterviewMessagesMenu('offer')}
+                  >
+                    {t('interviewMessages.offer', 'Teklif')}
+                  </button>
+                  <button
+                    className={`submenu-item ${interviewMessagesMenu === 'confirmation' ? 'active' : ''}`}
+                    onClick={() => setInterviewMessagesMenu('confirmation')}
+                  >
+                    {t('interviewMessages.confirmation', 'Onay')}
+                  </button>
+                </div>
+              )}
+
               {/* Templates Submenu */}
               {item.id === 'templates' && activeMenu === 'templates' && (
                 <div className="submenu">
@@ -284,12 +337,6 @@ const Dashboard = ({ currentUser, onLogout }) => {
                     onClick={() => setTemplatesMenu('jobOutroTemplates')}
                   >
                     {t('templates.jobOutroTemplates')}
-                  </button>
-                  <button
-                    className={`submenu-item ${templatesMenu === 'rejectionTemplates' ? 'active' : ''}`}
-                    onClick={() => setTemplatesMenu('rejectionTemplates')}
-                  >
-                    {t('templates.rejectionTemplates')}
                   </button>
                 </div>
               )}
@@ -589,6 +636,19 @@ const Dashboard = ({ currentUser, onLogout }) => {
                       <span>{t('settings.talentPoolTags')}</span>
                     </button>
                   )}
+                  {isAdmin && (
+                    <button 
+                      className="user-dropdown-item" 
+                      onClick={() => { 
+                        setActiveMenu('settings'); 
+                        setSettingsMenu('companyAddresses'); 
+                        setShowUserMenu(false); 
+                      }}
+                    >
+                      <MapPin size={16} />
+                      <span>{t('settings.companyAddresses', 'Şirket Adresleri')}</span>
+                    </button>
+                  )}
                   <button 
                     className="user-dropdown-item" 
                     onClick={() => { 
@@ -675,6 +735,11 @@ const Dashboard = ({ currentUser, onLogout }) => {
           <TalentPoolTagsPage />
         )}
 
+        {/* Company Addresses (admin) */}
+        {activeMenu === 'settings' && settingsMenu === 'companyAddresses' && isAdmin && (
+          <CompanyAddressesPage />
+        )}
+
         {/* Templates pages */}
         {activeMenu === 'templates' && templatesMenu === 'interviewTemplates' && (
           <InterviewTemplatesPage />
@@ -696,12 +761,20 @@ const Dashboard = ({ currentUser, onLogout }) => {
           <JobOutroTemplatesPage />
         )}
 
-        {activeMenu === 'templates' && templatesMenu === 'rejectionTemplates' && (
+        {activeMenu === 'interview-messages' && interviewMessagesMenu === 'rejectionTemplates' && (
           <RejectionTemplatesPage />
         )}
 
-        {/* Show dashboard widgets unless a settings/templates subpage is open */}
-  {!(activeMenu === 'settings' && settingsMenu) && !(activeMenu === 'templates' && templatesMenu) && activeMenu !== 'departments' && activeMenu !== 'jobs' && activeMenu !== 'cvs' && activeMenu !== 'cv-evaluation' && activeMenu !== 'talent-pool' && activeMenu !== 'usage-history' && activeMenu !== 'templates' && (
+        {activeMenu === 'interview-messages' && interviewMessagesMenu === 'secondInterview' && (
+          <SecondInterviewTemplatesPage />
+        )}
+
+        {activeMenu === 'interview-messages' && interviewMessagesMenu === 'firstInterview' && (
+          <AIInterviewTemplatesPage />
+        )}
+
+        {/* Show dashboard widgets unless a settings/templates/interview-messages subpage is open */}
+  {!(activeMenu === 'settings' && settingsMenu) && !(activeMenu === 'templates' && templatesMenu) && !(activeMenu === 'interview-messages' && interviewMessagesMenu) && activeMenu !== 'departments' && activeMenu !== 'jobs' && activeMenu !== 'cvs' && activeMenu !== 'cv-evaluation' && activeMenu !== 'talent-pool' && activeMenu !== 'usage-history' && activeMenu !== 'templates' && activeMenu !== 'interview-messages' && (
         <div className="stats-grid-kaggle">
           {stats.map((stat, index) => {
             const IconComponent = stat.icon;

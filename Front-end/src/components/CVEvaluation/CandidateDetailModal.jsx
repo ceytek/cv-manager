@@ -5,13 +5,15 @@
 import React, { useMemo, useState } from 'react';
 import { useQuery } from '@apollo/client/react';
 import { useTranslation } from 'react-i18next';
-import { X, Briefcase, GraduationCap, Award, MapPin, Mail, Phone, Linkedin, CheckCircle2, XCircle, AlertCircle, Video, ListChecks, MailX, Sparkles, Star } from 'lucide-react';
+import { X, Briefcase, GraduationCap, Award, MapPin, Mail, Phone, Linkedin, CheckCircle2, XCircle, AlertCircle, Video, ListChecks, MailX, Sparkles, Star, Users } from 'lucide-react';
 import InterviewInviteModal from '../InterviewInviteModal';
 import LikertInviteModal from '../LikertInviteModal';
 import SendRejectionModal from '../SendRejectionModal';
 import AddToTalentPoolModal from '../AddToTalentPoolModal';
 import EditTalentPoolEntryModal from '../EditTalentPoolEntryModal';
-import { IS_CANDIDATE_IN_TALENT_POOL, GET_TALENT_POOL_ENTRIES } from '../../graphql/talentPool';
+import SecondInterviewInviteModal from '../SecondInterviewInviteModal';
+import QuickCreateTagModal from '../QuickCreateTagModal';
+import { IS_CANDIDATE_IN_TALENT_POOL, GET_TALENT_POOL_ENTRIES, GET_TALENT_POOL_TAGS } from '../../graphql/talentPool';
 import { API_BASE_URL } from '../../config/api';
 
 const CandidateDetailModal = ({ candidate, onClose, jobId, jobTitle, application, onRefetch }) => {
@@ -22,6 +24,21 @@ const CandidateDetailModal = ({ candidate, onClose, jobId, jobTitle, application
   const [showRejectionModal, setShowRejectionModal] = useState(false);
   const [showTalentPoolModal, setShowTalentPoolModal] = useState(false);
   const [showEditTalentPoolModal, setShowEditTalentPoolModal] = useState(false);
+  const [showSecondInterviewModal, setShowSecondInterviewModal] = useState(false);
+  const [showQuickTagModal, setShowQuickTagModal] = useState(false);
+  const [selectedKeywordForTag, setSelectedKeywordForTag] = useState('');
+  const [existingTagAlert, setExistingTagAlert] = useState(null);
+  
+  // Query existing talent pool tags
+  const { data: tagsData, refetch: refetchTags } = useQuery(GET_TALENT_POOL_TAGS, {
+    fetchPolicy: 'cache-and-network',
+  });
+  
+  // Get list of existing tag names (lowercase for comparison)
+  const existingTagNames = useMemo(() => {
+    if (!tagsData?.talentPoolTags) return [];
+    return tagsData.talentPoolTags.map(tag => tag.name.toLowerCase());
+  }, [tagsData]);
   
   // Get candidate ID for talent pool check
   const candidateId = candidate?.candidate?.id || candidate?.candidateId || candidate?.id;
@@ -377,7 +394,7 @@ const CandidateDetailModal = ({ candidate, onClose, jobId, jobTitle, application
                 }}
               >
                 <Video size={16} />
-                Invite to Interview
+                {t('cvEvaluation.inviteToAIInterview', 'AI Görüşmesine Davet Et')}
               </button>
               <button 
                 onClick={() => setShowLikertModal(true)}
@@ -398,6 +415,26 @@ const CandidateDetailModal = ({ candidate, onClose, jobId, jobTitle, application
               >
                 <ListChecks size={16} />
                 Send Likert Test
+              </button>
+              <button 
+                onClick={() => setShowSecondInterviewModal(true)}
+                style={{
+                  padding: '10px 20px',
+                  background: '#8B5CF6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 8,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                }}
+              >
+                <Users size={16} />
+                {t('candidateDetail.secondInterview', '2. Görüşme Daveti')}
               </button>
               <button 
                 onClick={() => {
@@ -470,7 +507,44 @@ const CandidateDetailModal = ({ candidate, onClose, jobId, jobTitle, application
 
             {/* Right Column - AI Analysis */}
             <div>
-              <AIAnalysisPanel analysis={detail.aiAnalysis} />
+              <AIAnalysisPanel 
+                analysis={detail.aiAnalysis} 
+                existingTagNames={existingTagNames}
+                onKeywordClick={(keyword, isExisting) => {
+                  if (isExisting) {
+                    setExistingTagAlert(keyword);
+                    setTimeout(() => setExistingTagAlert(null), 3000);
+                  } else {
+                    setSelectedKeywordForTag(keyword);
+                    setShowQuickTagModal(true);
+                  }
+                }}
+              />
+              
+              {/* Existing Tag Alert */}
+              {existingTagAlert && (
+                <div style={{
+                  position: 'fixed',
+                  bottom: 24,
+                  right: 24,
+                  background: '#FEF3C7',
+                  border: '1px solid #F59E0B',
+                  color: '#92400E',
+                  padding: '12px 20px',
+                  borderRadius: 10,
+                  fontSize: 14,
+                  fontWeight: 500,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                  zIndex: 10001,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  animation: 'slideIn 0.3s ease-out',
+                }}>
+                  <CheckCircle2 size={18} color="#F59E0B" />
+                  <span>"{existingTagAlert}" {t('candidateDetail.tagAlreadyExists', 'etiketi zaten mevcut')}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -544,6 +618,36 @@ const CandidateDetailModal = ({ candidate, onClose, jobId, jobTitle, application
         }}
         entryId={talentPoolEntry?.id}
         candidateName={detail.name}
+      />
+      
+      {/* Second Interview Invite Modal */}
+      {showSecondInterviewModal && (
+        <SecondInterviewInviteModal
+          isOpen={showSecondInterviewModal}
+          onClose={() => setShowSecondInterviewModal(false)}
+          candidate={candidate?.candidate || candidate}
+          application={application}
+          jobTitle={jobTitle}
+          existingInterview={application?.secondInterview || null}
+          onSuccess={() => {
+            setShowSecondInterviewModal(false);
+            onRefetch?.();
+          }}
+        />
+      )}
+      
+      {/* Quick Create Tag Modal */}
+      <QuickCreateTagModal
+        isOpen={showQuickTagModal}
+        onClose={() => {
+          setShowQuickTagModal(false);
+          setSelectedKeywordForTag('');
+        }}
+        initialName={selectedKeywordForTag}
+        onSuccess={(tag) => {
+          // Refresh tags to update keyword colors
+          refetchTags();
+        }}
       />
     </div>
   );
@@ -698,8 +802,13 @@ const SkillsSection = ({ skills }) => {
 };
 
 // AI Analysis Panel Component
-const AIAnalysisPanel = ({ analysis }) => {
+const AIAnalysisPanel = ({ analysis, onKeywordClick, existingTagNames = [] }) => {
   const { t } = useTranslation();
+  
+  // Check if keyword already exists as a tag
+  const isKeywordExisting = (keyword) => {
+    return existingTagNames.includes(keyword.toLowerCase());
+  };
   
   return (
   <div style={{
@@ -789,6 +898,9 @@ const AIAnalysisPanel = ({ analysis }) => {
       }}>
         {t('candidateDetail.keywordMatch')}
       </h3>
+      <p style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 8, marginTop: -4 }}>
+        {t('candidateDetail.clickToCreateTag', 'Etiket oluşturmak için tıklayın')}
+      </p>
       <div style={{
         background: 'white',
         borderRadius: 8,
@@ -797,18 +909,44 @@ const AIAnalysisPanel = ({ analysis }) => {
         flexWrap: 'wrap',
         gap: 6,
       }}>
-        {analysis.keywordMatches.map((keyword, index) => (
-          <span key={index} style={{
-            padding: '4px 10px',
-            background: '#DBEAFE',
-            color: '#1E40AF',
-            borderRadius: 4,
-            fontSize: 12,
-            fontWeight: 500,
-          }}>
-            {keyword}
-          </span>
-        ))}
+        {analysis.keywordMatches.map((keyword, index) => {
+          const isExisting = isKeywordExisting(keyword);
+          return (
+            <button 
+              key={index} 
+              onClick={() => onKeywordClick?.(keyword, isExisting)}
+              style={{
+                padding: '4px 10px',
+                background: isExisting ? '#D1FAE5' : '#DBEAFE',
+                color: isExisting ? '#065F46' : '#1E40AF',
+                borderRadius: 4,
+                fontSize: 12,
+                fontWeight: 500,
+                border: isExisting ? '1px solid #10B981' : 'none',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = isExisting ? '#A7F3D0' : '#BFDBFE';
+                e.currentTarget.style.transform = 'scale(1.05)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = isExisting ? '#D1FAE5' : '#DBEAFE';
+                e.currentTarget.style.transform = 'scale(1)';
+              }}
+              title={isExisting 
+                ? t('candidateDetail.tagAlreadyExistsTitle', 'Bu anahtar kelime zaten etiket olarak ekli')
+                : t('candidateDetail.createTagFromKeyword', 'Bu anahtar kelimeden etiket oluştur')
+              }
+            >
+              {isExisting && <CheckCircle2 size={12} />}
+              {keyword}
+            </button>
+          );
+        })}
       </div>
     </div>
 

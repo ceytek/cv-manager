@@ -5,7 +5,7 @@
 import React, { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@apollo/client/react';
-import { X, FileText, BarChart2, Video, ListChecks, CheckCircle2, Clock, Send, Download, XCircle, FileSearch, Upload, Play, UserCheck, MessageSquare, Search, Loader2 } from 'lucide-react';
+import { X, FileText, BarChart2, Video, ListChecks, CheckCircle2, Clock, Send, Download, XCircle, FileSearch, Upload, Play, UserCheck, MessageSquare, Search, Loader2, Sparkles, Bot } from 'lucide-react';
 import { GET_APPLICATION_HISTORY } from '../../graphql/history';
 import { API_BASE_URL } from '../../config/api';
 
@@ -22,6 +22,8 @@ const ICON_MAP = {
   'message-square': MessageSquare,
   'file-text': FileText,
   'bar-chart-2': BarChart2,
+  'sparkles': Sparkles,
+  'bot': Bot,
 };
 
 // Fallback icon
@@ -74,6 +76,30 @@ const CandidateHistoryModal = ({
           text: isEnglish ? 'Completed' : 'Tamamlandı',
           color: '#10B981',
         };
+      } else if (actionCode === 'second_interview_completed') {
+        // Badge based on outcome
+        const outcome = entry.actionData?.outcome;
+        if (outcome === 'passed') {
+          badge = {
+            text: isEnglish ? 'Passed' : 'Başarılı',
+            color: '#10B981',
+          };
+        } else if (outcome === 'rejected') {
+          badge = {
+            text: isEnglish ? 'Rejected' : 'Reddedildi',
+            color: '#DC2626',
+          };
+        } else if (outcome === 'pending_likert') {
+          badge = {
+            text: isEnglish ? 'Likert Test' : 'Likert Test',
+            color: '#3B82F6',
+          };
+        } else {
+          badge = {
+            text: isEnglish ? 'Completed' : 'Tamamlandı',
+            color: '#10B981',
+          };
+        }
       } else if (actionCode === 'rejected') {
         badge = {
           text: isEnglish ? 'Rejected' : 'Reddedildi',
@@ -117,14 +143,22 @@ const CandidateHistoryModal = ({
           'likert_sent': isEnglish ? 'Likert test link was shared with the candidate.' : 'Likert test bağlantısı aday ile paylaşıldı.',
           'likert_started': isEnglish ? 'Candidate started the Likert test.' : 'Aday Likert testine başladı.',
           'likert_completed': isEnglish ? 'Candidate completed the Likert test.' : 'Aday Likert testini tamamladı.',
-          'interview_sent': isEnglish ? 'Interview link was shared with the candidate.' : 'Mülakat bağlantısı aday ile paylaşıldı.',
-          'interview_started': isEnglish ? 'Candidate started the interview.' : 'Aday mülakata başladı.',
-          'interview_completed': isEnglish ? 'Candidate completed the interview.' : 'Aday mülakatı tamamladı.',
+          'interview_sent': isEnglish ? 'AI Interview link was shared with the candidate.' : 'AI Görüşme bağlantısı aday ile paylaşıldı.',
+          'interview_started': isEnglish ? 'Candidate started the AI Interview.' : 'Aday AI Görüşmeye başladı.',
+          'interview_completed': isEnglish ? 'Candidate completed the AI Interview.' : 'Aday AI Görüşmeyi tamamladı.',
+          'second_interview_sent': isEnglish ? '2nd interview invitation was sent.' : '2. Görüşme daveti gönderildi.',
+          'second_interview_completed': isEnglish ? '2nd interview was completed.' : '2. Görüşme tamamlandı.',
+          'second_interview_cancelled': isEnglish ? '2nd interview was cancelled.' : '2. Görüşme iptal edildi.',
           'rejected': isEnglish ? 'Application has been rejected.' : 'Başvuru reddedildi.',
           'hired': isEnglish ? 'Candidate has been hired!' : 'Aday işe alındı!',
           'note_added': isEnglish ? 'A note was added.' : 'Not eklendi.',
         };
         description = descriptions[actionCode] || '';
+        
+        // Add outcome text for second interview completed
+        if (actionCode === 'second_interview_completed' && entry.actionData?.outcome_text) {
+          description += ` → ${entry.actionData.outcome_text}`;
+        }
       }
 
       return {

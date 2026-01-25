@@ -29,6 +29,21 @@ export const APPLICATIONS_QUERY = gql`
       rejectionNote
       rejectedAt
       rejectionTemplateId
+      hasSecondInterview
+      secondInterviewStatus
+      secondInterviewOutcome
+      secondInterview {
+        id
+        interviewType
+        platform
+        meetingLink
+        locationAddress
+        scheduledDate
+        scheduledTime
+        candidateMessage
+        status
+        outcome
+      }
       
       job {
         id
@@ -59,6 +74,8 @@ export const APPLICATIONS_QUERY = gql`
         status
         departmentId
         uploadedAt
+        inTalentPool
+        talentPoolEntryId
         department {
           id
           name

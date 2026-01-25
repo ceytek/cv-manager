@@ -1,14 +1,20 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@apollo/client/react';
-import { Video, FileText, Clock, BarChart2, Download, Eye, MapPin, Briefcase, Building2, List, LayoutGrid } from 'lucide-react';
+import { Video, FileText, Clock, BarChart2, Download, Eye, MapPin, Briefcase, Building2, List, LayoutGrid, Users, Star, Sparkles } from 'lucide-react';
 import { APPLICATIONS_QUERY } from '../../graphql/applications';
 import CandidateDetailModal from './CandidateDetailModal';
 import LikertResultsModal from './LikertResultsModal';
 import InterviewResultsModal from './InterviewResultsModal';
 import CandidateHistoryModal from './CandidateHistoryModal';
 import JobPreviewModal from '../JobForm/JobPreviewModal';
+import SecondInterviewInviteModal from '../SecondInterviewInviteModal';
+import SecondInterviewFeedbackModal from '../SecondInterviewFeedbackModal';
+import SendRejectionModal from '../SendRejectionModal';
+import LikertInviteModal from '../LikertInviteModal';
 import { API_BASE_URL } from '../../config/api';
+import { GET_SECOND_INTERVIEW_BY_APPLICATION } from '../../graphql/secondInterview';
+import { getInitials } from '../../utils/nameUtils';
 
 // Reuse data coming from parent job
 const JobDetails = ({ job, onBack, departments }) => {
@@ -24,6 +30,11 @@ const JobDetails = ({ job, onBack, departments }) => {
   const [showHistory, setShowHistory] = useState(false);
   const [selectedApp, setSelectedApp] = useState(null);
   const [showJobDetail, setShowJobDetail] = useState(false);
+  const [showSecondInterviewInvite, setShowSecondInterviewInvite] = useState(false);
+  const [showSecondInterviewFeedback, setShowSecondInterviewFeedback] = useState(false);
+  const [secondInterviewData, setSecondInterviewData] = useState(null);
+  const [showSendRejection, setShowSendRejection] = useState(false);
+  const [showLikertInvite, setShowLikertInvite] = useState(false);
 
   const { data, loading, error, refetch } = useQuery(APPLICATIONS_QUERY, {
     variables: { jobId: job?.id },
@@ -51,11 +62,34 @@ const JobDetails = ({ job, onBack, departments }) => {
   const getScoreColor = (n) => (n >= 80 ? '#10B981' : n >= 60 ? '#F59E0B' : '#EF4444');
 
   // Get the latest session status for display
-  // Priority: Likert first (since it's typically done after interview), then Interview
+  // Priority: Second Interview > Likert > Interview
   const getLatestSessionStatus = (app) => {
     // Check rejection first (highest priority)
     if (app.status?.toUpperCase() === 'REJECTED' || app.rejectedAt) {
       return { text: t('jobDetails.sessionStatus.rejected', 'Reddedildi'), color: '#DC2626', bg: '#FEE2E2' };
+    }
+    
+    // Second Interview takes priority
+    if (app.secondInterviewStatus === 'completed') {
+      if (app.secondInterviewOutcome === 'passed') {
+        return { text: t('jobDetails.sessionStatus.secondInterviewPassed', '2. Görüşme Başarılı'), color: '#10B981', bg: '#D1FAE5' };
+      }
+      if (app.secondInterviewOutcome === 'rejected') {
+        return { text: t('jobDetails.sessionStatus.secondInterviewRejected', '2. Görüşme Red'), color: '#DC2626', bg: '#FEE2E2' };
+      }
+      if (app.secondInterviewOutcome === 'pending_likert') {
+        return { text: t('jobDetails.sessionStatus.secondInterviewLikert', '2. Görüşme → Likert'), color: '#3B82F6', bg: '#DBEAFE' };
+      }
+      return { text: t('jobDetails.sessionStatus.secondInterviewCompleted', '2. Görüşme Tamamlandı'), color: '#10B981', bg: '#D1FAE5' };
+    }
+    if (app.secondInterviewStatus === 'no_show') {
+      return { text: t('jobDetails.sessionStatus.secondInterviewNoShow', '2. Görüşme - Gelmedi'), color: '#F59E0B', bg: '#FEF3C7' };
+    }
+    if (app.secondInterviewStatus === 'cancelled') {
+      return { text: t('jobDetails.sessionStatus.secondInterviewCancelled', '2. Görüşme İptal'), color: '#6B7280', bg: '#F3F4F6' };
+    }
+    if (app.hasSecondInterview && app.secondInterviewStatus === 'invited') {
+      return { text: t('jobDetails.sessionStatus.secondInterviewInvited', '2. Görüşme Daveti'), color: '#8B5CF6', bg: '#EDE9FE' };
     }
     
     // Likert takes priority if it exists and has any status
@@ -222,7 +256,7 @@ const JobDetails = ({ job, onBack, departments }) => {
           }}>
             {pageItems.map((app, index) => {
               const candidateName = app.candidate?.name || '—';
-              const initials = candidateName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+              const initials = getInitials(candidateName);
               const avatarColors = ['#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#EF4444'];
               const avatarColor = avatarColors[index % avatarColors.length];
               const status = getLatestSessionStatus(app);
@@ -275,8 +309,29 @@ const JobDetails = ({ job, onBack, departments }) => {
                     color: '#111827',
                     marginBottom: 4,
                     textAlign: 'center',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
                   }}>
                     {candidateName}
+                    {app.candidate?.inTalentPool && (
+                      <span 
+                        title={t('jobDetails.inTalentPool', 'Yetenek Havuzunda')}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: 22,
+                          height: 22,
+                          borderRadius: 6,
+                          background: '#FEF3C7',
+                          border: '2px solid #F59E0B',
+                        }}
+                      >
+                        <Star size={12} fill="#D97706" color="#D97706" />
+                      </span>
+                    )}
                   </div>
                   
                   {/* Email */}
@@ -445,7 +500,7 @@ const JobDetails = ({ job, onBack, departments }) => {
           /* ============ LIST VIEW ============ */
           pageItems.map((app, index) => {
             const candidateName = app.candidate?.name || '—';
-            const initials = candidateName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+            const initials = getInitials(candidateName);
             const avatarColors = ['#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#EF4444'];
             const avatarColor = avatarColors[index % avatarColors.length];
             
@@ -481,7 +536,26 @@ const JobDetails = ({ job, onBack, departments }) => {
                     {initials}
                   </div>
                   <div>
-                    <div style={{ color: '#111827', fontWeight: 600, fontSize: 14 }}>{candidateName}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#111827', fontWeight: 600, fontSize: 14 }}>
+                      {candidateName}
+                      {app.candidate?.inTalentPool && (
+                        <span 
+                          title={t('jobDetails.inTalentPool', 'Yetenek Havuzunda')}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 22,
+                            height: 22,
+                            borderRadius: 6,
+                            background: '#FEF3C7',
+                            border: '2px solid #F59E0B',
+                          }}
+                        >
+                          <Star size={12} fill="#D97706" color="#D97706" />
+                        </span>
+                      )}
+                    </div>
                     {app.candidate?.email && (
                       <div style={{ color: '#6B7280', fontSize: 12 }}>{app.candidate.email}</div>
                     )}
@@ -528,7 +602,39 @@ const JobDetails = ({ job, onBack, departments }) => {
                       }}
                       title={app.interviewSessionStatus === 'completed' ? t('jobDetails.sessionStatus.interviewCompleted') : t('jobDetails.sessionStatus.interviewSent')}
                     >
-                      <Video size={15} />
+                      <Sparkles size={15} />
+                    </button>
+                  )}
+                  {app.hasSecondInterview && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedApp(app);
+                        if (app.secondInterviewStatus === 'invited') {
+                          // Show feedback modal for invited interviews
+                          setSecondInterviewData({ application: app });
+                          setShowSecondInterviewFeedback(true);
+                        }
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: 30,
+                        height: 30,
+                        padding: 0,
+                        background: app.secondInterviewStatus === 'completed' ? '#D1FAE5' : '#EDE9FE',
+                        border: 'none',
+                        borderRadius: 6,
+                        cursor: 'pointer',
+                        color: app.secondInterviewStatus === 'completed' ? '#10B981' : '#8B5CF6',
+                        transition: 'all 0.15s',
+                      }}
+                      title={app.secondInterviewStatus === 'completed' 
+                        ? t('jobDetails.sessionStatus.secondInterviewCompleted', '2. Görüşme Tamamlandı') 
+                        : t('jobDetails.sessionStatus.secondInterviewInvited', '2. Görüşme Daveti')}
+                    >
+                      <Users size={15} />
                     </button>
                   )}
                   {app.hasLikertSession && (
@@ -806,6 +912,87 @@ const JobDetails = ({ job, onBack, departments }) => {
           }}
           departments={departments || []}
           viewOnly={true}
+        />
+      )}
+      
+      {/* Second Interview Invite Modal */}
+      {showSecondInterviewInvite && selectedApp && (
+        <SecondInterviewInviteModal
+          isOpen={showSecondInterviewInvite}
+          onClose={() => {
+            setShowSecondInterviewInvite(false);
+            setSelectedApp(null);
+          }}
+          candidate={selectedApp.candidate}
+          application={selectedApp}
+          jobTitle={job?.title}
+          existingInterview={selectedApp?.secondInterview || null}
+          onSuccess={() => {
+            refetch();
+          }}
+        />
+      )}
+      
+      {/* Second Interview Feedback Modal */}
+      {showSecondInterviewFeedback && selectedApp && (
+        <SecondInterviewFeedbackModal
+          isOpen={showSecondInterviewFeedback}
+          onClose={() => {
+            setShowSecondInterviewFeedback(false);
+            setSecondInterviewData(null);
+            setSelectedApp(null);
+          }}
+          application={selectedApp}
+          onSuccess={() => {
+            refetch();
+          }}
+          onOpenRejectionModal={(app) => {
+            setShowSecondInterviewFeedback(false);
+            setSelectedApp(app);
+            setShowSendRejection(true);
+          }}
+          onOpenLikertModal={(app) => {
+            setShowSecondInterviewFeedback(false);
+            setSelectedApp(app);
+            setShowLikertInvite(true);
+          }}
+        />
+      )}
+
+      {/* Send Rejection Modal */}
+      {showSendRejection && selectedApp && (
+        <SendRejectionModal
+          isOpen={showSendRejection}
+          onClose={() => {
+            setShowSendRejection(false);
+            setSelectedApp(null);
+          }}
+          candidate={selectedApp.candidate}
+          application={selectedApp}
+          jobId={job?.id}
+          jobTitle={job?.title}
+          onSuccess={() => {
+            refetch();
+            setShowSendRejection(false);
+            setSelectedApp(null);
+          }}
+        />
+      )}
+
+      {/* Likert Invite Modal */}
+      {showLikertInvite && selectedApp && (
+        <LikertInviteModal
+          isOpen={showLikertInvite}
+          onClose={() => {
+            setShowLikertInvite(false);
+            setSelectedApp(null);
+          }}
+          candidate={selectedApp.candidate}
+          application={selectedApp}
+          jobId={job?.id}
+          onSuccess={() => {
+            refetch();
+          }}
         />
       )}
     </div>

@@ -392,6 +392,12 @@ class ApplicationType:
     interview_session_status: Optional[str] = strawberry.field(name="interviewSessionStatus", default=None)
     likert_session_status: Optional[str] = strawberry.field(name="likertSessionStatus", default=None)
     
+    # Second Interview flags
+    has_second_interview: bool = strawberry.field(name="hasSecondInterview", default=False)
+    second_interview_status: Optional[str] = strawberry.field(name="secondInterviewStatus", default=None)
+    second_interview_outcome: Optional[str] = strawberry.field(name="secondInterviewOutcome", default=None)
+    second_interview: Optional['SecondInterviewGQLType'] = strawberry.field(name="secondInterview", default=None)
+    
     # Rejection fields
     rejection_note: Optional[str] = strawberry.field(name="rejectionNote", default=None)
     rejected_at: Optional[str] = strawberry.field(name="rejectedAt", default=None)
@@ -1103,4 +1109,56 @@ from app.modules.talent_pool.types import (
     TalentPoolBulkResponse,
     TalentPoolStatsType,
     TalentPoolFilterInput,
+)
+# ============================================
+# Second Interview Module Types
+# ============================================
+from app.modules.second_interview.types import (
+    SecondInterviewType as SecondInterviewGQLType,
+    SecondInterviewCandidateType,
+    SecondInterviewJobType,
+    SecondInterviewApplicationType,
+    SecondInterviewFeedbackByType,
+    SecondInterviewInviteInput,
+    SecondInterviewFeedbackInput,
+    SecondInterviewUpdateInput,
+    SecondInterviewResponse,
+    SecondInterviewTypeEnum,
+    SecondInterviewPlatformEnum,
+    SecondInterviewStatusEnum,
+    SecondInterviewOutcomeEnum,
+)
+
+# Company Address Types
+# ============================================
+from app.modules.company_address.types import (
+    CompanyAddressType as CompanyAddressGQLType,
+    CompanyAddressInput,
+    CompanyAddressUpdateInput,
+    CompanyAddressResponse,
+)
+
+# ============================================
+# Second Interview Template Module Types
+# ============================================
+from app.modules.second_interview_template.types import (
+    SecondInterviewTemplateType as SecondInterviewTemplateGQLType,
+    SecondInterviewTemplateTypeEnum,
+    SecondInterviewTemplateInput,
+    SecondInterviewTemplateUpdateInput,
+    SecondInterviewTemplateResponse,
+    TemplateVariablesResponse,
+    TemplateVariableType,
+)
+
+# ============================================
+# AI Interview Email Template Module Types
+# ============================================
+from app.modules.ai_interview_template.types import (
+    AIInterviewEmailTemplateType,
+    AIInterviewEmailTemplateInput,
+    AIInterviewEmailTemplateUpdateInput,
+    AIInterviewEmailTemplateResponse,
+    AIInterviewEmailTemplateListResponse,
+    AITemplateVariableType,
 )

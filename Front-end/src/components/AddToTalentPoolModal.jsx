@@ -114,7 +114,7 @@ const AddToTalentPoolModal = ({
     }
   };
 
-  console.log('AddToTalentPoolModal render - isOpen:', isOpen, 'candidates:', candidates);
+  // Early return - modal kapalıysa render etme
   if (!isOpen) return null;
 
   // Get candidate info for display
@@ -454,4 +454,5 @@ const AddToTalentPoolModal = ({
   );
 };
 
-export default AddToTalentPoolModal;
+// React.memo ile gereksiz re-render'ları önle
+export default React.memo(AddToTalentPoolModal);
