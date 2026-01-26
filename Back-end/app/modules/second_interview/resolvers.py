@@ -130,22 +130,76 @@ def get_second_interview(info: Info, id: str) -> Optional[SecondInterviewType]:
 
 
 def get_second_interview_by_application(info: Info, application_id: str) -> Optional[SecondInterviewType]:
-    """Get second interview for a specific application"""
+    """Get the most recent/active second interview for a specific application"""
     token = _get_auth_info(info)
     
     db = get_db_session()
     try:
         company_id = get_company_id_from_token(token)
         
+        # First try to find an active interview (invited status)
         interview = db.query(SecondInterview).filter(
             SecondInterview.application_id == application_id,
-            SecondInterview.company_id == company_id
-        ).first()
+            SecondInterview.company_id == company_id,
+            SecondInterview.status == SecondInterviewStatus.INVITED
+        ).order_by(SecondInterview.scheduled_date.desc()).first()
+        
+        # If no active, get the most recent one
+        if not interview:
+            interview = db.query(SecondInterview).filter(
+                SecondInterview.application_id == application_id,
+                SecondInterview.company_id == company_id
+            ).order_by(SecondInterview.created_at.desc()).first()
         
         if not interview:
             return None
         
         return _build_second_interview_type(interview)
+    finally:
+        db.close()
+
+
+def get_all_interviews_by_application(info: Info, application_id: str) -> List[SecondInterviewType]:
+    """Get all interviews for a specific application"""
+    token = _get_auth_info(info)
+    
+    db = get_db_session()
+    try:
+        company_id = get_company_id_from_token(token)
+        
+        interviews = db.query(SecondInterview).filter(
+            SecondInterview.application_id == application_id,
+            SecondInterview.company_id == company_id
+        ).order_by(SecondInterview.scheduled_date.desc()).all()
+        
+        return [_build_second_interview_type(i) for i in interviews]
+    finally:
+        db.close()
+
+
+def check_active_interview(info: Info, application_id: str) -> Optional[SecondInterviewType]:
+    """Check if there's an active interview (not completed/cancelled and date not passed)"""
+    token = _get_auth_info(info)
+    
+    db = get_db_session()
+    try:
+        company_id = get_company_id_from_token(token)
+        today = date.today()
+        
+        # Find interview that is:
+        # 1. Status is 'invited' (not completed, cancelled, or no_show)
+        # 2. Scheduled date is today or in the future
+        active_interview = db.query(SecondInterview).filter(
+            SecondInterview.application_id == application_id,
+            SecondInterview.company_id == company_id,
+            SecondInterview.status == SecondInterviewStatus.INVITED,
+            SecondInterview.scheduled_date >= today
+        ).first()
+        
+        if not active_interview:
+            return None
+        
+        return _build_second_interview_type(active_interview)
     finally:
         db.close()
 
@@ -199,15 +253,18 @@ async def send_second_interview_invite(
                 message="Application not found"
             )
         
-        # Check if second interview already exists for this application
-        existing = db.query(SecondInterview).filter(
-            SecondInterview.application_id == input.application_id
+        # Check if there's an active interview (not completed and date not passed)
+        today = date.today()
+        active_interview = db.query(SecondInterview).filter(
+            SecondInterview.application_id == input.application_id,
+            SecondInterview.status == SecondInterviewStatus.INVITED,
+            SecondInterview.scheduled_date >= today
         ).first()
         
-        if existing:
+        if active_interview:
             return SecondInterviewResponse(
                 success=False,
-                message="Second interview already exists for this application"
+                message="Candidate has an active interview scheduled for " + str(active_interview.scheduled_date)
             )
         
         # Parse interview type
@@ -483,6 +540,8 @@ __all__ = [
     # Queries
     "get_second_interview",
     "get_second_interview_by_application",
+    "get_all_interviews_by_application",
+    "check_active_interview",
     "get_second_interviews_by_job",
     # Mutations
     "send_second_interview_invite",

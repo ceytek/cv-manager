@@ -6,7 +6,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation } from '@apollo/client/react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Edit2, Trash2, Video, MapPin, ToggleLeft, ToggleRight, Star, GripVertical } from 'lucide-react';
+import { Plus, Edit2, Trash2, Video, MapPin, ToggleLeft, ToggleRight, Star, Mail } from 'lucide-react';
 import { 
   GET_SECOND_INTERVIEW_TEMPLATES,
   GET_SECOND_INTERVIEW_TEMPLATE_VARIABLES,
@@ -37,6 +37,10 @@ const SecondInterviewTemplatesPage = () => {
       refetch();
       setDeleteConfirm(null);
     },
+    onError: (error) => {
+      alert((isEnglish ? 'Error: ' : 'Hata: ') + error.message);
+      setDeleteConfirm(null);
+    }
   });
 
   const handleEdit = (template) => {
@@ -176,70 +180,24 @@ const SecondInterviewTemplatesPage = () => {
         </button>
       </div>
 
-      {/* Variables Info */}
-      <div style={{
-        background: '#F5F3FF',
-        border: '1px solid #DDD6FE',
-        borderRadius: 12,
-        padding: 16,
-        marginBottom: 24,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-          <GripVertical size={16} color="#7C3AED" />
-          <h3 style={{ fontSize: 14, fontWeight: 600, color: '#5B21B6' }}>
-            {t('secondInterviewTemplates.availableVariables', 'Kullanılabilir Değişkenler')}
-          </h3>
-          <span style={{ fontSize: 12, color: '#7C3AED', fontStyle: 'italic' }}>
-            ({t('secondInterviewTemplates.dragDrop', 'Sürükle-bırak ile ekleyin')})
-          </span>
-        </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {variables.map(v => (
-            <span 
-              key={v.key}
-              draggable
-              onDragStart={(e) => {
-                e.dataTransfer.setData('text/plain', `{${v.key}}`);
-              }}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 4,
-                padding: '6px 12px',
-                background: 'white',
-                border: '1px solid #C4B5FD',
-                borderRadius: 6,
-                fontSize: 13,
-                color: '#6D28D9',
-                cursor: 'grab',
-                userSelect: 'none',
-              }}
-            >
-              <code style={{ fontWeight: 600 }}>{`{${v.key}}`}</code>
-              <span style={{ color: '#6B7280' }}>→ {isEnglish ? v.labelEn : v.labelTr}</span>
-            </span>
-          ))}
-        </div>
-      </div>
-
-      {/* Templates Grid */}
+      {/* Templates List */}
       {templates.length === 0 ? (
         <div style={{
           textAlign: 'center',
           padding: 60,
-          background: 'white',
+          background: '#F9FAFB',
           borderRadius: 12,
           border: '2px dashed #E5E7EB',
         }}>
           {activeTab === 'ONLINE' ? (
-            <Video size={48} color="#D1D5DB" style={{ marginBottom: 16 }} />
+            <Video size={48} color="#9CA3AF" style={{ marginBottom: 16 }} />
           ) : (
-            <MapPin size={48} color="#D1D5DB" style={{ marginBottom: 16 }} />
+            <MapPin size={48} color="#9CA3AF" style={{ marginBottom: 16 }} />
           )}
-          <h3 style={{ fontSize: 18, fontWeight: 600, color: '#374151', marginBottom: 8 }}>
+          <h3 style={{ fontSize: 18, fontWeight: 600, color: '#6B7280', marginBottom: 8 }}>
             {t('secondInterviewTemplates.noTemplates', 'Henüz şablon yok')}
           </h3>
-          <p style={{ fontSize: 14, color: '#6B7280', marginBottom: 20 }}>
+          <p style={{ fontSize: 14, color: '#9CA3AF', marginBottom: 20 }}>
             {activeTab === 'ONLINE' 
               ? t('secondInterviewTemplates.createOnlineFirst', 'Online görüşme için ilk şablonunuzu oluşturun')
               : t('secondInterviewTemplates.createInPersonFirst', 'Yüz yüze görüşme için ilk şablonunuzu oluşturun')
@@ -248,22 +206,25 @@ const SecondInterviewTemplatesPage = () => {
           <button
             onClick={() => setShowModal(true)}
             style={{
-              padding: '10px 20px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '12px 24px',
               background: '#8B5CF6',
               color: 'white',
               border: 'none',
-              borderRadius: 8,
+              borderRadius: 10,
               fontSize: 14,
               fontWeight: 600,
               cursor: 'pointer',
             }}
           >
-            <Plus size={16} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+            <Plus size={18} />
             {t('secondInterviewTemplates.newTemplate', 'Yeni Şablon')}
           </button>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 20 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {templates.map((template) => (
             <div
               key={template.id}
@@ -271,145 +232,131 @@ const SecondInterviewTemplatesPage = () => {
                 background: 'white',
                 borderRadius: 12,
                 border: '1px solid #E5E7EB',
-                overflow: 'hidden',
+                padding: 20,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 16,
                 transition: 'all 0.2s',
               }}
             >
-              {/* Card Header */}
+              {/* Icon */}
               <div style={{
-                padding: '16px 20px',
-                borderBottom: '1px solid #E5E7EB',
+                width: 48,
+                height: 48,
+                borderRadius: 12,
+                background: template.isActive ? '#F3E8FF' : '#F3F4F6',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'space-between',
+                justifyContent: 'center',
+                flexShrink: 0,
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 10,
-                    background: template.isActive ? '#F3E8FF' : '#F3F4F6',
+                {template.templateType === 'ONLINE' ? (
+                  <Video size={24} color={template.isActive ? '#7C3AED' : '#9CA3AF'} />
+                ) : (
+                  <MapPin size={24} color={template.isActive ? '#7C3AED' : '#9CA3AF'} />
+                )}
+              </div>
+
+              {/* Info */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <h3 style={{ 
+                    fontSize: 16, 
+                    fontWeight: 600, 
+                    color: '#1F2937',
+                    margin: 0,
+                  }}>
+                    {template.name}
+                  </h3>
+                  {template.isDefault && (
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      padding: '2px 8px',
+                      background: '#FEF3C7',
+                      color: '#D97706',
+                      borderRadius: 4,
+                      fontSize: 11,
+                      fontWeight: 600,
+                    }}>
+                      <Star size={12} fill="#D97706" />
+                      {t('common.default', 'Varsayılan')}
+                    </span>
+                  )}
+                </div>
+                <p style={{ 
+                  fontSize: 13, 
+                  color: '#6B7280',
+                  margin: 0,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}>
+                  <Mail size={12} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+                  {template.subject}
+                </p>
+              </div>
+
+              {/* Status */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '6px 12px',
+                background: template.isActive ? '#D1FAE5' : '#FEE2E2',
+                borderRadius: 20,
+              }}>
+                {template.isActive ? (
+                  <ToggleRight size={16} color="#059669" />
+                ) : (
+                  <ToggleLeft size={16} color="#DC2626" />
+                )}
+                <span style={{
+                  fontSize: 12,
+                  fontWeight: 500,
+                  color: template.isActive ? '#059669' : '#DC2626',
+                }}>
+                  {template.isActive 
+                    ? t('common.active', 'Aktif') 
+                    : t('common.inactive', 'Pasif')}
+                </span>
+              </div>
+
+              {/* Actions */}
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={() => handleEdit(template)}
+                  style={{
+                    padding: 10,
+                    background: '#F3E8FF',
+                    border: 'none',
+                    borderRadius: 8,
+                    cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                  }}>
-                    {template.templateType === 'ONLINE' ? (
-                      <Video size={20} color={template.isActive ? '#7C3AED' : '#9CA3AF'} />
-                    ) : (
-                      <MapPin size={20} color={template.isActive ? '#7C3AED' : '#9CA3AF'} />
-                    )}
-                  </div>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <h3 style={{ fontSize: 16, fontWeight: 600, color: '#1F2937' }}>
-                        {template.name}
-                      </h3>
-                      {template.isDefault && (
-                        <Star size={14} color="#F59E0B" fill="#F59E0B" />
-                      )}
-                    </div>
-                    <span style={{
-                      fontSize: 11,
-                      padding: '2px 6px',
-                      borderRadius: 4,
-                      background: template.language === 'TR' ? '#FEE2E2' : '#DBEAFE',
-                      color: template.language === 'TR' ? '#991B1B' : '#1E40AF',
-                    }}>
-                      {template.language}
-                    </span>
-                  </div>
-                </div>
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                }}>
-                  {template.isActive ? (
-                    <ToggleRight size={24} color="#10B981" />
-                  ) : (
-                    <ToggleLeft size={24} color="#9CA3AF" />
-                  )}
-                </div>
-              </div>
-
-              {/* Card Body */}
-              <div style={{ padding: '16px 20px' }}>
-                <div style={{ marginBottom: 12 }}>
-                  <label style={{ fontSize: 11, color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                    {t('secondInterviewTemplates.subject', 'Konu')}
-                  </label>
-                  <p style={{ fontSize: 14, color: '#374151', fontWeight: 500, marginTop: 4 }}>
-                    {template.subject}
-                  </p>
-                </div>
-                <div>
-                  <label style={{ fontSize: 11, color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                    {t('secondInterviewTemplates.contentPreview', 'İçerik Önizleme')}
-                  </label>
-                  <p style={{ 
-                    fontSize: 13, 
-                    color: '#6B7280', 
-                    marginTop: 4,
-                    lineHeight: 1.5,
-                    maxHeight: 60,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'pre-wrap',
-                  }}>
-                    {template.body.substring(0, 150)}...
-                  </p>
-                </div>
-              </div>
-
-              {/* Card Footer */}
-              <div style={{
-                padding: '12px 20px',
-                background: '#F9FAFB',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}>
-                <span style={{ fontSize: 12, color: '#9CA3AF' }}>
-                  {template.createdAt ? new Date(template.createdAt).toLocaleDateString(isEnglish ? 'en-US' : 'tr-TR') : ''}
-                </span>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button
-                    onClick={() => handleEdit(template)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 4,
-                      padding: '6px 12px',
-                      background: 'white',
-                      border: '1px solid #E5E7EB',
-                      borderRadius: 6,
-                      fontSize: 13,
-                      color: '#374151',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <Edit2 size={14} />
-                    {t('common.edit', 'Düzenle')}
-                  </button>
-                  <button
-                    onClick={() => setDeleteConfirm(template.id)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 4,
-                      padding: '6px 12px',
-                      background: 'white',
-                      border: '1px solid #FCA5A5',
-                      borderRadius: 6,
-                      fontSize: 13,
-                      color: '#DC2626',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <Trash2 size={14} />
-                    {t('common.delete', 'Sil')}
-                  </button>
-                </div>
+                  }}
+                  title={t('common.edit', 'Düzenle')}
+                >
+                  <Edit2 size={16} color="#7C3AED" />
+                </button>
+                <button
+                  onClick={() => setDeleteConfirm(template)}
+                  style={{
+                    padding: 10,
+                    background: '#FEE2E2',
+                    border: 'none',
+                    borderRadius: 8,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                  title={t('common.delete', 'Sil')}
+                >
+                  <Trash2 size={16} color="#DC2626" />
+                </button>
               </div>
             </div>
           ))}
@@ -420,10 +367,7 @@ const SecondInterviewTemplatesPage = () => {
       {deleteConfirm && (
         <div style={{
           position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
+          inset: 0,
           background: 'rgba(0,0,0,0.5)',
           display: 'flex',
           alignItems: 'center',
@@ -440,8 +384,8 @@ const SecondInterviewTemplatesPage = () => {
             <h3 style={{ fontSize: 18, fontWeight: 600, color: '#1F2937', marginBottom: 12 }}>
               {t('secondInterviewTemplates.deleteConfirmTitle', 'Şablonu Sil')}
             </h3>
-            <p style={{ fontSize: 14, color: '#6B7280', marginBottom: 24 }}>
-              {t('secondInterviewTemplates.deleteConfirmMessage', 'Bu şablonu silmek istediğinizden emin misiniz?')}
+            <p style={{ fontSize: 14, color: '#6B7280', marginBottom: 20 }}>
+              "{deleteConfirm.name}" {t('secondInterviewTemplates.deleteConfirmMessage', 'şablonunu silmek istediğinize emin misiniz?')}
             </p>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
               <button
@@ -452,21 +396,22 @@ const SecondInterviewTemplatesPage = () => {
                   border: 'none',
                   borderRadius: 8,
                   fontSize: 14,
-                  color: '#374151',
+                  fontWeight: 500,
                   cursor: 'pointer',
                 }}
               >
                 {t('common.cancel', 'İptal')}
               </button>
               <button
-                onClick={() => handleDelete(deleteConfirm)}
+                onClick={() => handleDelete(deleteConfirm.id)}
                 style={{
                   padding: '10px 20px',
-                  background: '#EF4444',
+                  background: '#DC2626',
+                  color: 'white',
                   border: 'none',
                   borderRadius: 8,
                   fontSize: 14,
-                  color: 'white',
+                  fontWeight: 500,
                   cursor: 'pointer',
                 }}
               >

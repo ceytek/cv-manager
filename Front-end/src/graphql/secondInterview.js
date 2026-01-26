@@ -76,6 +76,30 @@ export const GET_SECOND_INTERVIEW_BY_APPLICATION = gql`
 `;
 
 /**
+ * Get all interviews for a specific application
+ */
+export const GET_ALL_INTERVIEWS_BY_APPLICATION = gql`
+  ${SECOND_INTERVIEW_FRAGMENT}
+  query GetAllInterviewsByApplication($applicationId: String!) {
+    allInterviewsByApplication(applicationId: $applicationId) {
+      ...SecondInterviewFields
+    }
+  }
+`;
+
+/**
+ * Check if there's an active interview for a specific application
+ */
+export const CHECK_ACTIVE_INTERVIEW = gql`
+  ${SECOND_INTERVIEW_FRAGMENT}
+  query CheckActiveInterview($applicationId: String!) {
+    checkActiveInterview(applicationId: $applicationId) {
+      ...SecondInterviewFields
+    }
+  }
+`;
+
+/**
  * Get all second interviews for a specific job
  */
 export const GET_SECOND_INTERVIEWS_BY_JOB = gql`

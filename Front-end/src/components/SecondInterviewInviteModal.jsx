@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { 
   SEND_SECOND_INTERVIEW_INVITE,
-  GET_SECOND_INTERVIEW_BY_APPLICATION,
+  CHECK_ACTIVE_INTERVIEW,
   INTERVIEW_TYPES,
   INTERVIEW_PLATFORMS 
 } from '../graphql/secondInterview';
@@ -83,31 +83,31 @@ const SecondInterviewInviteModal = ({
   const companyAddresses = addressesData?.companyAddresses || [];
   const selectedAddress = companyAddresses.find(a => a.id === selectedAddressId);
   
-  // Backend'den mevcut 2. görüşmeyi sorgula
-  const { data: existingData, loading: checkingExisting } = useQuery(GET_SECOND_INTERVIEW_BY_APPLICATION, {
+  // Backend'den aktif mülakat kontrolü yap
+  const { data: activeData, loading: checkingActive } = useQuery(CHECK_ACTIVE_INTERVIEW, {
     variables: { applicationId: application?.id },
     skip: !isOpen || !application?.id,
     fetchPolicy: 'network-only', // Her zaman backend'den kontrol et
   });
   
-  // Backend'den gelen mevcut görüşme
-  const fetchedInterview = existingData?.secondInterviewByApplication;
+  // Backend'den gelen aktif mülakat (tarihi gelmemiş veya tamamlanmamış)
+  const activeInterviewFromBackend = activeData?.checkActiveInterview;
   
-  // 2. görüşme zaten varsa (prop olarak veya backend'den)
-  const hasExistingSecondInterview = !!existingInterview || !!fetchedInterview;
+  // Aktif mülakat var mı? (prop olarak veya backend'den)
+  const hasActiveInterview = !!existingInterview || !!activeInterviewFromBackend;
   
   // Modal açıldığında kontrol yap
   useEffect(() => {
-    if (isOpen && fetchedInterview && !existingInterview) {
+    if (isOpen && activeInterviewFromBackend && !existingInterview) {
       setAlreadyExists(true);
     }
-  }, [isOpen, fetchedInterview, existingInterview]);
+  }, [isOpen, activeInterviewFromBackend, existingInterview]);
   
-  // Eğer mevcut interview varsa view mode'da göster
-  const isViewMode = hasExistingSecondInterview || alreadyExists;
+  // Eğer aktif mülakat varsa view mode'da göster (yeni oluşturmaya izin verme)
+  const isViewMode = hasActiveInterview || alreadyExists;
   
   // Aktif interview verisi (prop'tan veya backend'den)
-  const activeInterview = existingInterview || fetchedInterview;
+  const activeInterview = existingInterview || activeInterviewFromBackend;
 
   // Platform options with icons and labels
   const platformOptions = [
@@ -321,7 +321,7 @@ const SecondInterviewInviteModal = ({
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'white' }}>
             <Users size={24} />
             <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '600' }}>
-              {t('secondInterview.invite.title', '2. Görüşme Daveti')}
+              {t('secondInterview.invite.title', 'Yüzyüze/Online Mülakat Daveti')}
             </h2>
           </div>
           <button 
@@ -372,10 +372,10 @@ const SecondInterviewInviteModal = ({
                 </div>
               </div>
 
-              {checkingExisting ? (
+              {checkingActive ? (
                 <div style={{ textAlign: 'center', padding: 40 }}>
                   <div className="loading-spinner" style={{ width: 32, height: 32, margin: '0 auto 16px' }} />
-                  <p style={{ color: '#6B7280' }}>Kontrol ediliyor...</p>
+                  <p style={{ color: '#6B7280' }}>{t('common.loading', 'Kontrol ediliyor...')}</p>
                 </div>
               ) : activeInterview ? (
                 <>
@@ -451,7 +451,7 @@ const SecondInterviewInviteModal = ({
                 }}>
                   <Users size={40} color="#D97706" style={{ marginBottom: 16 }} />
                   <p style={{ margin: 0, color: '#92400E', fontWeight: 600, fontSize: 16 }}>
-                    Bu aday için 2. görüşme daveti zaten gönderilmiş.
+                    {t('secondInterview.invite.activeInterviewWarning', 'Bu adayın tarihi gelmemiş veya tamamlanmamış aktif bir mülakatı var')}
                   </p>
                 </div>
               )}

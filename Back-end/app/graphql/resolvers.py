@@ -2194,6 +2194,26 @@ class Query:
         from app.modules.second_interview.resolvers import get_second_interviews_by_job
         return get_second_interviews_by_job(info, job_id)
 
+    @strawberry.field
+    def all_interviews_by_application(
+        self, 
+        info: Info, 
+        application_id: str = strawberry.argument(name="applicationId")
+    ) -> List[SecondInterviewGQLType]:
+        """Get all interviews for a specific application"""
+        from app.modules.second_interview.resolvers import get_all_interviews_by_application
+        return get_all_interviews_by_application(info, application_id)
+
+    @strawberry.field
+    def check_active_interview(
+        self, 
+        info: Info, 
+        application_id: str = strawberry.argument(name="applicationId")
+    ) -> Optional[SecondInterviewGQLType]:
+        """Check if there's an active interview (not completed and date not passed)"""
+        from app.modules.second_interview.resolvers import check_active_interview
+        return check_active_interview(info, application_id)
+
     # ============================================
     # Second Interview Template Queries
     # ============================================
