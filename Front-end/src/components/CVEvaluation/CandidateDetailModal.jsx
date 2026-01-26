@@ -434,7 +434,7 @@ const CandidateDetailModal = ({ candidate, onClose, jobId, jobTitle, application
                 }}
               >
                 <Users size={16} />
-                {t('candidateDetail.secondInterview', '2. Görüşme Daveti')}
+                {t('candidateDetail.secondInterview', 'Yüzyüze/Online Mülakat')}
               </button>
               <button 
                 onClick={() => {
