@@ -5,7 +5,7 @@
 import React, { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@apollo/client/react';
-import { X, FileText, BarChart2, Video, ListChecks, CheckCircle2, Clock, Send, Download, XCircle, FileSearch, Upload, Play, UserCheck, MessageSquare, Search, Loader2, Sparkles, Bot } from 'lucide-react';
+import { X, FileText, BarChart2, Video, ListChecks, CheckCircle2, Clock, Send, Download, XCircle, FileSearch, Upload, Play, UserCheck, UserX, MessageSquare, Search, Loader2, Sparkles, Bot, Users } from 'lucide-react';
 import { GET_APPLICATION_HISTORY } from '../../graphql/history';
 import { API_BASE_URL } from '../../config/api';
 
@@ -19,6 +19,8 @@ const ICON_MAP = {
   'video': Video,
   'x-circle': XCircle,
   'user-check': UserCheck,
+  'user-x': UserX,
+  'users': Users,
   'message-square': MessageSquare,
   'file-text': FileText,
   'bar-chart-2': BarChart2,
@@ -146,9 +148,10 @@ const CandidateHistoryModal = ({
           'interview_sent': isEnglish ? 'AI Interview link was shared with the candidate.' : 'AI Görüşme bağlantısı aday ile paylaşıldı.',
           'interview_started': isEnglish ? 'Candidate started the AI Interview.' : 'Aday AI Görüşmeye başladı.',
           'interview_completed': isEnglish ? 'Candidate completed the AI Interview.' : 'Aday AI Görüşmeyi tamamladı.',
-          'second_interview_sent': isEnglish ? '2nd interview invitation was sent.' : '2. Görüşme daveti gönderildi.',
-          'second_interview_completed': isEnglish ? '2nd interview was completed.' : '2. Görüşme tamamlandı.',
-          'second_interview_cancelled': isEnglish ? '2nd interview was cancelled.' : '2. Görüşme iptal edildi.',
+          'second_interview_sent': isEnglish ? 'Face-to-face/Online interview invitation was sent.' : 'Yüzyüze/Online görüşme daveti gönderildi.',
+          'second_interview_completed': isEnglish ? 'Face-to-face/Online interview was completed.' : 'Yüzyüze/Online görüşme tamamlandı.',
+          'second_interview_no_show': isEnglish ? 'Candidate did not attend the interview.' : 'Aday görüşmeye gelmedi.',
+          'second_interview_cancelled': isEnglish ? 'Face-to-face/Online interview was cancelled.' : 'Yüzyüze/Online görüşme iptal edildi.',
           'rejected': isEnglish ? 'Application has been rejected.' : 'Başvuru reddedildi.',
           'hired': isEnglish ? 'Candidate has been hired!' : 'Aday işe alındı!',
           'note_added': isEnglish ? 'A note was added.' : 'Not eklendi.',
@@ -161,10 +164,19 @@ const CandidateHistoryModal = ({
         }
       }
 
+      // Add interview number to title for second interview actions
+      let title = isEnglish ? actionType.nameEn : actionType.nameTr;
+      if (['second_interview_sent', 'second_interview_completed', 'second_interview_no_show', 'second_interview_cancelled'].includes(actionCode)) {
+        const interviewNumber = entry.actionData?.interview_number;
+        if (interviewNumber) {
+          title = `${interviewNumber}. ${title}`;
+        }
+      }
+
       return {
         id: entry.id,
         type: actionCode,
-        title: isEnglish ? actionType.nameEn : actionType.nameTr,
+        title,
         description,
         date: new Date(entry.createdAt),
         icon: IconComponent,

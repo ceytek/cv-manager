@@ -267,6 +267,13 @@ async def send_second_interview_invite(
                 message="Candidate has an active interview scheduled for " + str(active_interview.scheduled_date)
             )
         
+        # Count existing interviews to determine interview number
+        existing_interview_count = db.query(SecondInterview).filter(
+            SecondInterview.application_id == input.application_id,
+            SecondInterview.company_id == company_id
+        ).count()
+        interview_number = existing_interview_count + 1
+        
         # Parse interview type
         interview_type = InterviewTypeEnum.ONLINE
         if input.interview_type == "in_person":
@@ -323,6 +330,7 @@ async def send_second_interview_invite(
                 action_type_id=action_type.id,
                 performed_by=current_user.id if current_user else None,
                 action_data={
+                    "interview_number": interview_number,
                     "interview_type": interview_type.value,
                     "platform": platform.value if platform else None,
                     "scheduled_date": input.scheduled_date,
@@ -404,6 +412,13 @@ async def submit_second_interview_feedback(
         interview.feedback_by = current_user.id
         interview.feedback_at = datetime.utcnow()
         
+        # Count interviews to determine the interview number for this interview
+        interview_number = db.query(SecondInterview).filter(
+            SecondInterview.application_id == interview.application_id,
+            SecondInterview.company_id == company_id,
+            SecondInterview.created_at <= interview.created_at
+        ).count()
+        
         # Update application status based on outcome
         application = interview.application
         if application:
@@ -416,33 +431,57 @@ async def submit_second_interview_feedback(
                 # If pending likert, update to likert invited
                 elif new_outcome == SecondInterviewOutcome.PENDING_LIKERT:
                     application.status = ApplicationStatus.LIKERT_INVITED
+            elif new_status == SecondInterviewStatus.NO_SHOW:
+                # Keep as invited so they can be invited again
+                application.status = ApplicationStatus.SECOND_INTERVIEW_INVITED
             
-            # Add history entry for interview completion
-            action_type = db.query(ActionType).filter(ActionType.code == "second_interview_completed").first()
-            if action_type:
-                # Build outcome text for history
-                outcome_texts = {
-                    "passed": "Başarılı - Teklif Aşamasına Geçirildi",
-                    "rejected": "Reddedildi",
-                    "pending_likert": "Likert Teste Yönlendirildi",
-                }
-                outcome_text = outcome_texts.get(input.outcome, input.outcome) if input.outcome else None
-                
-                history_entry = ApplicationHistory(
-                    company_id=company_id,
-                    application_id=application.id,
-                    candidate_id=application.candidate_id,
-                    job_id=application.job_id,
-                    action_type_id=action_type.id,
-                    performed_by=current_user.id if current_user else None,
-                    action_data={
-                        "status": input.status,
-                        "outcome": input.outcome,
-                        "outcome_text": outcome_text,
-                        "feedback_notes": input.feedback_notes,
+            # Add history entry based on status
+            if new_status == SecondInterviewStatus.NO_SHOW:
+                # No show - use separate action type
+                action_type = db.query(ActionType).filter(ActionType.code == "second_interview_no_show").first()
+                if action_type:
+                    history_entry = ApplicationHistory(
+                        company_id=company_id,
+                        application_id=application.id,
+                        candidate_id=application.candidate_id,
+                        job_id=application.job_id,
+                        action_type_id=action_type.id,
+                        performed_by=current_user.id if current_user else None,
+                        action_data={
+                            "interview_number": interview_number,
+                            "status": input.status,
+                            "feedback_notes": input.feedback_notes,
+                        }
+                    )
+                    db.add(history_entry)
+            else:
+                # Completed or other status
+                action_type = db.query(ActionType).filter(ActionType.code == "second_interview_completed").first()
+                if action_type:
+                    # Build outcome text for history
+                    outcome_texts = {
+                        "passed": "Başarılı - Teklif Aşamasına Geçirildi",
+                        "rejected": "Reddedildi",
+                        "pending_likert": "Likert Teste Yönlendirildi",
                     }
-                )
-                db.add(history_entry)
+                    outcome_text = outcome_texts.get(input.outcome, input.outcome) if input.outcome else None
+                    
+                    history_entry = ApplicationHistory(
+                        company_id=company_id,
+                        application_id=application.id,
+                        candidate_id=application.candidate_id,
+                        job_id=application.job_id,
+                        action_type_id=action_type.id,
+                        performed_by=current_user.id if current_user else None,
+                        action_data={
+                            "interview_number": interview_number,
+                            "status": input.status,
+                            "outcome": input.outcome,
+                            "outcome_text": outcome_text,
+                            "feedback_notes": input.feedback_notes,
+                        }
+                    )
+                    db.add(history_entry)
         
         db.commit()
         db.refresh(interview)
@@ -494,6 +533,13 @@ async def cancel_second_interview(info: Info, id: str) -> SecondInterviewRespons
         if interview.application:
             interview.application.status = ApplicationStatus.INTERVIEW_COMPLETED
         
+        # Count interviews to determine the interview number
+        interview_number = db.query(SecondInterview).filter(
+            SecondInterview.application_id == interview.application_id,
+            SecondInterview.company_id == company_id,
+            SecondInterview.created_at <= interview.created_at
+        ).count()
+        
         # Add history entry for cancellation
         action_type = db.query(ActionType).filter(ActionType.code == "second_interview_cancelled").first()
         if action_type and interview.application:
@@ -506,6 +552,7 @@ async def cancel_second_interview(info: Info, id: str) -> SecondInterviewRespons
                 action_type_id=action_type.id,
                 performed_by=current_user.id if current_user else None,
                 action_data={
+                    "interview_number": interview_number,
                     "interview_type": interview.interview_type.value if interview.interview_type else None,
                     "scheduled_date": str(interview.scheduled_date) if interview.scheduled_date else None,
                     "scheduled_time": interview.scheduled_time,
