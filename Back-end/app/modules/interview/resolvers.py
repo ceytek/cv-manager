@@ -72,6 +72,7 @@ def get_interview_templates(info: Info) -> List[InterviewTemplateType]:
                 is_active=t.is_active,
                 ai_analysis_enabled=t.ai_analysis_enabled or False,
                 voice_response_enabled=t.voice_response_enabled or False,
+                is_ai_generated=getattr(t, 'is_ai_generated', False) or False,
                 question_count=len(t.questions),
                 questions=[],
                 created_at=t.created_at.isoformat(),
@@ -107,6 +108,7 @@ def get_interview_template(info: Info, id: str) -> Optional[InterviewTemplateTyp
             is_active=template.is_active,
             ai_analysis_enabled=template.ai_analysis_enabled or False,
             voice_response_enabled=template.voice_response_enabled or False,
+            is_ai_generated=getattr(template, 'is_ai_generated', False) or False,
             question_count=len(template.questions),
             questions=[
                 InterviewQuestionType(
@@ -415,6 +417,7 @@ async def create_interview_template(info: Info, input: InterviewTemplateInput) -
             total_duration=input.total_duration,
             ai_analysis_enabled=input.ai_analysis_enabled,
             voice_response_enabled=input.voice_response_enabled,
+            is_ai_generated=input.is_ai_generated,
             is_active=True,
         )
         db.add(template)
@@ -483,6 +486,7 @@ async def update_interview_template(info: Info, id: str, input: InterviewTemplat
         template.total_duration = input.total_duration
         template.ai_analysis_enabled = input.ai_analysis_enabled
         template.voice_response_enabled = input.voice_response_enabled
+        template.is_ai_generated = input.is_ai_generated
         
         # Get existing questions
         existing_questions = db.query(InterviewQuestion).filter(

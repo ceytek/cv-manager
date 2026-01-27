@@ -16,6 +16,7 @@ export const GET_INTERVIEW_TEMPLATES = gql`
       totalDuration
       aiAnalysisEnabled
       voiceResponseEnabled
+      isAiGenerated
       isActive
       questionCount
       createdAt

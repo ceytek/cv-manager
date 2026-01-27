@@ -16,7 +16,9 @@ import {
   HelpCircle,
   XCircle,
   Clock,
-  Globe
+  Globe,
+  Sparkles,
+  Eye
 } from 'lucide-react';
 import { 
   GET_INTERVIEW_TEMPLATES, 
@@ -147,7 +149,7 @@ const InterviewTemplatesPage = () => {
         />
       </div>
 
-      {/* Templates Grid */}
+      {/* Templates List */}
       {filteredTemplates.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '60px 20px', background: '#F9FAFB', borderRadius: '12px', border: '2px dashed #E5E7EB' }}>
           <HelpCircle size={48} style={{ color: '#9CA3AF', marginBottom: '16px' }} />
@@ -156,63 +158,151 @@ const InterviewTemplatesPage = () => {
           </h3>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '20px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {filteredTemplates.map(template => (
-            <div key={template.id} style={{ background: 'white', borderRadius: '12px', border: '1px solid #E5E7EB', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-              {/* Card Header */}
-              <div style={{ padding: '16px 20px', borderBottom: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
-                  <Video size={20} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: '#111827' }}>{template.name}</h3>
-                  {template.description && (
-                    <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {template.description}
-                    </p>
+            <div 
+              key={template.id} 
+              style={{ 
+                background: 'white', 
+                borderRadius: '16px', 
+                border: '1px solid #E5E7EB', 
+                padding: '20px 24px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '16px',
+                transition: 'all 0.2s',
+              }}
+            >
+              {/* Icon */}
+              <div style={{
+                width: '52px',
+                height: '52px',
+                borderRadius: '14px',
+                background: template.isAiGenerated 
+                  ? 'linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%)' 
+                  : 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}>
+                {template.isAiGenerated ? (
+                  <Sparkles size={24} color="white" />
+                ) : (
+                  <Video size={24} color="white" />
+                )}
+              </div>
+
+              {/* Info */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: '#111827' }}>
+                    {template.name}
+                  </h3>
+                  {template.isAiGenerated && (
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '3px 8px',
+                      background: 'linear-gradient(135deg, #EDE9FE 0%, #DDD6FE 100%)',
+                      color: '#7C3AED',
+                      borderRadius: '6px',
+                      fontSize: '11px',
+                      fontWeight: '600',
+                    }}>
+                      <Sparkles size={11} />
+                      AI
+                    </span>
                   )}
                 </div>
-                <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: '500', background: template.isActive ? '#D1FAE5' : '#FEE2E2', color: template.isActive ? '#059669' : '#DC2626' }}>
+                <p style={{ 
+                  margin: 0, 
+                  fontSize: '13px', 
+                  color: '#6B7280',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '16px',
+                  flexWrap: 'wrap',
+                }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <HelpCircle size={13} />
+                    {template.questionCount} {t('interviewTemplates.questions')}
+                  </span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <Clock size={13} />
+                    {template.useGlobalTimer 
+                      ? formatDuration(template.totalDuration || 0)
+                      : formatDuration(template.durationPerQuestion)}
+                  </span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <Globe size={13} />
+                    {template.language === 'en' ? 'English' : 'Türkçe'}
+                  </span>
+                </p>
+              </div>
+
+              {/* Status Badge */}
+              <button
+                onClick={() => handleToggle(template.id)}
+                disabled={toggling}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '8px 14px',
+                  background: template.isActive ? '#D1FAE5' : '#FEE2E2',
+                  border: 'none',
+                  borderRadius: '20px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+                title={template.isActive ? t('common.clickToDeactivate') : t('common.clickToActivate')}
+              >
+                <Eye size={14} color={template.isActive ? '#059669' : '#DC2626'} />
+                <span style={{
+                  fontSize: '13px',
+                  fontWeight: '500',
+                  color: template.isActive ? '#059669' : '#DC2626',
+                }}>
                   {template.isActive ? t('common.active') : t('common.inactive')}
                 </span>
-              </div>
+              </button>
 
-              {/* Card Body */}
-              <div style={{ padding: '16px 20px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
-                  <div style={{ padding: '10px', background: '#F9FAFB', borderRadius: '8px' }}>
-                    <div style={{ fontSize: '12px', color: '#6B7280', marginBottom: '4px' }}>{t('interviewTemplates.questionCount')}</div>
-                    <div style={{ fontSize: '14px', fontWeight: '600', color: '#374151' }}>{template.questionCount} {t('interviewTemplates.questions')}</div>
-                  </div>
-                  <div style={{ padding: '10px', background: '#F9FAFB', borderRadius: '8px' }}>
-                    <div style={{ fontSize: '12px', color: '#6B7280', marginBottom: '4px' }}>
-                      <Clock size={12} style={{ display: 'inline', marginRight: 4 }} />
-                      {template.useGlobalTimer ? t('interviewTemplates.totalDuration') : t('interviewTemplates.durationPerQuestion')}
-                    </div>
-                    <div style={{ fontSize: '14px', fontWeight: '600', color: '#374151' }}>
-                      {template.useGlobalTimer 
-                        ? formatDuration(template.totalDuration || 0)
-                        : formatDuration(template.durationPerQuestion)}
-                    </div>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', background: '#EFF6FF', borderRadius: '8px', fontSize: '13px', color: '#1D4ED8' }}>
-                  <Globe size={14} />
-                  {template.language === 'en' ? 'EN' : 'TR'}
-                </div>
-              </div>
-
-              {/* Card Actions */}
-              <div style={{ padding: '12px 20px', borderTop: '1px solid #F3F4F6', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                <button onClick={() => handleToggle(template.id)} disabled={toggling} title={template.isActive ? t('common.clickToDeactivate') : t('common.clickToActivate')} style={{ padding: '8px 12px', border: 'none', borderRadius: '8px', background: template.isActive ? '#D1FAE5' : '#F3F4F6', color: template.isActive ? '#059669' : '#6B7280', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: '500' }}>
-                  {template.isActive ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
-                  <span>{template.isActive ? t('common.on') : t('common.off')}</span>
+              {/* Actions */}
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={() => handleEdit(template)}
+                  style={{
+                    padding: '10px',
+                    background: '#EEF2FF',
+                    border: 'none',
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                  title={t('common.edit')}
+                >
+                  <Edit2 size={18} color="#6366F1" />
                 </button>
-                <button onClick={() => handleEdit(template)} style={{ padding: '8px 12px', border: 'none', borderRadius: '8px', background: '#EFF6FF', color: '#3B82F6', cursor: 'pointer' }}>
-                  <Edit2 size={16} />
-                </button>
-                <button onClick={() => setDeleteConfirm(template)} disabled={deleting} style={{ padding: '8px 12px', border: 'none', borderRadius: '8px', background: '#FEE2E2', color: '#DC2626', cursor: 'pointer' }}>
-                  <Trash2 size={16} />
+                <button
+                  onClick={() => setDeleteConfirm(template)}
+                  disabled={deleting}
+                  style={{
+                    padding: '10px',
+                    background: '#FEE2E2',
+                    border: 'none',
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                  title={t('common.delete')}
+                >
+                  <Trash2 size={18} color="#DC2626" />
                 </button>
               </div>
             </div>

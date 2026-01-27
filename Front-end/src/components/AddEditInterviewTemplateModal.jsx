@@ -39,7 +39,7 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
   // AI tab specific state
   const [aiQuestionCount, setAiQuestionCount] = useState(5);
   const [aiGenerating, setAiGenerating] = useState(false);
-  const [aiQuestionsText, setAiQuestionsText] = useState('');
+  const [aiQuestions, setAiQuestions] = useState([]); // Array of {id, text, timeLimit}
 
   // Duration options
   const questionDurationOptions = [
@@ -106,7 +106,7 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
     setAiAnalysisEnabled(true);
     setVoiceResponseEnabled(true);
     setQuestions([]);
-    setAiQuestionsText('');
+    setAiQuestions([]);
     setAiQuestionCount(5);
     setActiveTab('manual');
   };
@@ -168,8 +168,13 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
 
       if (result.data?.generateInterviewQuestions?.success) {
         const generatedQuestions = result.data.generateInterviewQuestions.questions || [];
-        // Put questions in textarea for editing
-        setAiQuestionsText(generatedQuestions.join('\n\n'));
+        // Convert to array with ids and time limits
+        setAiQuestions(generatedQuestions.map((text, index) => ({
+          id: `ai-${Date.now()}-${index}`,
+          text: text.replace(/^\d+[\.\)\-]\s*/, '').trim(), // Remove numbering
+          order: index + 1,
+          timeLimit: parseInt(durationPerQuestion),
+        })));
       } else {
         setError(result.data?.generateInterviewQuestions?.error || 'AI soru üretimi başarısız');
       }
@@ -181,19 +186,33 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
     }
   };
 
-  // Convert AI textarea questions to questions array
-  const parseAiQuestions = () => {
-    if (!aiQuestionsText.trim()) return [];
-    return aiQuestionsText
-      .split('\n')
-      .map(line => line.trim())
-      .filter(line => line.length > 0)
-      .map((text, index) => ({
-        id: `ai-${Date.now()}-${index}`,
-        text: text.replace(/^\d+[\.\)\-]\s*/, ''), // Remove numbering
-        order: index + 1,
-        timeLimit: parseInt(durationPerQuestion),
-      }));
+  // AI question management functions
+  const updateAiQuestion = (index, newText) => {
+    const updated = [...aiQuestions];
+    updated[index].text = newText;
+    setAiQuestions(updated);
+  };
+
+  const updateAiQuestionTimeLimit = (index, timeLimit) => {
+    const updated = [...aiQuestions];
+    updated[index].timeLimit = parseInt(timeLimit);
+    setAiQuestions(updated);
+  };
+
+  const removeAiQuestion = (index) => {
+    const updated = aiQuestions.filter((_, i) => i !== index);
+    updated.forEach((q, i) => q.order = i + 1);
+    setAiQuestions(updated);
+  };
+
+  const moveAiQuestion = (index, direction) => {
+    if ((direction === -1 && index === 0) || (direction === 1 && index === aiQuestions.length - 1)) return;
+    const newQuestions = [...aiQuestions];
+    const temp = newQuestions[index];
+    newQuestions[index] = newQuestions[index + direction];
+    newQuestions[index + direction] = temp;
+    newQuestions.forEach((q, i) => q.order = i + 1);
+    setAiQuestions(newQuestions);
   };
 
   const handleSave = async () => {
@@ -205,7 +224,7 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
     // Get questions based on active tab
     let finalQuestions = questions;
     if (activeTab === 'ai') {
-      finalQuestions = parseAiQuestions();
+      finalQuestions = aiQuestions.filter(q => q.text.trim().length > 0);
     }
 
     if (finalQuestions.length === 0) {
@@ -227,6 +246,7 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
         totalDuration: useGlobalTimer ? parseInt(totalDuration) : null,
         aiAnalysisEnabled,
         voiceResponseEnabled,
+        isAiGenerated: activeTab === 'ai',
         questions: finalQuestions.map((q, i) => ({
           questionText: q.text,
           questionOrder: i + 1,
@@ -422,33 +442,133 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
                 </button>
               </div>
 
-              {/* AI Generated Questions Textarea */}
-              {aiQuestionsText && (
+              {/* AI Generated Questions - Individual Editable Cards */}
+              {aiQuestions.length > 0 && (
                 <div>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px', color: '#5B21B6' }}>
-                    {isEnglish ? 'Generated Questions (edit as needed)' : 'Oluşturulan Sorular (düzenleyebilirsiniz)'}
+                  <label style={{ display: 'block', marginBottom: '12px', fontWeight: '500', fontSize: '14px', color: '#5B21B6' }}>
+                    {isEnglish ? 'Generated Questions' : 'Oluşturulan Sorular'} ({aiQuestions.length})
+                    <span style={{ fontWeight: '400', marginLeft: '8px', fontSize: '12px', color: '#7C3AED' }}>
+                      ({isEnglish ? 'edit as needed' : 'düzenleyebilirsiniz'})
+                    </span>
                   </label>
-                  <textarea
-                    value={aiQuestionsText}
-                    onChange={(e) => setAiQuestionsText(e.target.value)}
-                    placeholder={isEnglish ? 'AI generated questions will appear here...' : 'AI tarafından oluşturulan sorular burada görünecek...'}
-                    style={{
-                      width: '100%',
-                      minHeight: '200px',
-                      padding: '12px',
-                      border: '2px solid #DDD6FE',
-                      borderRadius: '8px',
-                      fontSize: '14px',
-                      lineHeight: '1.8',
-                      resize: 'vertical',
-                      fontFamily: 'inherit',
-                    }}
-                  />
-                  <p style={{ margin: '8px 0 0', fontSize: '12px', color: '#6B7280' }}>
-                    {isEnglish 
-                      ? 'Each line or paragraph will be treated as a separate question. Edit freely before saving.'
-                      : 'Her satır veya paragraf ayrı bir soru olarak değerlendirilecek. Kaydetmeden önce düzenleyebilirsiniz.'}
-                  </p>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {aiQuestions.map((q, index) => (
+                      <div 
+                        key={q.id} 
+                        style={{ 
+                          display: 'flex', 
+                          alignItems: 'flex-start', 
+                          gap: '12px', 
+                          padding: '16px', 
+                          background: 'white', 
+                          borderRadius: '10px',
+                          border: '1px solid #DDD6FE',
+                        }}
+                      >
+                        {/* Order controls */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', paddingTop: '8px' }}>
+                          <button 
+                            onClick={() => moveAiQuestion(index, -1)} 
+                            disabled={index === 0} 
+                            style={{ 
+                              padding: '4px', 
+                              background: 'transparent', 
+                              border: 'none', 
+                              cursor: index === 0 ? 'default' : 'pointer', 
+                              opacity: index === 0 ? 0.3 : 1,
+                              fontSize: '12px',
+                            }}
+                          >▲</button>
+                          <button 
+                            onClick={() => moveAiQuestion(index, 1)} 
+                            disabled={index === aiQuestions.length - 1} 
+                            style={{ 
+                              padding: '4px', 
+                              background: 'transparent', 
+                              border: 'none', 
+                              cursor: index === aiQuestions.length - 1 ? 'default' : 'pointer', 
+                              opacity: index === aiQuestions.length - 1 ? 0.3 : 1,
+                              fontSize: '12px',
+                            }}
+                          >▼</button>
+                        </div>
+                        
+                        {/* Question number */}
+                        <span style={{ 
+                          width: '28px', 
+                          height: '28px', 
+                          borderRadius: '50%', 
+                          background: '#8B5CF6', 
+                          color: 'white', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center', 
+                          fontSize: '13px', 
+                          fontWeight: '600', 
+                          flexShrink: 0,
+                          marginTop: '8px',
+                        }}>
+                          {index + 1}
+                        </span>
+                        
+                        {/* Editable question textarea */}
+                        <textarea
+                          value={q.text}
+                          onChange={(e) => updateAiQuestion(index, e.target.value)}
+                          style={{
+                            flex: 1,
+                            padding: '10px 12px',
+                            border: '1px solid #E5E7EB',
+                            borderRadius: '8px',
+                            fontSize: '14px',
+                            lineHeight: '1.5',
+                            resize: 'vertical',
+                            minHeight: '60px',
+                            fontFamily: 'inherit',
+                          }}
+                          placeholder={isEnglish ? 'Edit question...' : 'Soruyu düzenleyin...'}
+                        />
+                        
+                        {/* Time limit selector */}
+                        {!useGlobalTimer && (
+                          <select
+                            value={q.timeLimit}
+                            onChange={(e) => updateAiQuestionTimeLimit(index, e.target.value)}
+                            style={{
+                              padding: '8px 12px',
+                              borderRadius: '8px',
+                              border: '1px solid #E5E7EB',
+                              fontSize: '13px',
+                              background: 'white',
+                              cursor: 'pointer',
+                              flexShrink: 0,
+                            }}
+                          >
+                            {questionDurationOptions.map(opt => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </select>
+                        )}
+                        
+                        {/* Delete button */}
+                        <button 
+                          onClick={() => removeAiQuestion(index)} 
+                          style={{ 
+                            padding: '8px', 
+                            background: '#FEE2E2', 
+                            border: 'none', 
+                            borderRadius: '8px', 
+                            cursor: 'pointer', 
+                            color: '#DC2626',
+                            flexShrink: 0,
+                          }}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
