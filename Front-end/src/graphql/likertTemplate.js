@@ -53,8 +53,8 @@ export const GET_LIKERT_TEMPLATE_VARIABLES = gql`
 // ============================================
 
 export const CREATE_LIKERT_TEMPLATE = gql`
-  mutation CreateLikertTemplate($input: LikertEmailTemplateInput!) {
-    createLikertTemplate(input: $input) {
+  mutation CreateLikertEmailTemplate($input: LikertEmailTemplateInput!) {
+    createLikertEmailTemplate(input: $input) {
       success
       message
       template {
@@ -72,8 +72,8 @@ export const CREATE_LIKERT_TEMPLATE = gql`
 `;
 
 export const UPDATE_LIKERT_TEMPLATE = gql`
-  mutation UpdateLikertTemplate($id: String!, $input: LikertEmailTemplateUpdateInput!) {
-    updateLikertTemplate(id: $id, input: $input) {
+  mutation UpdateLikertEmailTemplate($id: String!, $input: LikertEmailTemplateUpdateInput!) {
+    updateLikertEmailTemplate(id: $id, input: $input) {
       success
       message
       template {
@@ -92,8 +92,8 @@ export const UPDATE_LIKERT_TEMPLATE = gql`
 `;
 
 export const DELETE_LIKERT_TEMPLATE = gql`
-  mutation DeleteLikertTemplate($id: String!) {
-    deleteLikertTemplate(id: $id) {
+  mutation DeleteLikertEmailTemplate($id: String!) {
+    deleteLikertEmailTemplate(id: $id) {
       success
       message
     }

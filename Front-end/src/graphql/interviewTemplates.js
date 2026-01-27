@@ -124,7 +124,23 @@ export const GENERATE_INTERVIEW_QUESTIONS = gql`
   mutation GenerateInterviewQuestions($input: GenerateInterviewQuestionsInput!) {
     generateInterviewQuestions(input: $input) {
       success
-      questions
+      questions {
+        text
+        type
+      }
+      error
+    }
+  }
+`;
+
+export const REGENERATE_SINGLE_QUESTION = gql`
+  mutation RegenerateSingleQuestion($input: RegenerateSingleQuestionInput!) {
+    regenerateSingleQuestion(input: $input) {
+      success
+      question {
+        text
+        type
+      }
       error
     }
   }

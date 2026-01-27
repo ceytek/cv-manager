@@ -38,6 +38,7 @@ class LikertTemplateType:
     scale_labels: Optional[List[str]] = strawberry.field(name="scaleLabels", default=None)
     language: str = "tr"
     is_active: bool = strawberry.field(name="isActive", default=True)
+    is_ai_generated: bool = strawberry.field(name="isAiGenerated", default=False)
     time_limit: Optional[int] = strawberry.field(name="timeLimit", default=None)  # Total time in seconds
     question_count: int = strawberry.field(name="questionCount", default=0)
     questions: List[LikertQuestionType] = strawberry.field(default_factory=list)
@@ -75,6 +76,7 @@ class LikertTemplateInput:
     scale_labels: Optional[List[str]] = strawberry.field(name="scaleLabels", default=None)
     language: str = "tr"
     time_limit: Optional[int] = strawberry.field(name="timeLimit", default=None)  # Total time in seconds
+    is_ai_generated: bool = strawberry.field(name="isAiGenerated", default=False)
     questions: List['LikertQuestionInput'] = strawberry.field(default_factory=list)
 
 

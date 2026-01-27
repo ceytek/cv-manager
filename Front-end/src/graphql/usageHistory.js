@@ -67,6 +67,7 @@ export const GET_USAGE_PERIODS = gql`
       cvUploads
       interviewCompleted
       interviewAIAnalysis
+      aiQuestionGeneration
     }
   }
 `;

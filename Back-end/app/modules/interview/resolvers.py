@@ -433,6 +433,36 @@ async def create_interview_template(info: Info, input: InterviewTemplateInput) -
             )
             db.add(question)
         
+        # If AI generated, track usage
+        if input.is_ai_generated:
+            from app.models.subscription import UsageTracking
+            from datetime import date
+            from calendar import monthrange
+            import secrets
+            
+            today = date.today()
+            month_start = date(today.year, today.month, 1)
+            last_day = monthrange(today.year, today.month)[1]
+            month_end = date(today.year, today.month, last_day)
+            
+            batch_number = secrets.token_hex(3).upper()
+            
+            usage_entry = UsageTracking(
+                company_id=company_id,
+                resource_type="ai_question_generation",
+                count=1,
+                period_start=month_start,
+                period_end=month_end,
+                usage_metadata={
+                    "template_id": str(template.id),
+                    "template_name": template.name,
+                    "question_count": len(input.questions),
+                    "language": template.language,
+                },
+                batch_number=batch_number
+            )
+            db.add(usage_entry)
+        
         db.commit()
         db.refresh(template)
         
@@ -450,6 +480,7 @@ async def create_interview_template(info: Info, input: InterviewTemplateInput) -
                 total_duration=template.total_duration,
                 ai_analysis_enabled=template.ai_analysis_enabled or False,
                 voice_response_enabled=template.voice_response_enabled or False,
+                is_ai_generated=template.is_ai_generated or False,
                 is_active=template.is_active,
                 question_count=len(template.questions),
                 questions=[],

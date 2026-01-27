@@ -24,6 +24,7 @@ class LikertTemplate(Base):
     scale_labels = Column(JSONB, nullable=False, default=["Kesinlikle Katılmıyorum", "Katılmıyorum", "Kararsızım", "Katılıyorum", "Kesinlikle Katılıyorum"])
     language = Column(String(5), nullable=False, default="tr")
     is_active = Column(Boolean, default=True)
+    is_ai_generated = Column(Boolean, default=False)
     
     # Timer settings
     time_limit = Column(Integer, nullable=True)  # Total time limit in seconds (null = no limit)

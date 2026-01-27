@@ -5,12 +5,13 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery } from '@apollo/client/react';
-import { X, Plus, Trash2, Globe, Clock, Timer, Sparkles, Mic, Wand2, FileText, Loader2 } from 'lucide-react';
+import { X, Plus, Trash2, Globe, Clock, Timer, Sparkles, Mic, Wand2, FileText, Loader2, RefreshCw } from 'lucide-react';
 import { 
   CREATE_INTERVIEW_TEMPLATE, 
   UPDATE_INTERVIEW_TEMPLATE, 
   GET_INTERVIEW_TEMPLATE,
-  GENERATE_INTERVIEW_QUESTIONS 
+  GENERATE_INTERVIEW_QUESTIONS,
+  REGENERATE_SINGLE_QUESTION
 } from '../graphql/interviewTemplates';
 
 const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template }) => {
@@ -39,7 +40,34 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
   // AI tab specific state
   const [aiQuestionCount, setAiQuestionCount] = useState(5);
   const [aiGenerating, setAiGenerating] = useState(false);
-  const [aiQuestions, setAiQuestions] = useState([]); // Array of {id, text, timeLimit}
+  const [aiQuestions, setAiQuestions] = useState([]); // Array of {id, text, type, timeLimit}
+  const [aiQuestionType, setAiQuestionType] = useState('mixed'); // behavioral, situational, technical, conceptual, mixed
+  const [aiDifficulty, setAiDifficulty] = useState('intermediate'); // entry, intermediate, advanced
+  const [regeneratingIndex, setRegeneratingIndex] = useState(null); // Index of question being regenerated
+
+  // Question type options
+  const questionTypeOptions = [
+    { value: 'mixed', label: isEnglish ? 'Mixed (All Types)' : 'Karışık (Tüm Tipler)', icon: '🎲' },
+    { value: 'behavioral', label: isEnglish ? 'Behavioral' : 'Davranışsal', icon: '🎭' },
+    { value: 'situational', label: isEnglish ? 'Situational' : 'Durumsal', icon: '🎯' },
+    { value: 'technical', label: isEnglish ? 'Technical' : 'Teknik', icon: '⚙️' },
+    { value: 'conceptual', label: isEnglish ? 'Conceptual' : 'Kavramsal', icon: '💡' },
+  ];
+
+  // Difficulty options
+  const difficultyOptions = [
+    { value: 'entry', label: isEnglish ? 'Entry Level' : 'Başlangıç', color: '#10B981' },
+    { value: 'intermediate', label: isEnglish ? 'Intermediate' : 'Orta Seviye', color: '#F59E0B' },
+    { value: 'advanced', label: isEnglish ? 'Advanced' : 'İleri Seviye', color: '#EF4444' },
+  ];
+
+  // Question type badge config
+  const questionTypeBadges = {
+    behavioral: { icon: '🎭', label: isEnglish ? 'Behavioral' : 'Davranışsal', color: '#8B5CF6' },
+    situational: { icon: '🎯', label: isEnglish ? 'Situational' : 'Durumsal', color: '#F59E0B' },
+    technical: { icon: '⚙️', label: isEnglish ? 'Technical' : 'Teknik', color: '#3B82F6' },
+    conceptual: { icon: '💡', label: isEnglish ? 'Conceptual' : 'Kavramsal', color: '#10B981' },
+  };
 
   // Duration options
   const questionDurationOptions = [
@@ -71,6 +99,7 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
   const [createTemplate] = useMutation(CREATE_INTERVIEW_TEMPLATE);
   const [updateTemplate] = useMutation(UPDATE_INTERVIEW_TEMPLATE);
   const [generateQuestions] = useMutation(GENERATE_INTERVIEW_QUESTIONS);
+  const [regenerateSingleQuestion] = useMutation(REGENERATE_SINGLE_QUESTION);
 
   useEffect(() => {
     if (templateData?.interviewTemplate) {
@@ -162,16 +191,19 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
             description: description.trim(),
             questionCount: aiQuestionCount,
             language: language,
+            questionType: aiQuestionType,
+            difficulty: aiDifficulty,
           }
         }
       });
 
       if (result.data?.generateInterviewQuestions?.success) {
         const generatedQuestions = result.data.generateInterviewQuestions.questions || [];
-        // Convert to array with ids and time limits
-        setAiQuestions(generatedQuestions.map((text, index) => ({
+        // Convert to array with ids, types and time limits
+        setAiQuestions(generatedQuestions.map((q, index) => ({
           id: `ai-${Date.now()}-${index}`,
-          text: text.replace(/^\d+[\.\)\-]\s*/, '').trim(), // Remove numbering
+          text: (q.text || '').replace(/^\d+[\.\)\-]\s*/, '').trim(), // Remove numbering
+          type: q.type || aiQuestionType,
           order: index + 1,
           timeLimit: parseInt(durationPerQuestion),
         })));
@@ -203,6 +235,49 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
     const updated = aiQuestions.filter((_, i) => i !== index);
     updated.forEach((q, i) => q.order = i + 1);
     setAiQuestions(updated);
+  };
+
+  // Regenerate a single question
+  const handleRegenerateSingle = async (index) => {
+    if (regeneratingIndex !== null) return;
+    
+    const currentQuestion = aiQuestions[index];
+    setRegeneratingIndex(index);
+    
+    try {
+      // Get existing questions texts for context (to avoid repetition)
+      const existingTexts = aiQuestions.map(q => q.text);
+      
+      const result = await regenerateSingleQuestion({
+        variables: {
+          input: {
+            description: description.trim(),
+            questionType: currentQuestion.type || aiQuestionType,
+            difficulty: aiDifficulty,
+            language: language,
+            existingQuestions: existingTexts,
+          }
+        }
+      });
+
+      if (result.data?.regenerateSingleQuestion?.success) {
+        const newQuestion = result.data.regenerateSingleQuestion.question;
+        const updated = [...aiQuestions];
+        updated[index] = {
+          ...updated[index],
+          text: (newQuestion.text || '').replace(/^\d+[\.\)\-]\s*/, '').trim(),
+          type: newQuestion.type || currentQuestion.type,
+        };
+        setAiQuestions(updated);
+      } else {
+        setError(result.data?.regenerateSingleQuestion?.error || 'Soru yenileme başarısız');
+      }
+    } catch (err) {
+      console.error('Regenerate error:', err);
+      setError(err.message);
+    } finally {
+      setRegeneratingIndex(null);
+    }
   };
 
   const moveAiQuestion = (index, direction) => {
@@ -390,57 +465,96 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
             </select>
           </div>
 
-          {/* AI Tab - Question Count & Generate Button */}
+          {/* AI Tab - Question Settings & Generate Button */}
           {activeTab === 'ai' && !isEdit && (
             <div style={{ marginBottom: '20px', padding: '20px', background: 'linear-gradient(135deg, #F3E8FF 0%, #EDE9FE 100%)', borderRadius: '12px', border: '1px solid #DDD6FE' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
-                <div style={{ flex: 1 }}>
+              {/* Row 1: Question Type & Difficulty */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                {/* Question Type */}
+                <div>
                   <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px', color: '#5B21B6' }}>
-                    {isEnglish ? 'Number of Questions' : 'Soru Sayısı'}
+                    {isEnglish ? 'Question Type' : 'Soru Tipi'}
                   </label>
                   <select 
-                    value={aiQuestionCount} 
-                    onChange={(e) => setAiQuestionCount(parseInt(e.target.value))}
+                    value={aiQuestionType} 
+                    onChange={(e) => setAiQuestionType(e.target.value)}
                     className="text-input"
                     style={{ width: '100%' }}
                   >
-                    {[...Array(15)].map((_, i) => (
-                      <option key={i + 1} value={i + 1}>{i + 1} {isEnglish ? 'questions' : 'soru'}</option>
+                    {questionTypeOptions.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.icon} {opt.label}</option>
                     ))}
                   </select>
                 </div>
-                <button
-                  onClick={handleGenerateQuestions}
-                  disabled={aiGenerating || !description.trim()}
-                  style={{
-                    padding: '12px 24px',
-                    background: aiGenerating ? '#9CA3AF' : '#8B5CF6',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '10px',
-                    fontWeight: '600',
-                    fontSize: '14px',
-                    cursor: aiGenerating || !description.trim() ? 'not-allowed' : 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    marginTop: '24px',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {aiGenerating ? (
-                    <>
-                      <Loader2 size={18} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
-                      {isEnglish ? 'Generating...' : 'Oluşturuluyor...'}
-                    </>
-                  ) : (
-                    <>
-                      <Wand2 size={18} />
-                      {isEnglish ? 'Generate Questions' : 'Soruları Oluştur'}
-                    </>
-                  )}
-                </button>
+
+                {/* Difficulty Level */}
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px', color: '#5B21B6' }}>
+                    {isEnglish ? 'Difficulty Level' : 'Zorluk Seviyesi'}
+                  </label>
+                  <select 
+                    value={aiDifficulty} 
+                    onChange={(e) => setAiDifficulty(e.target.value)}
+                    className="text-input"
+                    style={{ width: '100%' }}
+                  >
+                    {difficultyOptions.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
+
+              {/* Row 2: Question Count */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px', color: '#5B21B6' }}>
+                  {isEnglish ? 'Number of Questions' : 'Soru Sayısı'}
+                </label>
+                <select 
+                  value={aiQuestionCount} 
+                  onChange={(e) => setAiQuestionCount(parseInt(e.target.value))}
+                  className="text-input"
+                  style={{ width: '200px' }}
+                >
+                  {[...Array(15)].map((_, i) => (
+                    <option key={i + 1} value={i + 1}>{i + 1} {isEnglish ? 'questions' : 'soru'}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Generate Button - Separate Row */}
+              <button
+                onClick={handleGenerateQuestions}
+                disabled={aiGenerating || !description.trim()}
+                style={{
+                  padding: '14px 32px',
+                  background: aiGenerating ? '#9CA3AF' : 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '12px',
+                  fontWeight: '600',
+                  fontSize: '15px',
+                  cursor: aiGenerating || !description.trim() ? 'not-allowed' : 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  whiteSpace: 'nowrap',
+                  boxShadow: aiGenerating ? 'none' : '0 4px 14px rgba(139, 92, 246, 0.35)',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                {aiGenerating ? (
+                  <>
+                    <Loader2 size={20} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
+                    {isEnglish ? 'Generating...' : 'Oluşturuluyor...'}
+                  </>
+                ) : (
+                  <>
+                    <Wand2 size={20} />
+                    {isEnglish ? 'Generate Questions' : 'Soruları Oluştur'}
+                  </>
+                )}
+              </button>
 
               {/* AI Generated Questions - Individual Editable Cards */}
               {aiQuestions.length > 0 && (
@@ -494,41 +608,61 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
                           >▼</button>
                         </div>
                         
-                        {/* Question number */}
-                        <span style={{ 
-                          width: '28px', 
-                          height: '28px', 
-                          borderRadius: '50%', 
-                          background: '#8B5CF6', 
-                          color: 'white', 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          justifyContent: 'center', 
-                          fontSize: '13px', 
-                          fontWeight: '600', 
-                          flexShrink: 0,
-                          marginTop: '8px',
-                        }}>
-                          {index + 1}
-                        </span>
+                        {/* Question number & Type badge */}
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                          <span style={{ 
+                            width: '28px', 
+                            height: '28px', 
+                            borderRadius: '50%', 
+                            background: '#8B5CF6', 
+                            color: 'white', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center', 
+                            fontSize: '13px', 
+                            fontWeight: '600',
+                          }}>
+                            {index + 1}
+                          </span>
+                          {/* Question type badge */}
+                          {q.type && questionTypeBadges[q.type] && (
+                            <span style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              padding: '3px 8px',
+                              background: `${questionTypeBadges[q.type].color}15`,
+                              color: questionTypeBadges[q.type].color,
+                              borderRadius: '12px',
+                              fontSize: '10px',
+                              fontWeight: '600',
+                              whiteSpace: 'nowrap',
+                            }}>
+                              <span>{questionTypeBadges[q.type].icon}</span>
+                              {questionTypeBadges[q.type].label}
+                            </span>
+                          )}
+                        </div>
                         
                         {/* Editable question textarea */}
-                        <textarea
-                          value={q.text}
-                          onChange={(e) => updateAiQuestion(index, e.target.value)}
-                          style={{
-                            flex: 1,
-                            padding: '10px 12px',
-                            border: '1px solid #E5E7EB',
-                            borderRadius: '8px',
-                            fontSize: '14px',
-                            lineHeight: '1.5',
-                            resize: 'vertical',
-                            minHeight: '60px',
-                            fontFamily: 'inherit',
-                          }}
-                          placeholder={isEnglish ? 'Edit question...' : 'Soruyu düzenleyin...'}
-                        />
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          <textarea
+                            value={q.text}
+                            onChange={(e) => updateAiQuestion(index, e.target.value)}
+                            style={{
+                              width: '100%',
+                              padding: '10px 12px',
+                              border: '1px solid #E5E7EB',
+                              borderRadius: '8px',
+                              fontSize: '14px',
+                              lineHeight: '1.5',
+                              resize: 'vertical',
+                              minHeight: '60px',
+                              fontFamily: 'inherit',
+                            }}
+                            placeholder={isEnglish ? 'Edit question...' : 'Soruyu düzenleyin...'}
+                          />
+                        </div>
                         
                         {/* Time limit selector */}
                         {!useGlobalTimer && (
@@ -550,22 +684,52 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
                             ))}
                           </select>
                         )}
-                        
-                        {/* Delete button */}
-                        <button 
-                          onClick={() => removeAiQuestion(index)} 
-                          style={{ 
-                            padding: '8px', 
-                            background: '#FEE2E2', 
-                            border: 'none', 
-                            borderRadius: '8px', 
-                            cursor: 'pointer', 
-                            color: '#DC2626',
-                            flexShrink: 0,
-                          }}
-                        >
-                          <Trash2 size={16} />
-                        </button>
+
+                        {/* Action buttons */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flexShrink: 0 }}>
+                          {/* Regenerate button */}
+                          <button 
+                            onClick={() => handleRegenerateSingle(index)}
+                            disabled={regeneratingIndex !== null}
+                            title={isEnglish ? 'Regenerate this question' : 'Bu soruyu yeniden oluştur'}
+                            style={{ 
+                              padding: '8px', 
+                              background: regeneratingIndex === index ? '#E5E7EB' : '#EEF2FF', 
+                              border: 'none', 
+                              borderRadius: '8px', 
+                              cursor: regeneratingIndex !== null ? 'not-allowed' : 'pointer', 
+                              color: '#6366F1',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            <RefreshCw 
+                              size={16} 
+                              style={{ 
+                                animation: regeneratingIndex === index ? 'spin 1s linear infinite' : 'none' 
+                              }} 
+                            />
+                          </button>
+                          
+                          {/* Delete button */}
+                          <button 
+                            onClick={() => removeAiQuestion(index)} 
+                            style={{ 
+                              padding: '8px', 
+                              background: '#FEE2E2', 
+                              border: 'none', 
+                              borderRadius: '8px', 
+                              cursor: 'pointer', 
+                              color: '#DC2626',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>

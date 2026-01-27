@@ -53,6 +53,7 @@ import SubscriptionBanner from './SubscriptionBanner';
 import SubscriptionUsageWidget from './SubscriptionUsageWidget';
 import InterviewTemplatesPage from './InterviewTemplatesPage';
 import LikertTemplatesPage from './LikertTemplatesPage';
+import LikertTestTemplatesPage from './LikertTestTemplatesPage';
 import AgreementTemplatesPage from './AgreementTemplatesPage';
 import RejectionTemplatesPage from './RejectionTemplatesPage';
 import SecondInterviewTemplatesPage from './SecondInterviewTemplatesPage';
@@ -746,7 +747,7 @@ const Dashboard = ({ currentUser, onLogout }) => {
         )}
 
         {activeMenu === 'templates' && templatesMenu === 'likertTemplates' && (
-          <LikertTemplatesPage />
+          <LikertTestTemplatesPage />
         )}
 
         {activeMenu === 'templates' && templatesMenu === 'agreementTemplates' && (

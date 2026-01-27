@@ -38,7 +38,14 @@ from app.graphql.types import (
     GenerateJobWithAIInput,
     GenerateJobResultType,
     GenerateInterviewQuestionsInput,
+    RegenerateSingleQuestionInput,
+    RegenerateSingleQuestionResultType,
     GenerateInterviewQuestionsResultType,
+    GenerateLikertQuestionsInput,
+    GenerateLikertQuestionsResultType,
+    GeneratedLikertQuestionType,
+    RegenerateSingleLikertQuestionInput,
+    RegenerateSingleLikertQuestionResultType,
     StatsType,
     DailyActivityStatsType,
     ComparisonResultType,
@@ -1822,9 +1829,10 @@ class Query:
                     func.sum(case((UsageTracking.resource_type == "ai_analysis", UsageTracking.count), else_=0)).label("ai_analyses"),
                     func.sum(case((UsageTracking.resource_type == "interview_completed", UsageTracking.count), else_=0)).label("interview_completed"),
                     func.sum(case((UsageTracking.resource_type == "interview_ai_analysis", UsageTracking.count), else_=0)).label("interview_ai_analysis"),
+                    func.sum(case((UsageTracking.resource_type == "ai_question_generation", UsageTracking.count), else_=0)).label("ai_question_generation"),
                 )
                 .filter(UsageTracking.company_id == company_id)
-                .filter(UsageTracking.resource_type.in_(["cv_upload", "ai_analysis", "interview_completed", "interview_ai_analysis"]))
+                .filter(UsageTracking.resource_type.in_(["cv_upload", "ai_analysis", "interview_completed", "interview_ai_analysis", "ai_question_generation"]))
                 .group_by(UsageTracking.period_start, UsageTracking.period_end)
                 .order_by(UsageTracking.period_start.desc())
             )
@@ -1834,7 +1842,7 @@ class Query:
 
             rows = q.all()
             result: List[UsagePeriodSummary] = []
-            for ps, pe, total, cvu, aia, int_comp, int_ai in rows:
+            for ps, pe, total, cvu, aia, int_comp, int_ai, ai_qg in rows:
                 # Build localized label like "Kasım 2025"
                 try:
                     import locale
@@ -1853,6 +1861,7 @@ class Query:
                     cv_uploads=int(cvu or 0),
                     interview_completed=int(int_comp or 0),
                     interview_ai_analysis=int(int_ai or 0),
+                    ai_question_generation=int(ai_qg or 0),
                 ))
 
             return result
@@ -4452,11 +4461,11 @@ class Mutation(CompanyMutation):
         return delete_ai_interview_email_template(info, id)
 
     # ============================================
-    # Likert Test Template Mutations
+    # Likert Email Template Mutations
     # ============================================
 
     @strawberry.mutation
-    async def create_likert_template(
+    async def create_likert_email_template(
         self, 
         info: Info, 
         input: LikertEmailTemplateInput
@@ -4466,7 +4475,7 @@ class Mutation(CompanyMutation):
         return await create_likert_template(info, input)
 
     @strawberry.mutation
-    async def update_likert_template(
+    async def update_likert_email_template(
         self, 
         info: Info, 
         id: str,
@@ -4477,12 +4486,12 @@ class Mutation(CompanyMutation):
         return await update_likert_template(info, id, input)
 
     @strawberry.mutation
-    async def delete_likert_template(
+    async def delete_likert_email_template(
         self, 
         info: Info, 
         id: str
     ) -> MessageType:
-        """Delete a Likert test template"""
+        """Delete a Likert test email template"""
         from app.modules.likert_template.resolvers import delete_likert_template
         return await delete_likert_template(info, id)
 
@@ -4529,16 +4538,19 @@ class Mutation(CompanyMutation):
         """Generate interview questions using AI based on description"""
         import httpx
         from app.core.config import settings
+        from app.graphql.types import GeneratedQuestionType
         
         try:
-            # Call AI Service
+            # Call AI Service with new parameters
             async with httpx.AsyncClient(timeout=60.0) as client:
                 response = await client.post(
                     f"{settings.AI_SERVICE_URL}/generate-interview-questions",
                     json={
                         "description": input.description,
                         "question_count": input.question_count,
-                        "language": input.language
+                        "language": input.language,
+                        "question_type": input.question_type,
+                        "difficulty": input.difficulty
                     }
                 )
                 
@@ -4551,9 +4563,23 @@ class Mutation(CompanyMutation):
                 data = response.json()
                 
                 if data.get("success"):
+                    # Convert to GeneratedQuestionType objects
+                    questions = []
+                    for q in data.get("questions", []):
+                        if isinstance(q, dict):
+                            questions.append(GeneratedQuestionType(
+                                text=q.get("text", ""),
+                                question_type=q.get("type", "behavioral")
+                            ))
+                        elif isinstance(q, str):
+                            questions.append(GeneratedQuestionType(
+                                text=q,
+                                question_type="behavioral"
+                            ))
+                    
                     return GenerateInterviewQuestionsResultType(
                         success=True,
-                        questions=data.get("questions", [])
+                        questions=questions
                     )
                 else:
                     return GenerateInterviewQuestionsResultType(
@@ -4568,6 +4594,191 @@ class Mutation(CompanyMutation):
             )
         except Exception as e:
             return GenerateInterviewQuestionsResultType(
+                success=False,
+                error=str(e)
+            )
+
+    @strawberry.mutation
+    async def regenerate_single_question(
+        self, 
+        info: Info, 
+        input: "RegenerateSingleQuestionInput"
+    ) -> "RegenerateSingleQuestionResultType":
+        """Regenerate a single interview question"""
+        import httpx
+        from app.core.config import settings
+        from app.graphql.types import GeneratedQuestionType, RegenerateSingleQuestionResultType
+        
+        try:
+            # Call AI Service
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    f"{settings.AI_SERVICE_URL}/regenerate-single-question",
+                    json={
+                        "description": input.description,
+                        "question_type": input.question_type,
+                        "difficulty": input.difficulty,
+                        "language": input.language,
+                        "existing_questions": input.existing_questions or []
+                    }
+                )
+                
+                if response.status_code != 200:
+                    return RegenerateSingleQuestionResultType(
+                        success=False,
+                        error=f"AI Service error: {response.status_code}"
+                    )
+                
+                data = response.json()
+                
+                if data.get("success"):
+                    q_data = data.get("question", {})
+                    question = GeneratedQuestionType(
+                        text=q_data.get("text", ""),
+                        question_type=q_data.get("type", input.question_type)
+                    )
+                    return RegenerateSingleQuestionResultType(
+                        success=True,
+                        question=question
+                    )
+                else:
+                    return RegenerateSingleQuestionResultType(
+                        success=False,
+                        error=data.get("error", "Unknown error")
+                    )
+                    
+        except httpx.TimeoutException:
+            return RegenerateSingleQuestionResultType(
+                success=False,
+                error="AI Service timeout - please try again"
+            )
+        except Exception as e:
+            return RegenerateSingleQuestionResultType(
+                success=False,
+                error=str(e)
+            )
+
+    @strawberry.mutation
+    async def generate_likert_questions(
+        self, 
+        info: Info, 
+        input: GenerateLikertQuestionsInput
+    ) -> GenerateLikertQuestionsResultType:
+        """Generate Likert questions using AI based on dimension and settings"""
+        import httpx
+        from app.core.config import settings
+        
+        try:
+            # Call AI Service
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                response = await client.post(
+                    f"{settings.AI_SERVICE_URL}/generate-likert-questions",
+                    json={
+                        "description": input.description,
+                        "question_count": input.question_count,
+                        "language": input.language,
+                        "dimension": input.dimension,
+                        "direction": input.direction,
+                        "scale_type": input.scale_type
+                    }
+                )
+                
+                if response.status_code != 200:
+                    return GenerateLikertQuestionsResultType(
+                        success=False,
+                        error=f"AI Service error: {response.status_code}"
+                    )
+                
+                data = response.json()
+                
+                if data.get("success"):
+                    # Convert to GeneratedLikertQuestionType objects
+                    questions = []
+                    for q in data.get("questions", []):
+                        if isinstance(q, dict):
+                            questions.append(GeneratedLikertQuestionType(
+                                text=q.get("text", ""),
+                                dimension=q.get("dimension", "leadership"),
+                                direction=q.get("direction", "positive")
+                            ))
+                    
+                    return GenerateLikertQuestionsResultType(
+                        success=True,
+                        questions=questions
+                    )
+                else:
+                    return GenerateLikertQuestionsResultType(
+                        success=False,
+                        error=data.get("error", "Unknown error")
+                    )
+                    
+        except httpx.TimeoutException:
+            return GenerateLikertQuestionsResultType(
+                success=False,
+                error="AI Service timeout - please try again"
+            )
+        except Exception as e:
+            return GenerateLikertQuestionsResultType(
+                success=False,
+                error=str(e)
+            )
+
+    @strawberry.mutation
+    async def regenerate_single_likert_question(
+        self, 
+        info: Info, 
+        input: RegenerateSingleLikertQuestionInput
+    ) -> RegenerateSingleLikertQuestionResultType:
+        """Regenerate a single Likert question"""
+        import httpx
+        from app.core.config import settings
+        
+        try:
+            # Call AI Service
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    f"{settings.AI_SERVICE_URL}/regenerate-single-likert-question",
+                    json={
+                        "description": input.description,
+                        "dimension": input.dimension,
+                        "direction": input.direction,
+                        "language": input.language,
+                        "existing_questions": input.existing_questions or []
+                    }
+                )
+                
+                if response.status_code != 200:
+                    return RegenerateSingleLikertQuestionResultType(
+                        success=False,
+                        error=f"AI Service error: {response.status_code}"
+                    )
+                
+                data = response.json()
+                
+                if data.get("success"):
+                    q_data = data.get("question", {})
+                    question = GeneratedLikertQuestionType(
+                        text=q_data.get("text", ""),
+                        dimension=q_data.get("dimension", input.dimension),
+                        direction=q_data.get("direction", input.direction)
+                    )
+                    return RegenerateSingleLikertQuestionResultType(
+                        success=True,
+                        question=question
+                    )
+                else:
+                    return RegenerateSingleLikertQuestionResultType(
+                        success=False,
+                        error=data.get("error", "Unknown error")
+                    )
+                    
+        except httpx.TimeoutException:
+            return RegenerateSingleLikertQuestionResultType(
+                success=False,
+                error="AI Service timeout - please try again"
+            )
+        except Exception as e:
+            return RegenerateSingleLikertQuestionResultType(
                 success=False,
                 error=str(e)
             )

@@ -128,12 +128,80 @@ class GenerateInterviewQuestionsRequest(BaseModel):
     description: str
     question_count: int = 5
     language: str = "tr"
+    question_type: str = "mixed"  # behavioral, situational, technical, conceptual, mixed
+    difficulty: str = "intermediate"  # entry, intermediate, advanced
+
+
+class GeneratedQuestion(BaseModel):
+    """Single generated question with type"""
+    text: str
+    type: str  # behavioral, situational, technical, conceptual
 
 
 class GenerateInterviewQuestionsResponse(BaseModel):
     """Response model for AI interview question generation"""
     success: bool
-    questions: Optional[List[str]] = None
+    questions: Optional[List[GeneratedQuestion]] = None
+    error: Optional[str] = None
+
+
+class RegenerateSingleQuestionRequest(BaseModel):
+    """Request model for regenerating a single question"""
+    description: str
+    question_type: str  # behavioral, situational, technical, conceptual
+    difficulty: str = "intermediate"
+    language: str = "tr"
+    existing_questions: Optional[List[str]] = None
+
+
+class RegenerateSingleQuestionResponse(BaseModel):
+    """Response model for single question regeneration"""
+    success: bool
+    question: Optional[GeneratedQuestion] = None
+    error: Optional[str] = None
+
+
+# ============================================
+# Likert Question Generation Models
+# ============================================
+
+class GenerateLikertQuestionsRequest(BaseModel):
+    """Request model for AI Likert question generation"""
+    description: str
+    question_count: int = 10
+    language: str = "tr"
+    dimension: str = "mixed"  # leadership, communication, teamwork, problem_solving, stress_management, adaptability, motivation, integrity, mixed
+    direction: str = "mixed"  # positive, negative, mixed
+    scale_type: int = 5  # 5 or 7 point scale
+
+
+class GeneratedLikertQuestion(BaseModel):
+    """Single generated Likert question with dimension and direction"""
+    text: str
+    dimension: str  # leadership, communication, teamwork, etc.
+    direction: str  # positive or negative
+
+
+class GenerateLikertQuestionsResponse(BaseModel):
+    """Response model for AI Likert question generation"""
+    success: bool
+    questions: Optional[List[GeneratedLikertQuestion]] = None
+    error: Optional[str] = None
+
+
+class RegenerateSingleLikertQuestionRequest(BaseModel):
+    """Request model for regenerating a single Likert question"""
+    description: str
+    dimension: str  # leadership, communication, teamwork, etc.
+    direction: str  # positive or negative
+    language: str = "tr"
+    existing_questions: Optional[List[str]] = None
+
+
+class RegenerateSingleLikertQuestionResponse(BaseModel):
+    """Response model for single Likert question regeneration"""
+    success: bool
+    question: Optional[GeneratedLikertQuestion] = None
     error: Optional[str] = None
 
 
@@ -456,10 +524,10 @@ async def generate_interview_questions(request: GenerateInterviewQuestionsReques
     Generate interview questions using AI based on job description/context.
     
     Args:
-        request: Contains description, question_count (1-15), and language (tr/en)
+        request: Contains description, question_count, language, question_type, difficulty
         
     Returns:
-        List of generated interview questions
+        List of generated interview questions with their types
     """
     try:
         # Validate required fields
@@ -474,6 +542,18 @@ async def generate_interview_questions(request: GenerateInterviewQuestionsReques
         if language not in ["tr", "en"]:
             language = "tr"
         
+        # Validate question type
+        valid_types = ["behavioral", "situational", "technical", "conceptual", "mixed"]
+        question_type = request.question_type.lower() if request.question_type else "mixed"
+        if question_type not in valid_types:
+            question_type = "mixed"
+        
+        # Validate difficulty
+        valid_difficulties = ["entry", "intermediate", "advanced"]
+        difficulty = request.difficulty.lower() if request.difficulty else "intermediate"
+        if difficulty not in valid_difficulties:
+            difficulty = "intermediate"
+        
         # Import prompt and OpenAI
         from app.prompts.interview_question_generator_prompt import (
             get_interview_question_generator_prompt,
@@ -485,11 +565,13 @@ async def generate_interview_questions(request: GenerateInterviewQuestionsReques
         # Initialize OpenAI client
         client = OpenAI(api_key=settings.OPENAI_API_KEY)
         
-        # Generate prompt
+        # Generate prompt with new parameters
         prompt = get_interview_question_generator_prompt(
             description=request.description,
             question_count=question_count,
-            language=language
+            language=language,
+            question_type=question_type,
+            difficulty=difficulty
         )
         
         # Call OpenAI API
@@ -514,14 +596,34 @@ async def generate_interview_questions(request: GenerateInterviewQuestionsReques
         response_text = response.choices[0].message.content
         response_data = json.loads(response_text)
         
-        questions = response_data.get("questions", [])
+        # Check if description was validated as invalid
+        if response_data.get("valid") == False:
+            # Return error message based on requested language
+            if language == "tr":
+                error_message = "Açıklama bir iş pozisyonu, rol veya profesyonel bağlamla ilgili olmalıdır. Lütfen geçerli bir iş tanımı girin."
+            else:
+                error_message = "The description must be about a job position, role, or professional context. Please provide a valid job description."
+            return GenerateInterviewQuestionsResponse(
+                success=False,
+                error=error_message
+            )
         
-        # Ensure we have the right number of questions
-        if len(questions) < question_count:
-            # Pad with empty if needed (shouldn't happen)
-            pass
-        elif len(questions) > question_count:
-            questions = questions[:question_count]
+        raw_questions = response_data.get("questions", [])
+        
+        # Convert to GeneratedQuestion objects
+        questions = []
+        for q in raw_questions[:question_count]:
+            if isinstance(q, dict):
+                questions.append(GeneratedQuestion(
+                    text=q.get("text", ""),
+                    type=q.get("type", question_type if question_type != "mixed" else "behavioral")
+                ))
+            elif isinstance(q, str):
+                # Fallback for old format (just string)
+                questions.append(GeneratedQuestion(
+                    text=q,
+                    type=question_type if question_type != "mixed" else "behavioral"
+                ))
         
         return GenerateInterviewQuestionsResponse(
             success=True,
@@ -532,7 +634,323 @@ async def generate_interview_questions(request: GenerateInterviewQuestionsReques
         raise
     
     except Exception as e:
+        logger.error(f"Error generating interview questions: {e}")
         return GenerateInterviewQuestionsResponse(
+            success=False,
+            error=str(e)
+        )
+
+
+@app.post("/regenerate-single-question", response_model=RegenerateSingleQuestionResponse)
+async def regenerate_single_question(request: RegenerateSingleQuestionRequest):
+    """
+    Regenerate a single interview question.
+    
+    Args:
+        request: Contains description, question_type, difficulty, language, existing_questions
+        
+    Returns:
+        A single regenerated question
+    """
+    try:
+        # Validate required fields
+        if not request.description or not request.description.strip():
+            raise HTTPException(status_code=400, detail="description is required")
+        
+        # Validate question type
+        valid_types = ["behavioral", "situational", "technical", "conceptual"]
+        question_type = request.question_type.lower() if request.question_type else "behavioral"
+        if question_type not in valid_types:
+            question_type = "behavioral"
+        
+        # Validate difficulty
+        valid_difficulties = ["entry", "intermediate", "advanced"]
+        difficulty = request.difficulty.lower() if request.difficulty else "intermediate"
+        if difficulty not in valid_difficulties:
+            difficulty = "intermediate"
+        
+        # Validate language
+        language = request.language.lower() if request.language else "tr"
+        if language not in ["tr", "en"]:
+            language = "tr"
+        
+        # Import prompt and OpenAI
+        from app.prompts.interview_question_generator_prompt import (
+            get_single_question_regenerate_prompt,
+            get_system_message
+        )
+        from openai import OpenAI
+        import json
+        
+        # Initialize OpenAI client
+        client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        
+        # Generate prompt for single question
+        prompt = get_single_question_regenerate_prompt(
+            description=request.description,
+            question_type=question_type,
+            difficulty=difficulty,
+            language=language,
+            existing_questions=request.existing_questions
+        )
+        
+        # Call OpenAI API
+        response = client.chat.completions.create(
+            model=settings.MODEL_NAME,
+            messages=[
+                {
+                    "role": "system",
+                    "content": get_system_message(language)
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0.8,  # Slightly higher for more variety
+            max_tokens=500,
+            response_format={"type": "json_object"}
+        )
+        
+        # Extract and parse the response
+        response_text = response.choices[0].message.content
+        response_data = json.loads(response_text)
+        
+        question = GeneratedQuestion(
+            text=response_data.get("text", ""),
+            type=response_data.get("type", question_type)
+        )
+        
+        return RegenerateSingleQuestionResponse(
+            success=True,
+            question=question
+        )
+        
+    except HTTPException:
+        raise
+    
+    except Exception as e:
+        logger.error(f"Error regenerating single question: {e}")
+        return RegenerateSingleQuestionResponse(
+            success=False,
+            error=str(e)
+        )
+
+
+# ============================================
+# Likert Question Generator Endpoints
+# ============================================
+
+@app.post("/generate-likert-questions", response_model=GenerateLikertQuestionsResponse)
+async def generate_likert_questions(request: GenerateLikertQuestionsRequest):
+    """
+    Generate Likert scale questions using AI based on dimension and settings.
+    
+    Args:
+        request: Contains description, question_count, language, dimension, direction, scale_type
+        
+    Returns:
+        List of generated Likert questions with dimensions and directions
+    """
+    try:
+        # Validate required fields
+        if not request.description or not request.description.strip():
+            raise HTTPException(status_code=400, detail="description is required")
+        
+        # Validate question count (1-30)
+        question_count = max(1, min(30, request.question_count))
+        
+        # Validate language
+        language = request.language.lower() if request.language else "tr"
+        if language not in ["tr", "en"]:
+            language = "tr"
+        
+        # Validate dimension
+        valid_dimensions = ["leadership", "communication", "teamwork", "problem_solving", 
+                          "stress_management", "adaptability", "motivation", "integrity", "mixed"]
+        dimension = request.dimension.lower() if request.dimension else "mixed"
+        if dimension not in valid_dimensions:
+            dimension = "mixed"
+        
+        # Validate direction
+        valid_directions = ["positive", "negative", "mixed"]
+        direction = request.direction.lower() if request.direction else "mixed"
+        if direction not in valid_directions:
+            direction = "mixed"
+        
+        # Validate scale type
+        scale_type = request.scale_type if request.scale_type in [5, 7] else 5
+        
+        # Import prompt and OpenAI
+        from app.prompts.likert_question_generator_prompt import (
+            get_likert_question_generator_prompt,
+            get_system_message
+        )
+        from openai import OpenAI
+        import json
+        
+        # Initialize OpenAI client
+        client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        
+        # Generate prompt with parameters
+        prompt = get_likert_question_generator_prompt(
+            description=request.description,
+            question_count=question_count,
+            language=language,
+            dimension=dimension,
+            direction=direction,
+            scale_type=scale_type
+        )
+        
+        # Call OpenAI API
+        response = client.chat.completions.create(
+            model=settings.MODEL_NAME,
+            messages=[
+                {
+                    "role": "system",
+                    "content": get_system_message(language)
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0.7,
+            max_tokens=3000,
+            response_format={"type": "json_object"}
+        )
+        
+        # Extract and parse the response
+        response_text = response.choices[0].message.content
+        response_data = json.loads(response_text)
+        
+        raw_questions = response_data.get("questions", [])
+        
+        # Convert to GeneratedLikertQuestion objects
+        questions = []
+        for q in raw_questions[:question_count]:
+            if isinstance(q, dict):
+                questions.append(GeneratedLikertQuestion(
+                    text=q.get("text", ""),
+                    dimension=q.get("dimension", dimension if dimension != "mixed" else "leadership"),
+                    direction=q.get("direction", "positive")
+                ))
+            elif isinstance(q, str):
+                questions.append(GeneratedLikertQuestion(
+                    text=q,
+                    dimension=dimension if dimension != "mixed" else "leadership",
+                    direction="positive"
+                ))
+        
+        return GenerateLikertQuestionsResponse(
+            success=True,
+            questions=questions
+        )
+        
+    except HTTPException:
+        raise
+    
+    except Exception as e:
+        logger.error(f"Error generating Likert questions: {e}")
+        return GenerateLikertQuestionsResponse(
+            success=False,
+            error=str(e)
+        )
+
+
+@app.post("/regenerate-single-likert-question", response_model=RegenerateSingleLikertQuestionResponse)
+async def regenerate_single_likert_question(request: RegenerateSingleLikertQuestionRequest):
+    """
+    Regenerate a single Likert question.
+    
+    Args:
+        request: Contains description, dimension, direction, language, existing_questions
+        
+    Returns:
+        A single regenerated Likert question
+    """
+    try:
+        # Validate required fields
+        if not request.description or not request.description.strip():
+            raise HTTPException(status_code=400, detail="description is required")
+        
+        # Validate dimension
+        valid_dimensions = ["leadership", "communication", "teamwork", "problem_solving", 
+                          "stress_management", "adaptability", "motivation", "integrity"]
+        dimension = request.dimension.lower() if request.dimension else "leadership"
+        if dimension not in valid_dimensions:
+            dimension = "leadership"
+        
+        # Validate direction
+        valid_directions = ["positive", "negative"]
+        direction = request.direction.lower() if request.direction else "positive"
+        if direction not in valid_directions:
+            direction = "positive"
+        
+        # Validate language
+        language = request.language.lower() if request.language else "tr"
+        if language not in ["tr", "en"]:
+            language = "tr"
+        
+        # Import prompt and OpenAI
+        from app.prompts.likert_question_generator_prompt import (
+            get_single_likert_question_regenerate_prompt,
+            get_system_message
+        )
+        from openai import OpenAI
+        import json
+        
+        # Initialize OpenAI client
+        client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        
+        # Generate prompt for single question
+        prompt = get_single_likert_question_regenerate_prompt(
+            description=request.description,
+            dimension=dimension,
+            direction=direction,
+            language=language,
+            existing_questions=request.existing_questions
+        )
+        
+        # Call OpenAI API
+        response = client.chat.completions.create(
+            model=settings.MODEL_NAME,
+            messages=[
+                {
+                    "role": "system",
+                    "content": get_system_message(language)
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0.8,
+            max_tokens=500,
+            response_format={"type": "json_object"}
+        )
+        
+        # Extract and parse the response
+        response_text = response.choices[0].message.content
+        response_data = json.loads(response_text)
+        
+        question = GeneratedLikertQuestion(
+            text=response_data.get("text", ""),
+            dimension=response_data.get("dimension", dimension),
+            direction=response_data.get("direction", direction)
+        )
+        
+        return RegenerateSingleLikertQuestionResponse(
+            success=True,
+            question=question
+        )
+        
+    except HTTPException:
+        raise
+    
+    except Exception as e:
+        logger.error(f"Error regenerating single Likert question: {e}")
+        return RegenerateSingleLikertQuestionResponse(
             success=False,
             error=str(e)
         )

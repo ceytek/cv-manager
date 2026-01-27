@@ -14,8 +14,10 @@ export const GET_LIKERT_TEMPLATES = gql`
       scaleType
       language
       isActive
+      isAiGenerated
       timeLimit
       questionCount
+        isAiGenerated
       createdAt
       updatedAt
     }
@@ -32,8 +34,10 @@ export const GET_LIKERT_TEMPLATE = gql`
       scaleLabels
       language
       isActive
+      isAiGenerated
       timeLimit
       questionCount
+        isAiGenerated
       questions {
         id
         questionText
@@ -60,6 +64,7 @@ export const CREATE_LIKERT_TEMPLATE = gql`
         isActive
         timeLimit
         questionCount
+        isAiGenerated
       }
     }
   }
@@ -79,6 +84,7 @@ export const UPDATE_LIKERT_TEMPLATE = gql`
         isActive
         timeLimit
         questionCount
+        isAiGenerated
       }
     }
   }
@@ -128,6 +134,7 @@ export const GET_LIKERT_SESSION = gql`
         timeLimit
         isActive
         questionCount
+        isAiGenerated
         questions {
           id
           questionText
@@ -176,6 +183,7 @@ export const GET_LIKERT_SESSION_BY_APPLICATION = gql`
         scaleLabels
         language
         questionCount
+        isAiGenerated
         questions {
           id
           questionText
@@ -257,3 +265,33 @@ export const SUBMIT_LIKERT_SESSION = gql`
   }
 `;
 
+
+// ========== AI QUESTION GENERATION ==========
+
+export const GENERATE_LIKERT_QUESTIONS = gql`
+  mutation GenerateLikertQuestions($input: GenerateLikertQuestionsInput!) {
+    generateLikertQuestions(input: $input) {
+      success
+      questions {
+        text
+        dimension
+        direction
+      }
+      error
+    }
+  }
+`;
+
+export const REGENERATE_SINGLE_LIKERT_QUESTION = gql`
+  mutation RegenerateSingleLikertQuestion($input: RegenerateSingleLikertQuestionInput!) {
+    regenerateSingleLikertQuestion(input: $input) {
+      success
+      question {
+        text
+        dimension
+        direction
+      }
+      error
+    }
+  }
+`;

@@ -50,6 +50,7 @@ def get_likert_templates(info: Info) -> List[LikertTemplateType]:
                 scale_labels=t.scale_labels or [],
                 language=t.language or "tr",
                 is_active=t.is_active,
+                is_ai_generated=t.is_ai_generated if hasattr(t, 'is_ai_generated') else False,
                 time_limit=t.time_limit,
                 question_count=len(t.questions),
                 questions=[],
@@ -82,6 +83,7 @@ def get_likert_template(info: Info, id: str) -> Optional[LikertTemplateType]:
             scale_labels=template.scale_labels,
             language=template.language or "tr",
             is_active=template.is_active,
+            is_ai_generated=template.is_ai_generated if hasattr(template, 'is_ai_generated') else False,
             time_limit=template.time_limit,
             question_count=len(template.questions),
             questions=[
@@ -135,9 +137,39 @@ async def create_likert_template(info: Info, input: LikertTemplateInput) -> Like
             language=input.language,
             time_limit=input.time_limit,
             is_active=True,
+            is_ai_generated=getattr(input, 'is_ai_generated', False),
         )
         db.add(template)
         db.flush()
+        
+        # Track usage if AI generated
+        if getattr(input, 'is_ai_generated', False):
+            from app.models.subscription import UsageTracking, ResourceType
+            from datetime import date
+            from calendar import monthrange
+            
+            # Get current period (same logic as interview templates)
+            today = date.today()
+            month_start = date(today.year, today.month, 1)
+            last_day = monthrange(today.year, today.month)[1]
+            month_end = date(today.year, today.month, last_day)
+            
+            # Create usage record
+            usage = UsageTracking(
+                company_id=company_id,
+                resource_type=ResourceType.AI_QUESTION_GENERATION.value,
+                count=1,
+                period_start=month_start,
+                period_end=month_end,
+                usage_metadata={
+                    "template_id": str(template.id),
+                    "template_name": input.name,
+                    "template_type": "likert",
+                    "question_count": len(input.questions),
+                    "language": input.language,
+                }
+            )
+            db.add(usage)
         
         for i, q in enumerate(input.questions):
             question = LikertQuestion(
@@ -163,6 +195,7 @@ async def create_likert_template(info: Info, input: LikertTemplateInput) -> Like
                 scale_labels=template.scale_labels,
                 language=template.language,
                 is_active=template.is_active,
+                is_ai_generated=template.is_ai_generated,
                 time_limit=template.time_limit,
                 question_count=len(template.questions),
                 questions=[],
@@ -272,6 +305,7 @@ async def update_likert_template(info: Info, id: str, input: LikertTemplateInput
                 scale_labels=template.scale_labels,
                 language=template.language,
                 is_active=template.is_active,
+                is_ai_generated=template.is_ai_generated if hasattr(template, 'is_ai_generated') else False,
                 time_limit=template.time_limit,
                 question_count=len(input.questions),
                 questions=[],
@@ -337,6 +371,7 @@ async def toggle_likert_template(info: Info, id: str) -> LikertTemplateResponse:
                 scale_labels=template.scale_labels,
                 language=template.language,
                 is_active=template.is_active,
+                is_ai_generated=template.is_ai_generated if hasattr(template, 'is_ai_generated') else False,
                 time_limit=template.time_limit,
                 question_count=len(template.questions),
                 questions=[],

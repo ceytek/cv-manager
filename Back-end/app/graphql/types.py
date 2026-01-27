@@ -454,13 +454,89 @@ class GenerateInterviewQuestionsInput:
     description: str
     question_count: int = 5
     language: str = "tr"
+    question_type: str = "mixed"  # behavioral, situational, technical, conceptual, mixed
+    difficulty: str = "intermediate"  # entry, intermediate, advanced
+
+
+@strawberry.type
+class GeneratedQuestionType:
+    """Single generated question with type"""
+    text: str
+    question_type: str = strawberry.field(name="type")  # behavioral, situational, technical, conceptual
 
 
 @strawberry.type
 class GenerateInterviewQuestionsResultType:
     """Result of AI interview question generation"""
     success: bool
-    questions: Optional[List[str]] = None
+    questions: Optional[List[GeneratedQuestionType]] = None
+    error: Optional[str] = None
+
+
+@strawberry.input
+class RegenerateSingleQuestionInput:
+    """Input for regenerating a single question"""
+    description: str
+    question_type: str = strawberry.field(name="questionType")  # behavioral, situational, technical, conceptual
+    difficulty: str = "intermediate"
+    language: str = "tr"
+    existing_questions: Optional[List[str]] = strawberry.field(name="existingQuestions", default=None)
+
+
+@strawberry.type
+class RegenerateSingleQuestionResultType:
+    """Result of single question regeneration"""
+    success: bool
+    question: Optional[GeneratedQuestionType] = None
+    error: Optional[str] = None
+
+
+# ============================================
+# AI Likert Question Generation Types
+# ============================================
+
+@strawberry.input
+class GenerateLikertQuestionsInput:
+    """Input for AI Likert question generation"""
+    description: str
+    question_count: int = strawberry.field(name="questionCount", default=10)
+    language: str = "tr"
+    dimension: str = "mixed"  # leadership, communication, teamwork, problem_solving, stress_management, adaptability, motivation, integrity, mixed
+    direction: str = "mixed"  # positive, negative, mixed
+    scale_type: int = strawberry.field(name="scaleType", default=5)
+
+
+@strawberry.type
+class GeneratedLikertQuestionType:
+    """Single generated Likert question with dimension and direction"""
+    text: str
+    dimension: str  # leadership, communication, teamwork, etc.
+    direction: str  # positive or negative
+
+
+@strawberry.type
+class GenerateLikertQuestionsResultType:
+    """Result of AI Likert question generation"""
+    success: bool
+    questions: Optional[List[GeneratedLikertQuestionType]] = None
+    error: Optional[str] = None
+
+
+@strawberry.input
+class RegenerateSingleLikertQuestionInput:
+    """Input for regenerating a single Likert question"""
+    description: str
+    dimension: str  # leadership, communication, teamwork, etc.
+    direction: str  # positive or negative
+    language: str = "tr"
+    existing_questions: Optional[List[str]] = strawberry.field(name="existingQuestions", default=None)
+
+
+@strawberry.type
+class RegenerateSingleLikertQuestionResultType:
+    """Result of single Likert question regeneration"""
+    success: bool
+    question: Optional[GeneratedLikertQuestionType] = None
     error: Optional[str] = None
 
 
@@ -762,6 +838,7 @@ class UsagePeriodSummary:
     cv_uploads: int = strawberry.field(name="cvUploads")
     interview_completed: int = strawberry.field(name="interviewCompleted", default=0)
     interview_ai_analysis: int = strawberry.field(name="interviewAIAnalysis", default=0)
+    ai_question_generation: int = strawberry.field(name="aiQuestionGeneration", default=0)
 
 
 # ============================================
