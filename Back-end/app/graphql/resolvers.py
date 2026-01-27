@@ -147,12 +147,12 @@ from app.graphql.types import (
     AIInterviewEmailTemplateUpdateInput,
     AIInterviewEmailTemplateResponse,
     AIInterviewEmailTemplateListResponse,
-    # Likert Test Template types
-    LikertTemplateGQLType,
-    LikertTemplateInput,
-    LikertTemplateUpdateInput,
-    LikertTemplateResponse,
-    LikertTemplateVariablesResponse,
+    # Likert Email Template types
+    LikertEmailTemplateGQLType,
+    LikertEmailTemplateInput,
+    LikertEmailTemplateUpdateInput,
+    LikertEmailTemplateResponse,
+    LikertEmailTemplateVariablesResponse,
 )
 from app.services.auth import AuthService
 from app.services.department import DepartmentService
@@ -2270,24 +2270,24 @@ class Query:
         return get_templates(info, language, active_only)
 
     # ============================================
-    # Likert Test Template Queries
+    # Likert Email Template Queries
     # ============================================
     
     @strawberry.field
-    def likert_templates(self, info: Info) -> List[LikertTemplateGQLType]:
-        """Get all Likert test templates for the company"""
+    def likert_email_templates(self, info: Info) -> List[LikertEmailTemplateGQLType]:
+        """Get all Likert email templates for the company"""
         from app.modules.likert_template.resolvers import get_likert_templates
         return get_likert_templates(info)
 
     @strawberry.field
-    def likert_template(self, info: Info, id: str) -> Optional[LikertTemplateGQLType]:
-        """Get a single Likert test template by ID"""
+    def likert_email_template(self, info: Info, id: str) -> Optional[LikertEmailTemplateGQLType]:
+        """Get a single Likert email template by ID"""
         from app.modules.likert_template.resolvers import get_likert_template
         return get_likert_template(info, id)
 
     @strawberry.field
-    def likert_template_variables(self, info: Info) -> LikertTemplateVariablesResponse:
-        """Get available template variables for Likert test templates"""
+    def likert_email_template_variables(self, info: Info) -> LikertEmailTemplateVariablesResponse:
+        """Get available template variables for Likert email templates"""
         from app.modules.likert_template.resolvers import get_likert_template_variables
         return get_likert_template_variables(info)
 
@@ -4439,8 +4439,8 @@ class Mutation(CompanyMutation):
     async def create_likert_template(
         self, 
         info: Info, 
-        input: LikertTemplateInput
-    ) -> LikertTemplateResponse:
+        input: LikertEmailTemplateInput
+    ) -> LikertEmailTemplateResponse:
         """Create a new Likert test email template"""
         from app.modules.likert_template.resolvers import create_likert_template
         return await create_likert_template(info, input)
@@ -4450,8 +4450,8 @@ class Mutation(CompanyMutation):
         self, 
         info: Info, 
         id: str,
-        input: LikertTemplateUpdateInput
-    ) -> LikertTemplateResponse:
+        input: LikertEmailTemplateUpdateInput
+    ) -> LikertEmailTemplateResponse:
         """Update a Likert test email template"""
         from app.modules.likert_template.resolvers import update_likert_template
         return await update_likert_template(info, id, input)

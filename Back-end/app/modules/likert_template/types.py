@@ -1,12 +1,12 @@
 """
-GraphQL Types for Likert Test Template Module
+GraphQL Types for Likert Email Template Module
 """
 import strawberry
 from typing import Optional, List
 
 
 @strawberry.type
-class LikertTemplateVariableType:
+class LikertEmailTemplateVariableType:
     """Represents a template variable that can be used in templates"""
     key: str
     label_tr: str = strawberry.field(name="labelTr")
@@ -14,7 +14,7 @@ class LikertTemplateVariableType:
 
 
 @strawberry.type
-class LikertTemplateType:
+class LikertEmailTemplateType:
     """GraphQL type for Likert test email templates"""
     id: str
     name: str
@@ -28,7 +28,7 @@ class LikertTemplateType:
 
 
 @strawberry.input
-class LikertTemplateInput:
+class LikertEmailTemplateInput:
     """Input for creating Likert test templates"""
     name: str
     subject: str
@@ -39,7 +39,7 @@ class LikertTemplateInput:
 
 
 @strawberry.input
-class LikertTemplateUpdateInput:
+class LikertEmailTemplateUpdateInput:
     """Input for updating Likert test templates"""
     name: Optional[str] = None
     subject: Optional[str] = None
@@ -50,24 +50,24 @@ class LikertTemplateUpdateInput:
 
 
 @strawberry.type
-class LikertTemplateResponse:
+class LikertEmailTemplateResponse:
     """Response for Likert test template mutations"""
     success: bool
     message: str
-    template: Optional[LikertTemplateType] = None
+    template: Optional[LikertEmailTemplateType] = None
 
 
 @strawberry.type
-class LikertTemplateVariablesResponse:
+class LikertEmailTemplateVariablesResponse:
     """Response containing available template variables"""
-    variables: List[LikertTemplateVariableType]
+    variables: List[LikertEmailTemplateVariableType]
 
 
 __all__ = [
-    "LikertTemplateVariableType",
-    "LikertTemplateType",
-    "LikertTemplateInput",
-    "LikertTemplateUpdateInput",
-    "LikertTemplateResponse",
-    "LikertTemplateVariablesResponse",
+    "LikertEmailTemplateVariableType",
+    "LikertEmailTemplateType",
+    "LikertEmailTemplateInput",
+    "LikertEmailTemplateUpdateInput",
+    "LikertEmailTemplateResponse",
+    "LikertEmailTemplateVariablesResponse",
 ]

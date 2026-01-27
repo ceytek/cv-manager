@@ -7,16 +7,16 @@ from strawberry.types import Info
 from app.api.dependencies import get_company_id_from_token, get_current_user_from_token
 from app.modules.common import get_db_session, MessageType
 from app.modules.likert_template.models import (
-    LikertTemplate,
+    LikertEmailTemplate,
     LIKERT_TEMPLATE_VARIABLES,
 )
 from app.modules.likert_template.types import (
-    LikertTemplateType,
-    LikertTemplateInput,
-    LikertTemplateUpdateInput,
-    LikertTemplateResponse,
-    LikertTemplateVariablesResponse,
-    LikertTemplateVariableType,
+    LikertEmailTemplateType,
+    LikertEmailTemplateInput,
+    LikertEmailTemplateUpdateInput,
+    LikertEmailTemplateResponse,
+    LikertEmailTemplateVariablesResponse,
+    LikertEmailTemplateVariableType,
 )
 
 
@@ -35,19 +35,19 @@ def _get_auth_info(info: Info):
 
 # ============ Query Resolvers ============
 
-def get_likert_templates(info: Info) -> List[LikertTemplateType]:
+def get_likert_templates(info: Info) -> List[LikertEmailTemplateType]:
     """Get all Likert test templates for the current company"""
     token = _get_auth_info(info)
     
     db = get_db_session()
     try:
         company_id = get_company_id_from_token(token)
-        templates = db.query(LikertTemplate).filter(
-            LikertTemplate.company_id == company_id
-        ).order_by(LikertTemplate.created_at.desc()).all()
+        templates = db.query(LikertEmailTemplate).filter(
+            LikertEmailTemplate.company_id == company_id
+        ).order_by(LikertEmailTemplate.created_at.desc()).all()
         
         return [
-            LikertTemplateType(
+            LikertEmailTemplateType(
                 id=str(t.id),
                 name=t.name,
                 subject=t.subject,
@@ -63,22 +63,22 @@ def get_likert_templates(info: Info) -> List[LikertTemplateType]:
         db.close()
 
 
-def get_likert_template(info: Info, id: str) -> Optional[LikertTemplateType]:
+def get_likert_template(info: Info, id: str) -> Optional[LikertEmailTemplateType]:
     """Get a single Likert test template by ID"""
     token = _get_auth_info(info)
     
     db = get_db_session()
     try:
         company_id = get_company_id_from_token(token)
-        template = db.query(LikertTemplate).filter(
-            LikertTemplate.id == id,
-            LikertTemplate.company_id == company_id
+        template = db.query(LikertEmailTemplate).filter(
+            LikertEmailTemplate.id == id,
+            LikertEmailTemplate.company_id == company_id
         ).first()
         
         if not template:
             return None
         
-        return LikertTemplateType(
+        return LikertEmailTemplateType(
             id=str(template.id),
             name=template.name,
             subject=template.subject,
@@ -93,11 +93,11 @@ def get_likert_template(info: Info, id: str) -> Optional[LikertTemplateType]:
         db.close()
 
 
-def get_likert_template_variables(info: Info) -> LikertTemplateVariablesResponse:
+def get_likert_template_variables(info: Info) -> LikertEmailTemplateVariablesResponse:
     """Get available template variables for Likert test templates"""
-    return LikertTemplateVariablesResponse(
+    return LikertEmailTemplateVariablesResponse(
         variables=[
-            LikertTemplateVariableType(
+            LikertEmailTemplateVariableType(
                 key=v['key'],
                 label_tr=v['label_tr'],
                 label_en=v['label_en']
@@ -110,8 +110,8 @@ def get_likert_template_variables(info: Info) -> LikertTemplateVariablesResponse
 
 async def create_likert_template(
     info: Info, 
-    input: LikertTemplateInput
-) -> LikertTemplateResponse:
+    input: LikertEmailTemplateInput
+) -> LikertEmailTemplateResponse:
     """Create a new Likert test email template"""
     token = _get_auth_info(info)
     
@@ -122,12 +122,12 @@ async def create_likert_template(
         
         # If setting as default, unset other defaults
         if input.is_default:
-            db.query(LikertTemplate).filter(
-                LikertTemplate.company_id == company_id,
-                LikertTemplate.is_default == True
+            db.query(LikertEmailTemplate).filter(
+                LikertEmailTemplate.company_id == company_id,
+                LikertEmailTemplate.is_default == True
             ).update({"is_default": False})
         
-        template = LikertTemplate(
+        template = LikertEmailTemplate(
             company_id=company_id,
             created_by=str(current.id),
             name=input.name,
@@ -141,10 +141,10 @@ async def create_likert_template(
         db.commit()
         db.refresh(template)
         
-        return LikertTemplateResponse(
+        return LikertEmailTemplateResponse(
             success=True,
             message="Likert test template created",
-            template=LikertTemplateType(
+            template=LikertEmailTemplateType(
                 id=str(template.id),
                 name=template.name,
                 subject=template.subject,
@@ -158,7 +158,7 @@ async def create_likert_template(
         )
     except Exception as e:
         db.rollback()
-        return LikertTemplateResponse(success=False, message=str(e), template=None)
+        return LikertEmailTemplateResponse(success=False, message=str(e), template=None)
     finally:
         db.close()
 
@@ -166,21 +166,21 @@ async def create_likert_template(
 async def update_likert_template(
     info: Info, 
     id: str, 
-    input: LikertTemplateUpdateInput
-) -> LikertTemplateResponse:
+    input: LikertEmailTemplateUpdateInput
+) -> LikertEmailTemplateResponse:
     """Update a Likert test email template"""
     token = _get_auth_info(info)
     
     db = get_db_session()
     try:
         company_id = get_company_id_from_token(token)
-        template = db.query(LikertTemplate).filter(
-            LikertTemplate.id == id,
-            LikertTemplate.company_id == company_id
+        template = db.query(LikertEmailTemplate).filter(
+            LikertEmailTemplate.id == id,
+            LikertEmailTemplate.company_id == company_id
         ).first()
         
         if not template:
-            return LikertTemplateResponse(success=False, message="Template not found", template=None)
+            return LikertEmailTemplateResponse(success=False, message="Template not found", template=None)
         
         # Update fields if provided
         if input.name is not None:
@@ -196,20 +196,20 @@ async def update_likert_template(
         if input.is_default is not None:
             # If setting as default, unset other defaults
             if input.is_default:
-                db.query(LikertTemplate).filter(
-                    LikertTemplate.company_id == company_id,
-                    LikertTemplate.is_default == True,
-                    LikertTemplate.id != id
+                db.query(LikertEmailTemplate).filter(
+                    LikertEmailTemplate.company_id == company_id,
+                    LikertEmailTemplate.is_default == True,
+                    LikertEmailTemplate.id != id
                 ).update({"is_default": False})
             template.is_default = input.is_default
         
         db.commit()
         db.refresh(template)
         
-        return LikertTemplateResponse(
+        return LikertEmailTemplateResponse(
             success=True,
             message="Template updated",
-            template=LikertTemplateType(
+            template=LikertEmailTemplateType(
                 id=str(template.id),
                 name=template.name,
                 subject=template.subject,
@@ -223,7 +223,7 @@ async def update_likert_template(
         )
     except Exception as e:
         db.rollback()
-        return LikertTemplateResponse(success=False, message=str(e), template=None)
+        return LikertEmailTemplateResponse(success=False, message=str(e), template=None)
     finally:
         db.close()
 
@@ -235,9 +235,9 @@ async def delete_likert_template(info: Info, id: str) -> MessageType:
     db = get_db_session()
     try:
         company_id = get_company_id_from_token(token)
-        template = db.query(LikertTemplate).filter(
-            LikertTemplate.id == id,
-            LikertTemplate.company_id == company_id
+        template = db.query(LikertEmailTemplate).filter(
+            LikertEmailTemplate.id == id,
+            LikertEmailTemplate.company_id == company_id
         ).first()
         
         if not template:

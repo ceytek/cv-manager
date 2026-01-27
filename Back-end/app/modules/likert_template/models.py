@@ -16,9 +16,9 @@ import uuid
 from app.core.database import Base
 
 
-class LikertTemplate(Base):
+class LikertEmailTemplate(Base):
     """
-    LikertTemplate Model - Stores Likert test invitation email templates
+    LikertEmailTemplate Model - Stores Likert test invitation email templates
     
     Supports variable placeholders that get replaced with actual data when sending:
     - {candidate_name} - Aday adı
@@ -27,7 +27,7 @@ class LikertTemplate(Base):
     - {test_link} - Test linki
     - {expiry_date} - Son geçerlilik tarihi
     """
-    __tablename__ = "likert_templates"
+    __tablename__ = "likert_email_templates"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     
@@ -50,7 +50,7 @@ class LikertTemplate(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def __repr__(self):
-        return f"<LikertTemplate(id={self.id}, name={self.name})>"
+        return f"<LikertEmailTemplate(id={self.id}, name={self.name})>"
 
 
 # Available template variables for frontend reference

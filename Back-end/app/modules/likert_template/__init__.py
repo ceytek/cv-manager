@@ -1,14 +1,15 @@
 """
-Likert Test Template Module
+Likert Email Template Module
 Manages email templates for Likert test invitations
 """
-from app.modules.likert_template.models import LikertTemplate, LIKERT_TEMPLATE_VARIABLES
+from app.modules.likert_template.models import LikertEmailTemplate, LIKERT_TEMPLATE_VARIABLES
 from app.modules.likert_template.types import (
-    LikertTemplateType,
-    LikertTemplateInput,
-    LikertTemplateUpdateInput,
-    LikertTemplateResponse,
-    LikertTemplateVariableType,
+    LikertEmailTemplateType,
+    LikertEmailTemplateInput,
+    LikertEmailTemplateUpdateInput,
+    LikertEmailTemplateResponse,
+    LikertEmailTemplateVariableType,
+    LikertEmailTemplateVariablesResponse,
 )
 from app.modules.likert_template.resolvers import (
     get_likert_templates,
@@ -21,14 +22,15 @@ from app.modules.likert_template.resolvers import (
 
 __all__ = [
     # Models
-    "LikertTemplate",
+    "LikertEmailTemplate",
     "LIKERT_TEMPLATE_VARIABLES",
     # Types
-    "LikertTemplateType",
-    "LikertTemplateInput",
-    "LikertTemplateUpdateInput",
-    "LikertTemplateResponse",
-    "LikertTemplateVariableType",
+    "LikertEmailTemplateType",
+    "LikertEmailTemplateInput",
+    "LikertEmailTemplateUpdateInput",
+    "LikertEmailTemplateResponse",
+    "LikertEmailTemplateVariableType",
+    "LikertEmailTemplateVariablesResponse",
     # Resolvers
     "get_likert_templates",
     "get_likert_template",

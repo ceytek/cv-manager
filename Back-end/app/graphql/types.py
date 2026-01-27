@@ -1164,13 +1164,13 @@ from app.modules.ai_interview_template.types import (
 )
 
 # ============================================
-# Likert Test Template Module Types
+# Likert Email Template Module Types
 # ============================================
 from app.modules.likert_template.types import (
-    LikertTemplateType as LikertTemplateGQLType,
-    LikertTemplateInput,
-    LikertTemplateUpdateInput,
-    LikertTemplateResponse,
-    LikertTemplateVariablesResponse,
-    LikertTemplateVariableType,
+    LikertEmailTemplateType as LikertEmailTemplateGQLType,
+    LikertEmailTemplateInput,
+    LikertEmailTemplateUpdateInput,
+    LikertEmailTemplateResponse,
+    LikertEmailTemplateVariablesResponse,
+    LikertEmailTemplateVariableType,
 )

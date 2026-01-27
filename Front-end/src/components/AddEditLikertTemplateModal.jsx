@@ -32,7 +32,7 @@ const AddEditLikertTemplateModal = ({ template, onClose }) => {
 
   // Fetch available variables
   const { data: variablesData } = useQuery(GET_LIKERT_TEMPLATE_VARIABLES);
-  const variables = variablesData?.likertTemplateVariables?.variables || [];
+  const variables = variablesData?.likertEmailTemplateVariables?.variables || [];
 
   const [createTemplate] = useMutation(CREATE_LIKERT_TEMPLATE);
   const [updateTemplate] = useMutation(UPDATE_LIKERT_TEMPLATE);

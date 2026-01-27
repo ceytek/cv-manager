@@ -5,8 +5,8 @@ import { gql } from '@apollo/client';
 // ============================================
 
 export const GET_LIKERT_TEMPLATES = gql`
-  query GetLikertTemplates {
-    likertTemplates {
+  query GetLikertEmailTemplates {
+    likertEmailTemplates {
       id
       name
       subject
@@ -21,8 +21,8 @@ export const GET_LIKERT_TEMPLATES = gql`
 `;
 
 export const GET_LIKERT_TEMPLATE = gql`
-  query GetLikertTemplate($id: String!) {
-    likertTemplate(id: $id) {
+  query GetLikertEmailTemplate($id: String!) {
+    likertEmailTemplate(id: $id) {
       id
       name
       subject
@@ -37,8 +37,8 @@ export const GET_LIKERT_TEMPLATE = gql`
 `;
 
 export const GET_LIKERT_TEMPLATE_VARIABLES = gql`
-  query GetLikertTemplateVariables {
-    likertTemplateVariables {
+  query GetLikertEmailTemplateVariables {
+    likertEmailTemplateVariables {
       variables {
         key
         labelTr
@@ -53,7 +53,7 @@ export const GET_LIKERT_TEMPLATE_VARIABLES = gql`
 // ============================================
 
 export const CREATE_LIKERT_TEMPLATE = gql`
-  mutation CreateLikertTemplate($input: LikertTemplateInput!) {
+  mutation CreateLikertTemplate($input: LikertEmailTemplateInput!) {
     createLikertTemplate(input: $input) {
       success
       message
@@ -72,7 +72,7 @@ export const CREATE_LIKERT_TEMPLATE = gql`
 `;
 
 export const UPDATE_LIKERT_TEMPLATE = gql`
-  mutation UpdateLikertTemplate($id: String!, $input: LikertTemplateUpdateInput!) {
+  mutation UpdateLikertTemplate($id: String!, $input: LikertEmailTemplateUpdateInput!) {
     updateLikertTemplate(id: $id, input: $input) {
       success
       message

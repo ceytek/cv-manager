@@ -54,7 +54,7 @@ const LikertTemplatesPage = () => {
     refetch();
   };
 
-  const variables = variablesData?.likertTemplateVariables?.variables || [];
+  const variables = variablesData?.likertEmailTemplateVariables?.variables || [];
 
   if (loading) {
     return (
@@ -72,7 +72,7 @@ const LikertTemplatesPage = () => {
     );
   }
 
-  const templates = data?.likertTemplates || [];
+  const templates = data?.likertEmailTemplates || [];
 
   return (
     <div style={{ padding: 24 }}>

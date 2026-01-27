@@ -47,7 +47,7 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
   const deadlineHours = job?.likertDeadlineHours || 72;
   
   // Email templates
-  const emailTemplates = templatesData?.likertTemplates?.filter(t => t.isActive) || [];
+  const emailTemplates = templatesData?.likertEmailTemplates?.filter(t => t.isActive) || [];
   const selectedEmailTemplate = emailTemplates.find(t => t.id === selectedTemplateId);
   
   // Set default template if available
