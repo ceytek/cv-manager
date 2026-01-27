@@ -613,12 +613,9 @@ const JobDetails = ({ job, onBack, departments }) => {
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelectedApp(app);
-                        // Only show feedback modal if there's an active (invited) interview
-                        if (app.secondInterviewStatus === 'invited') {
-                          setSecondInterviewData({ application: app });
-                          setShowSecondInterviewFeedback(true);
-                        }
-                        // For completed/no_show/cancelled, don't open modal - user should send new invite
+                        // Show feedback modal for all statuses - it will show info for completed interviews
+                        setSecondInterviewData({ application: app });
+                        setShowSecondInterviewFeedback(true);
                       }}
                       style={{
                         display: 'flex',

@@ -302,6 +302,165 @@ const SecondInterviewFeedbackModal = ({
                   : t('secondInterview.feedback.successDesc', 'Görüşme sonucu başarıyla kaydedildi.')}
               </p>
             </div>
+          ) : secondInterview?.status && secondInterview.status !== 'invited' ? (
+            /* View-Only State for Completed/No-Show/Cancelled Interviews */
+            <div>
+              {/* Interview Info Card */}
+              <div style={{ 
+                background: '#F9FAFB', 
+                borderRadius: '12px', 
+                padding: '16px', 
+                marginBottom: '20px' 
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                  {candidate?.cvPhotoPath ? (
+                    <img 
+                      src={candidate.cvPhotoPath} 
+                      alt={candidate.name}
+                      style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <div style={{ 
+                      width: '48px', 
+                      height: '48px', 
+                      borderRadius: '50%', 
+                      background: 'linear-gradient(135deg, #8B5CF6, #6D28D9)', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center', 
+                      color: 'white', 
+                      fontWeight: '600', 
+                      fontSize: '18px' 
+                    }}>
+                      {candidate?.name?.charAt(0) || '?'}
+                    </div>
+                  )}
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: '600', color: '#111827' }}>{candidate?.name}</div>
+                    <div style={{ fontSize: '13px', color: '#6B7280' }}>{job?.title}</div>
+                  </div>
+                </div>
+                
+                <div style={{ display: 'grid', gap: '8px', fontSize: '13px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#6B7280' }}>
+                    <Calendar size={14} />
+                    <span>{formatDateTime(secondInterview?.scheduledDate, secondInterview?.scheduledTime)}</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#6B7280' }}>
+                    {secondInterview?.interviewType === 'online' ? (
+                      <>
+                        <Video size={14} />
+                        <span>
+                          {t('secondInterview.feedback.online', 'Online')} 
+                          {secondInterview?.platform && ` - ${secondInterview.platform.replace('_', ' ').toUpperCase()}`}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <MapPin size={14} />
+                        <span>{t('secondInterview.feedback.inPerson', 'Yüz Yüze')}</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Interview Result */}
+              <div style={{ 
+                background: secondInterview.status === 'completed' 
+                  ? (secondInterview.outcome === 'passed' ? '#D1FAE5' : secondInterview.outcome === 'rejected' ? '#FEE2E2' : '#DBEAFE')
+                  : secondInterview.status === 'no_show' ? '#FEF3C7' 
+                  : '#F3F4F6',
+                borderRadius: '12px', 
+                padding: '20px',
+                textAlign: 'center'
+              }}>
+                <div style={{ 
+                  width: '56px', 
+                  height: '56px', 
+                  borderRadius: '50%', 
+                  background: 'white',
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  margin: '0 auto 12px',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                }}>
+                  {secondInterview.status === 'completed' ? (
+                    secondInterview.outcome === 'passed' ? <ThumbsUp size={28} color="#10B981" /> :
+                    secondInterview.outcome === 'rejected' ? <ThumbsDown size={28} color="#EF4444" /> :
+                    <ClipboardList size={28} color="#3B82F6" />
+                  ) : secondInterview.status === 'no_show' ? (
+                    <UserX size={28} color="#F59E0B" />
+                  ) : (
+                    <XCircle size={28} color="#6B7280" />
+                  )}
+                </div>
+                
+                <h3 style={{ 
+                  margin: '0 0 8px', 
+                  fontSize: '18px', 
+                  fontWeight: '600', 
+                  color: secondInterview.status === 'completed' 
+                    ? (secondInterview.outcome === 'passed' ? '#059669' : secondInterview.outcome === 'rejected' ? '#DC2626' : '#2563EB')
+                    : secondInterview.status === 'no_show' ? '#D97706' 
+                    : '#4B5563'
+                }}>
+                  {secondInterview.status === 'completed' ? (
+                    secondInterview.outcome === 'passed' ? t('secondInterview.feedback.resultPassed', 'Başarılı - Teklif Aşamasına Geçirildi') :
+                    secondInterview.outcome === 'rejected' ? t('secondInterview.feedback.resultRejected', 'Red Verildi') :
+                    secondInterview.outcome === 'pending_likert' ? t('secondInterview.feedback.resultLikert', 'Likert Teste Yönlendirildi') :
+                    t('secondInterview.feedback.resultCompleted', 'Mülakat Tamamlandı')
+                  ) : secondInterview.status === 'no_show' ? (
+                    t('secondInterview.feedback.resultNoShow', 'Aday Gelmedi')
+                  ) : (
+                    t('secondInterview.feedback.resultCancelled', 'Mülakat İptal Edildi')
+                  )}
+                </h3>
+                
+                {secondInterview.feedbackNotes && (
+                  <div style={{ 
+                    marginTop: '16px', 
+                    padding: '12px', 
+                    background: 'white', 
+                    borderRadius: '8px',
+                    textAlign: 'left'
+                  }}>
+                    <div style={{ fontSize: '12px', fontWeight: '600', color: '#6B7280', marginBottom: '4px' }}>
+                      {t('secondInterview.feedback.notes', 'Notlar')}:
+                    </div>
+                    <p style={{ margin: 0, fontSize: '14px', color: '#374151', whiteSpace: 'pre-wrap' }}>
+                      {secondInterview.feedbackNotes}
+                    </p>
+                  </div>
+                )}
+
+                {secondInterview.feedbackAt && (
+                  <p style={{ margin: '12px 0 0', fontSize: '12px', color: '#6B7280' }}>
+                    {t('secondInterview.feedback.feedbackDate', 'Geri bildirim tarihi')}: {new Date(secondInterview.feedbackAt).toLocaleString('tr-TR')}
+                  </p>
+                )}
+              </div>
+
+              {/* Close Button */}
+              <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'center' }}>
+                <button
+                  onClick={onClose}
+                  style={{
+                    padding: '12px 32px',
+                    background: '#6B7280',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontWeight: '600',
+                    fontSize: '14px'
+                  }}
+                >
+                  {t('common.close', 'Kapat')}
+                </button>
+              </div>
+            </div>
           ) : showCancelConfirm ? (
             /* Cancel Confirmation */
             <div style={{ textAlign: 'center', padding: '20px 0' }}>
