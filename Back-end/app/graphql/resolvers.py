@@ -37,6 +37,8 @@ from app.graphql.types import (
     AnalyzeJobCandidatesInput,
     GenerateJobWithAIInput,
     GenerateJobResultType,
+    GenerateInterviewQuestionsInput,
+    GenerateInterviewQuestionsResultType,
     StatsType,
     DailyActivityStatsType,
     ComparisonResultType,
@@ -4517,6 +4519,58 @@ class Mutation(CompanyMutation):
         """Delete a company address"""
         from app.modules.company_address.resolvers import delete_company_address
         return await delete_company_address(info, id)
+
+    @strawberry.mutation
+    async def generate_interview_questions(
+        self, 
+        info: Info, 
+        input: GenerateInterviewQuestionsInput
+    ) -> GenerateInterviewQuestionsResultType:
+        """Generate interview questions using AI based on description"""
+        import httpx
+        from app.core.config import settings
+        
+        try:
+            # Call AI Service
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                response = await client.post(
+                    f"{settings.AI_SERVICE_URL}/generate-interview-questions",
+                    json={
+                        "description": input.description,
+                        "question_count": input.question_count,
+                        "language": input.language
+                    }
+                )
+                
+                if response.status_code != 200:
+                    return GenerateInterviewQuestionsResultType(
+                        success=False,
+                        error=f"AI Service error: {response.status_code}"
+                    )
+                
+                data = response.json()
+                
+                if data.get("success"):
+                    return GenerateInterviewQuestionsResultType(
+                        success=True,
+                        questions=data.get("questions", [])
+                    )
+                else:
+                    return GenerateInterviewQuestionsResultType(
+                        success=False,
+                        error=data.get("error", "Unknown error")
+                    )
+                    
+        except httpx.TimeoutException:
+            return GenerateInterviewQuestionsResultType(
+                success=False,
+                error="AI Service timeout - please try again"
+            )
+        except Exception as e:
+            return GenerateInterviewQuestionsResultType(
+                success=False,
+                error=str(e)
+            )
 
 
 # Create schema

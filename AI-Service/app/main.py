@@ -123,6 +123,20 @@ class AnalyzeInterviewResponse(BaseModel):
     error: Optional[str] = None
 
 
+class GenerateInterviewQuestionsRequest(BaseModel):
+    """Request model for AI interview question generation"""
+    description: str
+    question_count: int = 5
+    language: str = "tr"
+
+
+class GenerateInterviewQuestionsResponse(BaseModel):
+    """Response model for AI interview question generation"""
+    success: bool
+    questions: Optional[List[str]] = None
+    error: Optional[str] = None
+
+
 # ============================================
 # Health Check
 # ============================================
@@ -427,6 +441,98 @@ async def analyze_interview(request: AnalyzeInterviewRequest):
     
     except Exception as e:
         return AnalyzeInterviewResponse(
+            success=False,
+            error=str(e)
+        )
+
+
+# ============================================
+# Interview Question Generator Endpoint
+# ============================================
+
+@app.post("/generate-interview-questions", response_model=GenerateInterviewQuestionsResponse)
+async def generate_interview_questions(request: GenerateInterviewQuestionsRequest):
+    """
+    Generate interview questions using AI based on job description/context.
+    
+    Args:
+        request: Contains description, question_count (1-15), and language (tr/en)
+        
+    Returns:
+        List of generated interview questions
+    """
+    try:
+        # Validate required fields
+        if not request.description or not request.description.strip():
+            raise HTTPException(status_code=400, detail="description is required")
+        
+        # Validate question count
+        question_count = max(1, min(15, request.question_count))
+        
+        # Validate language
+        language = request.language.lower() if request.language else "tr"
+        if language not in ["tr", "en"]:
+            language = "tr"
+        
+        # Import prompt and OpenAI
+        from app.prompts.interview_question_generator_prompt import (
+            get_interview_question_generator_prompt,
+            get_system_message
+        )
+        from openai import OpenAI
+        import json
+        
+        # Initialize OpenAI client
+        client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        
+        # Generate prompt
+        prompt = get_interview_question_generator_prompt(
+            description=request.description,
+            question_count=question_count,
+            language=language
+        )
+        
+        # Call OpenAI API
+        response = client.chat.completions.create(
+            model=settings.MODEL_NAME,
+            messages=[
+                {
+                    "role": "system",
+                    "content": get_system_message(language)
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0.7,
+            max_tokens=2000,
+            response_format={"type": "json_object"}
+        )
+        
+        # Extract and parse the response
+        response_text = response.choices[0].message.content
+        response_data = json.loads(response_text)
+        
+        questions = response_data.get("questions", [])
+        
+        # Ensure we have the right number of questions
+        if len(questions) < question_count:
+            # Pad with empty if needed (shouldn't happen)
+            pass
+        elif len(questions) > question_count:
+            questions = questions[:question_count]
+        
+        return GenerateInterviewQuestionsResponse(
+            success=True,
+            questions=questions
+        )
+        
+    except HTTPException:
+        raise
+    
+    except Exception as e:
+        return GenerateInterviewQuestionsResponse(
             success=False,
             error=str(e)
         )

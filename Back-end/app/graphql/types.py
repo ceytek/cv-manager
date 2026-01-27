@@ -445,6 +445,26 @@ class GenerateJobResultType:
 
 
 # ============================================
+# AI Interview Question Generation Types
+# ============================================
+
+@strawberry.input
+class GenerateInterviewQuestionsInput:
+    """Input for AI interview question generation"""
+    description: str
+    question_count: int = 5
+    language: str = "tr"
+
+
+@strawberry.type
+class GenerateInterviewQuestionsResultType:
+    """Result of AI interview question generation"""
+    success: bool
+    questions: Optional[List[str]] = None
+    error: Optional[str] = None
+
+
+# ============================================
 # Two-CV Comparison Types (New Structure)
 # ============================================
 

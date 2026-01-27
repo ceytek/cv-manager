@@ -1,32 +1,47 @@
 /**
  * Add/Edit Interview Template Modal
+ * With Manual and AI Question Generation tabs
  */
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery } from '@apollo/client/react';
-import { X, Plus, Trash2, Globe, Clock, Timer, Sparkles, Mic } from 'lucide-react';
-import { CREATE_INTERVIEW_TEMPLATE, UPDATE_INTERVIEW_TEMPLATE, GET_INTERVIEW_TEMPLATE } from '../graphql/interviewTemplates';
+import { X, Plus, Trash2, Globe, Clock, Timer, Sparkles, Mic, Wand2, FileText, Loader2 } from 'lucide-react';
+import { 
+  CREATE_INTERVIEW_TEMPLATE, 
+  UPDATE_INTERVIEW_TEMPLATE, 
+  GET_INTERVIEW_TEMPLATE,
+  GENERATE_INTERVIEW_QUESTIONS 
+} from '../graphql/interviewTemplates';
 
 const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template }) => {
   const { t, i18n } = useTranslation();
   const isEnglish = i18n.language === 'en';
   const isEdit = !!template;
 
+  // Tab state
+  const [activeTab, setActiveTab] = useState('manual');
+
+  // Common fields
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [introText, setIntroText] = useState('');
   const [language, setLanguage] = useState('tr');
   const [useGlobalTimer, setUseGlobalTimer] = useState(false);
-  const [totalDuration, setTotalDuration] = useState(1800); // 30 minutes default
-  const [durationPerQuestion, setDurationPerQuestion] = useState(120);
-  const [aiAnalysisEnabled, setAiAnalysisEnabled] = useState(false);
-  const [voiceResponseEnabled, setVoiceResponseEnabled] = useState(false);
+  const [totalDuration, setTotalDuration] = useState(1800);
+  const [durationPerQuestion, setDurationPerQuestion] = useState(300); // 5 minutes default
+  const [aiAnalysisEnabled, setAiAnalysisEnabled] = useState(true);
+  const [voiceResponseEnabled, setVoiceResponseEnabled] = useState(true);
   const [questions, setQuestions] = useState([]);
   const [newQuestion, setNewQuestion] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  // Duration options for per-question timer (in seconds)
+  // AI tab specific state
+  const [aiQuestionCount, setAiQuestionCount] = useState(5);
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiQuestionsText, setAiQuestionsText] = useState('');
+
+  // Duration options
   const questionDurationOptions = [
     { value: 60, label: '1 dk' },
     { value: 120, label: '2 dk' },
@@ -36,7 +51,6 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
     { value: 900, label: '15 dk' },
   ];
 
-  // Duration options for global timer (in seconds)
   const globalDurationOptions = [
     { value: 300, label: '5 dk' },
     { value: 600, label: '10 dk' },
@@ -47,7 +61,7 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
     { value: 3600, label: '60 dk' },
   ];
 
-  // Fetch full template with questions if editing
+  // Fetch full template if editing
   const { data: templateData } = useQuery(GET_INTERVIEW_TEMPLATE, {
     variables: { id: template?.id },
     skip: !template?.id,
@@ -56,6 +70,7 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
 
   const [createTemplate] = useMutation(CREATE_INTERVIEW_TEMPLATE);
   const [updateTemplate] = useMutation(UPDATE_INTERVIEW_TEMPLATE);
+  const [generateQuestions] = useMutation(GENERATE_INTERVIEW_QUESTIONS);
 
   useEffect(() => {
     if (templateData?.interviewTemplate) {
@@ -66,30 +81,37 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
       setLanguage(t.language || 'tr');
       setUseGlobalTimer(t.useGlobalTimer || false);
       setTotalDuration(t.totalDuration || 1800);
-      setDurationPerQuestion(t.durationPerQuestion || 120);
-      setAiAnalysisEnabled(t.aiAnalysisEnabled || false);
-      setVoiceResponseEnabled(t.voiceResponseEnabled || false);
+      setDurationPerQuestion(t.durationPerQuestion || 300);
+      setAiAnalysisEnabled(t.aiAnalysisEnabled ?? true);
+      setVoiceResponseEnabled(t.voiceResponseEnabled ?? true);
       setQuestions(t.questions?.map(q => ({
         id: q.id,
         text: q.questionText,
         order: q.questionOrder,
-        timeLimit: q.timeLimit || t.durationPerQuestion || 120,
+        timeLimit: q.timeLimit || t.durationPerQuestion || 300,
       })) || []);
     } else if (!template) {
-      // Reset for new template
-      setName('');
-      setDescription('');
-      setIntroText('');
-      setLanguage('tr');
-      setUseGlobalTimer(false);
-      setTotalDuration(1800);
-      setDurationPerQuestion(120);
-      setAiAnalysisEnabled(false);
-      setVoiceResponseEnabled(false);
-      setQuestions([]);
+      resetForm();
     }
   }, [templateData, template]);
 
+  const resetForm = () => {
+    setName('');
+    setDescription('');
+    setIntroText('');
+    setLanguage('tr');
+    setUseGlobalTimer(false);
+    setTotalDuration(1800);
+    setDurationPerQuestion(300);
+    setAiAnalysisEnabled(true);
+    setVoiceResponseEnabled(true);
+    setQuestions([]);
+    setAiQuestionsText('');
+    setAiQuestionCount(5);
+    setActiveTab('manual');
+  };
+
+  // Manual tab functions
   const addQuestion = () => {
     if (!newQuestion.trim()) return;
     setQuestions([...questions, {
@@ -123,12 +145,70 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
     setQuestions(updated);
   };
 
+  // AI tab functions
+  const handleGenerateQuestions = async () => {
+    if (!description.trim()) {
+      setError(isEnglish ? 'Description is required for AI question generation' : 'AI soru üretimi için açıklama gereklidir');
+      return;
+    }
+
+    setAiGenerating(true);
+    setError('');
+
+    try {
+      const result = await generateQuestions({
+        variables: {
+          input: {
+            description: description.trim(),
+            questionCount: aiQuestionCount,
+            language: language,
+          }
+        }
+      });
+
+      if (result.data?.generateInterviewQuestions?.success) {
+        const generatedQuestions = result.data.generateInterviewQuestions.questions || [];
+        // Put questions in textarea for editing
+        setAiQuestionsText(generatedQuestions.join('\n\n'));
+      } else {
+        setError(result.data?.generateInterviewQuestions?.error || 'AI soru üretimi başarısız');
+      }
+    } catch (err) {
+      console.error('AI generation error:', err);
+      setError(err.message);
+    } finally {
+      setAiGenerating(false);
+    }
+  };
+
+  // Convert AI textarea questions to questions array
+  const parseAiQuestions = () => {
+    if (!aiQuestionsText.trim()) return [];
+    return aiQuestionsText
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0)
+      .map((text, index) => ({
+        id: `ai-${Date.now()}-${index}`,
+        text: text.replace(/^\d+[\.\)\-]\s*/, ''), // Remove numbering
+        order: index + 1,
+        timeLimit: parseInt(durationPerQuestion),
+      }));
+  };
+
   const handleSave = async () => {
     if (!name.trim()) {
       setError(isEnglish ? 'Template name is required' : 'Şablon adı gereklidir');
       return;
     }
-    if (questions.length === 0) {
+
+    // Get questions based on active tab
+    let finalQuestions = questions;
+    if (activeTab === 'ai') {
+      finalQuestions = parseAiQuestions();
+    }
+
+    if (finalQuestions.length === 0) {
       setError(isEnglish ? 'At least one question is required' : 'En az bir soru gereklidir');
       return;
     }
@@ -142,15 +222,15 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
         description: description.trim() || null,
         introText: introText.trim() || null,
         language,
-        durationPerQuestion: parseInt(durationPerQuestion) || 120,
+        durationPerQuestion: parseInt(durationPerQuestion) || 300,
         useGlobalTimer,
         totalDuration: useGlobalTimer ? parseInt(totalDuration) : null,
         aiAnalysisEnabled,
         voiceResponseEnabled,
-        questions: questions.map((q, i) => ({
+        questions: finalQuestions.map((q, i) => ({
           questionText: q.text,
           questionOrder: i + 1,
-          timeLimit: parseInt(q.timeLimit) || parseInt(durationPerQuestion) || 120,
+          timeLimit: parseInt(q.timeLimit) || parseInt(durationPerQuestion) || 300,
         })),
       };
 
@@ -173,7 +253,7 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-      <div style={{ background: 'white', borderRadius: '16px', width: '90%', maxWidth: '700px', maxHeight: '90vh', overflow: 'auto' }}>
+      <div style={{ background: 'white', borderRadius: '16px', width: '90%', maxWidth: '750px', maxHeight: '90vh', overflow: 'auto' }}>
         {/* Header */}
         <div style={{ padding: '20px 24px', borderBottom: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '600' }}>
@@ -184,6 +264,54 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
           </button>
         </div>
 
+        {/* Tabs - Only show for new templates */}
+        {!isEdit && (
+          <div style={{ padding: '0 24px', borderBottom: '1px solid #E5E7EB' }}>
+            <div style={{ display: 'flex', gap: '4px' }}>
+              <button
+                onClick={() => setActiveTab('manual')}
+                style={{
+                  padding: '12px 20px',
+                  background: 'transparent',
+                  border: 'none',
+                  borderBottom: activeTab === 'manual' ? '3px solid #3B82F6' : '3px solid transparent',
+                  cursor: 'pointer',
+                  fontWeight: activeTab === 'manual' ? '600' : '500',
+                  color: activeTab === 'manual' ? '#3B82F6' : '#6B7280',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '14px',
+                  transition: 'all 0.2s',
+                }}
+              >
+                <FileText size={18} />
+                {isEnglish ? 'Manual' : 'Manuel'}
+              </button>
+              <button
+                onClick={() => setActiveTab('ai')}
+                style={{
+                  padding: '12px 20px',
+                  background: 'transparent',
+                  border: 'none',
+                  borderBottom: activeTab === 'ai' ? '3px solid #8B5CF6' : '3px solid transparent',
+                  cursor: 'pointer',
+                  fontWeight: activeTab === 'ai' ? '600' : '500',
+                  color: activeTab === 'ai' ? '#8B5CF6' : '#6B7280',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '14px',
+                  transition: 'all 0.2s',
+                }}
+              >
+                <Wand2 size={18} />
+                {isEnglish ? 'AI Generate' : 'AI ile Hazırla'}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Body */}
         <div style={{ padding: '24px' }}>
           {error && (
@@ -192,7 +320,7 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
             </div>
           )}
 
-          {/* Name */}
+          {/* Common Fields: Name */}
           <div style={{ marginBottom: '20px' }}>
             <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px' }}>
               {isEnglish ? 'Template Name' : 'Şablon Adı'} *
@@ -207,17 +335,23 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
             />
           </div>
 
-          {/* Description */}
+          {/* Description - Common but used for AI generation */}
           <div style={{ marginBottom: '20px' }}>
             <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px' }}>
               {isEnglish ? 'Description' : 'Açıklama'}
+              {activeTab === 'ai' && <span style={{ color: '#8B5CF6', marginLeft: '8px', fontSize: '12px' }}>
+                ({isEnglish ? 'AI will generate questions based on this' : 'AI bu metne göre soru üretecek'})
+              </span>}
             </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder={isEnglish ? 'Brief description of this template' : 'Bu şablonun kısa açıklaması'}
+              placeholder={activeTab === 'ai' 
+                ? (isEnglish ? 'Describe the position, required skills, and what you want to assess...' : 'Pozisyonu, gereken becerileri ve değerlendirmek istediğiniz konuları açıklayın...')
+                : (isEnglish ? 'Brief description of this template' : 'Bu şablonun kısa açıklaması')
+              }
               className="text-input"
-              style={{ width: '100%', minHeight: '80px', resize: 'vertical' }}
+              style={{ width: '100%', minHeight: activeTab === 'ai' ? '100px' : '80px', resize: 'vertical' }}
             />
           </div>
 
@@ -226,6 +360,9 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
             <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px' }}>
               <Globe size={14} style={{ display: 'inline', marginRight: '6px' }} />
               {isEnglish ? 'Interview Language' : 'Mülakat Dili'}
+              {activeTab === 'ai' && <span style={{ color: '#8B5CF6', marginLeft: '8px', fontSize: '12px' }}>
+                ({isEnglish ? 'Questions will be in this language' : 'Sorular bu dilde olacak'})
+              </span>}
             </label>
             <select value={language} onChange={(e) => setLanguage(e.target.value)} className="text-input" style={{ width: '100%' }}>
               <option value="tr">TR - Türkçe</option>
@@ -233,7 +370,91 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
             </select>
           </div>
 
-          {/* Timer Mode Switch */}
+          {/* AI Tab - Question Count & Generate Button */}
+          {activeTab === 'ai' && !isEdit && (
+            <div style={{ marginBottom: '20px', padding: '20px', background: 'linear-gradient(135deg, #F3E8FF 0%, #EDE9FE 100%)', borderRadius: '12px', border: '1px solid #DDD6FE' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px', color: '#5B21B6' }}>
+                    {isEnglish ? 'Number of Questions' : 'Soru Sayısı'}
+                  </label>
+                  <select 
+                    value={aiQuestionCount} 
+                    onChange={(e) => setAiQuestionCount(parseInt(e.target.value))}
+                    className="text-input"
+                    style={{ width: '100%' }}
+                  >
+                    {[...Array(15)].map((_, i) => (
+                      <option key={i + 1} value={i + 1}>{i + 1} {isEnglish ? 'questions' : 'soru'}</option>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  onClick={handleGenerateQuestions}
+                  disabled={aiGenerating || !description.trim()}
+                  style={{
+                    padding: '12px 24px',
+                    background: aiGenerating ? '#9CA3AF' : '#8B5CF6',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '10px',
+                    fontWeight: '600',
+                    fontSize: '14px',
+                    cursor: aiGenerating || !description.trim() ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    marginTop: '24px',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {aiGenerating ? (
+                    <>
+                      <Loader2 size={18} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
+                      {isEnglish ? 'Generating...' : 'Oluşturuluyor...'}
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 size={18} />
+                      {isEnglish ? 'Generate Questions' : 'Soruları Oluştur'}
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* AI Generated Questions Textarea */}
+              {aiQuestionsText && (
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px', color: '#5B21B6' }}>
+                    {isEnglish ? 'Generated Questions (edit as needed)' : 'Oluşturulan Sorular (düzenleyebilirsiniz)'}
+                  </label>
+                  <textarea
+                    value={aiQuestionsText}
+                    onChange={(e) => setAiQuestionsText(e.target.value)}
+                    placeholder={isEnglish ? 'AI generated questions will appear here...' : 'AI tarafından oluşturulan sorular burada görünecek...'}
+                    style={{
+                      width: '100%',
+                      minHeight: '200px',
+                      padding: '12px',
+                      border: '2px solid #DDD6FE',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      lineHeight: '1.8',
+                      resize: 'vertical',
+                      fontFamily: 'inherit',
+                    }}
+                  />
+                  <p style={{ margin: '8px 0 0', fontSize: '12px', color: '#6B7280' }}>
+                    {isEnglish 
+                      ? 'Each line or paragraph will be treated as a separate question. Edit freely before saving.'
+                      : 'Her satır veya paragraf ayrı bir soru olarak değerlendirilecek. Kaydetmeden önce düzenleyebilirsiniz.'}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Timer Settings */}
           <div style={{ marginBottom: '20px', padding: '16px', background: '#F9FAFB', borderRadius: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -273,16 +494,15 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
             <p style={{ margin: '0 0 16px', fontSize: '13px', color: '#6B7280' }}>
               {useGlobalTimer 
                 ? (isEnglish 
-                    ? 'A single timer will run for the entire interview. The timer continues as questions progress.' 
+                    ? 'A single timer will run for the entire interview.' 
                     : 'Tüm mülakat için tek bir süre işleyecek. Sorular geçtikçe süre devam edecek.')
                 : (isEnglish 
-                    ? 'Each question will have its own time limit. Timer resets when moving to the next question.' 
+                    ? 'Each question will have its own time limit.' 
                     : 'Her soru için ayrı süre belirlenecek. Sonraki soruya geçildiğinde süre sıfırlanacak.')
               }
             </p>
 
             {useGlobalTimer ? (
-              /* Global Timer - Total Duration */
               <div>
                 <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px' }}>
                   <Clock size={14} style={{ display: 'inline', marginRight: '6px' }} />
@@ -300,7 +520,6 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
                 </select>
               </div>
             ) : (
-              /* Per-Question Timer - Duration Per Question */
               <div>
                 <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px' }}>
                   <Clock size={14} style={{ display: 'inline', marginRight: '6px' }} />
@@ -311,7 +530,6 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
                   onChange={(e) => {
                     const newDuration = parseInt(e.target.value);
                     setDurationPerQuestion(newDuration);
-                    // Update all existing questions to match the new duration
                     setQuestions(questions.map(q => ({ ...q, timeLimit: newDuration })));
                   }} 
                   className="text-input" 
@@ -325,9 +543,8 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
             )}
           </div>
 
-          {/* AI Analysis & Voice Response Options */}
+          {/* AI Analysis & Voice Response */}
           <div style={{ marginBottom: '20px', display: 'flex', gap: '16px' }}>
-            {/* AI Analysis Option */}
             <div style={{ flex: 1, padding: '16px', background: '#F0FDF4', borderRadius: '12px', border: '1px solid #BBF7D0' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -364,13 +581,10 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
                 </button>
               </div>
               <p style={{ margin: 0, fontSize: '12px', color: '#166534' }}>
-                {isEnglish 
-                  ? 'AI will analyze candidate answers and provide scores'
-                  : 'AI cevapları analiz edip puan verecek'}
+                {isEnglish ? 'AI will analyze answers and score' : 'AI cevapları analiz edip puan verecek'}
               </p>
             </div>
 
-            {/* Voice Response Option */}
             <div style={{ flex: 1, padding: '16px', background: '#EFF6FF', borderRadius: '12px', border: '1px solid #BFDBFE' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -407,9 +621,7 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
                 </button>
               </div>
               <p style={{ margin: 0, fontSize: '12px', color: '#1E40AF' }}>
-                {isEnglish 
-                  ? 'Candidates can respond using voice (Speech-to-Text)'
-                  : 'Adaylar sesli yanıt verebilir (Konuşma-Metin)'}
+                {isEnglish ? 'Candidates can respond with voice' : 'Adaylar sesli yanıt verebilir (Konuşma-Metin)'}
               </p>
             </div>
           </div>
@@ -428,69 +640,68 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
             />
           </div>
 
-          {/* Questions */}
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px' }}>
-              {isEnglish ? 'Questions' : 'Sorular'} ({questions.length})
-            </label>
+          {/* Manual Questions - Only for Manual tab or Edit mode */}
+          {(activeTab === 'manual' || isEdit) && (
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px' }}>
+                {isEnglish ? 'Questions' : 'Sorular'} ({questions.length})
+              </label>
 
-            {/* Question List */}
-            <div style={{ marginBottom: '12px' }}>
-              {questions.map((q, index) => (
-                <div key={q.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', background: '#F9FAFB', borderRadius: '8px', marginBottom: '8px' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <button onClick={() => moveQuestion(index, -1)} disabled={index === 0} style={{ padding: '2px', background: 'transparent', border: 'none', cursor: index === 0 ? 'default' : 'pointer', opacity: index === 0 ? 0.3 : 1 }}>▲</button>
-                    <button onClick={() => moveQuestion(index, 1)} disabled={index === questions.length - 1} style={{ padding: '2px', background: 'transparent', border: 'none', cursor: index === questions.length - 1 ? 'default' : 'pointer', opacity: index === questions.length - 1 ? 0.3 : 1 }}>▼</button>
+              <div style={{ marginBottom: '12px' }}>
+                {questions.map((q, index) => (
+                  <div key={q.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', background: '#F9FAFB', borderRadius: '8px', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <button onClick={() => moveQuestion(index, -1)} disabled={index === 0} style={{ padding: '2px', background: 'transparent', border: 'none', cursor: index === 0 ? 'default' : 'pointer', opacity: index === 0 ? 0.3 : 1 }}>▲</button>
+                      <button onClick={() => moveQuestion(index, 1)} disabled={index === questions.length - 1} style={{ padding: '2px', background: 'transparent', border: 'none', cursor: index === questions.length - 1 ? 'default' : 'pointer', opacity: index === questions.length - 1 ? 0.3 : 1 }}>▼</button>
+                    </div>
+                    <span style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#3B82F6', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '600', flexShrink: 0 }}>
+                      {index + 1}
+                    </span>
+                    <span style={{ flex: 1, fontSize: '14px', color: '#374151' }}>{q.text}</span>
+                    
+                    {!useGlobalTimer && (
+                      <select
+                        value={q.timeLimit}
+                        onChange={(e) => updateQuestionTimeLimit(index, e.target.value)}
+                        style={{
+                          padding: '4px 8px',
+                          borderRadius: '6px',
+                          border: '1px solid #D1D5DB',
+                          fontSize: '12px',
+                          background: 'white',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {questionDurationOptions.map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    )}
+                    
+                    <button onClick={() => removeQuestion(index)} style={{ padding: '6px', background: '#FEE2E2', border: 'none', borderRadius: '6px', cursor: 'pointer', color: '#DC2626' }}>
+                      <Trash2 size={14} />
+                    </button>
                   </div>
-                  <span style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#3B82F6', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '600', flexShrink: 0 }}>
-                    {index + 1}
-                  </span>
-                  <span style={{ flex: 1, fontSize: '14px', color: '#374151' }}>{q.text}</span>
-                  
-                  {/* Per-question time limit selector (only shown when not using global timer) */}
-                  {!useGlobalTimer && (
-                    <select
-                      value={q.timeLimit}
-                      onChange={(e) => updateQuestionTimeLimit(index, e.target.value)}
-                      style={{
-                        padding: '4px 8px',
-                        borderRadius: '6px',
-                        border: '1px solid #D1D5DB',
-                        fontSize: '12px',
-                        background: 'white',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {questionDurationOptions.map(opt => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                      ))}
-                    </select>
-                  )}
-                  
-                  <button onClick={() => removeQuestion(index)} style={{ padding: '6px', background: '#FEE2E2', border: 'none', borderRadius: '6px', cursor: 'pointer', color: '#DC2626' }}>
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
 
-            {/* Add Question */}
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <input
-                type="text"
-                value={newQuestion}
-                onChange={(e) => setNewQuestion(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && addQuestion()}
-                placeholder={isEnglish ? 'Type a question and press Enter...' : 'Soru yazın ve Enter\'a basın...'}
-                className="text-input"
-                style={{ flex: 1 }}
-              />
-              <button onClick={addQuestion} disabled={!newQuestion.trim()} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Plus size={16} />
-                {isEnglish ? 'Add' : 'Ekle'}
-              </button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  value={newQuestion}
+                  onChange={(e) => setNewQuestion(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && addQuestion()}
+                  placeholder={isEnglish ? 'Type a question and press Enter...' : 'Soru yazın ve Enter\'a basın...'}
+                  className="text-input"
+                  style={{ flex: 1 }}
+                />
+                <button onClick={addQuestion} disabled={!newQuestion.trim()} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Plus size={16} />
+                  {isEnglish ? 'Add' : 'Ekle'}
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Footer */}
@@ -503,6 +714,14 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
           </button>
         </div>
       </div>
+
+      {/* Spinner animation */}
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 };

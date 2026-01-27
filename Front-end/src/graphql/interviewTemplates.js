@@ -119,4 +119,13 @@ export const TOGGLE_INTERVIEW_TEMPLATE = gql`
   }
 `;
 
+export const GENERATE_INTERVIEW_QUESTIONS = gql`
+  mutation GenerateInterviewQuestions($input: GenerateInterviewQuestionsInput!) {
+    generateInterviewQuestions(input: $input) {
+      success
+      questions
+      error
+    }
+  }
+`;
 
