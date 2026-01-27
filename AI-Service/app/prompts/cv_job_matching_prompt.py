@@ -98,14 +98,17 @@ Analyze the candidate's qualifications against the job requirements and provide 
     - Score should reflect both coverage (presence) and sufficiency (meets or exceeds required level)
     - Additional languages beyond requirements may add up to +1 bonus within this 10-point cap
     
-    **CRITICAL - Turkish Language Native Speaker Rule (MUST APPLY):**
-    - CHECK THE "CV Language" FIELD ABOVE. If cv_language = "TR":
-      → This means the CV content is written in Turkish
-      → The candidate is a NATIVE TURKISH SPEAKER (their mother tongue is Turkish)
+    **CRITICAL - Turkish Language Detection Rule:**
+    - FIRST check the "CV Language" field above
+    - If cv_language = "TR" (Turkish CV):
+      → The candidate wrote their CV in Turkish, so they are a NATIVE TURKISH SPEAKER
       → For Turkish language requirement: candidate_level = "Native", status = "exceeds"
-      → DO NOT mark Turkish as "missing" - it is IMPOSSIBLE for a Turkish CV writer to not know Turkish
       → Give FULL POINTS for Turkish language requirement
-    - ONLY check Turkish from CV's language section if cv_language = "EN" (English CV)
+    - If cv_language is NOT "TR" (e.g., "EN", "DE", "FR", etc.):
+      → DO NOT assume the candidate knows Turkish
+      → ONLY check Turkish from the CV's "Languages" section
+      → If Turkish is NOT listed in the Languages section, mark it as "missing"
+      → This is important: A German CV (DE) or English CV (EN) writer may NOT know Turkish
 
 5. **Overall Fit (10 points):**
    - Career trajectory alignment
@@ -164,7 +167,7 @@ Respond with a valid JSON object with the following structure:
 - Provide actionable insights in strengths and weaknesses
 - Ensure all scores add up to the overall_score
 - The overall_score should equal the sum of: experience_score + education_score + skills_score + language_score + fit_score (location_score is auxiliary and should not increase the total beyond 100)
-- **TURKISH NATIVE SPEAKER RULE**: If "CV Language: TR" appears above, the candidate is a native Turkish speaker. For any Turkish language requirement, set candidate_level="Native" and status="exceeds". NEVER mark Turkish as "missing" for a Turkish CV.
+- **TURKISH LANGUAGE RULE**: ONLY if "CV Language: TR" appears above, assume candidate is a native Turkish speaker. If CV Language is NOT "TR" (e.g., DE, EN, FR), check the Languages section - if Turkish is not listed there, mark it as "missing".
 - Return ONLY the JSON object, no additional text"""
 
     return prompt
