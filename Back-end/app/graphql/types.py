@@ -806,6 +806,7 @@ class InterviewTemplateType:
     is_active: bool = strawberry.field(name="isActive", default=True)
     ai_analysis_enabled: bool = strawberry.field(name="aiAnalysisEnabled", default=False)
     voice_response_enabled: bool = strawberry.field(name="voiceResponseEnabled", default=False)
+    is_ai_generated: bool = strawberry.field(name="isAiGenerated", default=False)
     question_count: int = strawberry.field(name="questionCount", default=0)
     questions: List[InterviewQuestionType] = strawberry.field(default_factory=list)
     created_at: Optional[str] = strawberry.field(name="createdAt", default=None)
@@ -846,6 +847,7 @@ class InterviewTemplateInput:
     total_duration: Optional[int] = strawberry.field(name="totalDuration", default=None)
     ai_analysis_enabled: bool = strawberry.field(name="aiAnalysisEnabled", default=False)
     voice_response_enabled: bool = strawberry.field(name="voiceResponseEnabled", default=False)
+    is_ai_generated: bool = strawberry.field(name="isAiGenerated", default=False)
     questions: List['InterviewQuestionInput'] = strawberry.field(default_factory=list)
 
 
