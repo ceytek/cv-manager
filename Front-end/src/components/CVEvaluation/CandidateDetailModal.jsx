@@ -65,6 +65,35 @@ const CandidateDetailModal = ({ candidate, onClose, jobId, jobTitle, application
   // Check if candidate is already rejected
   const isRejected = application?.status === 'rejected' || application?.status === 'REJECTED';
   
+  // Check for active sessions (to block other invitations)
+  const hasActiveAIInterview = application?.hasInterviewSession && 
+    ['pending', 'in_progress'].includes(application?.interviewSessionStatus?.toLowerCase());
+  const hasActiveLikertTest = application?.hasLikertSession && 
+    ['pending', 'in_progress'].includes(application?.likertSessionStatus?.toLowerCase());
+  const hasActiveSecondInterview = application?.hasSecondInterview && 
+    application?.secondInterviewStatus?.toLowerCase() === 'invited';
+  
+  // Helper function to check for active invitations
+  const getActiveInvitationMessage = (excludeType) => {
+    const activeTypes = [];
+    if (excludeType !== 'ai' && hasActiveAIInterview) {
+      activeTypes.push('AI Görüşmesi');
+    }
+    if (excludeType !== 'likert' && hasActiveLikertTest) {
+      activeTypes.push('Likert Test');
+    }
+    if (excludeType !== 'second' && hasActiveSecondInterview) {
+      activeTypes.push('Yüzyüze/Online Mülakat');
+    }
+    
+    if (activeTypes.length > 0) {
+      return isEnglish 
+        ? `There is an active, unfinished ${activeTypes.join(' and ')} invitation. Please complete it first before sending a new invitation.`
+        : `Aktif bitirilmemiş ${activeTypes.join(' ve ')} daveti vardır. Yeni davet göndermeden önce lütfen bunu tamamlayın.`;
+    }
+    return null;
+  };
+  
   // Build real detail object from props (selectedCandidate from list)
   const detail = useMemo(() => {
     const cand = candidate?.candidate || {};
@@ -377,7 +406,14 @@ const CandidateDetailModal = ({ candidate, onClose, jobId, jobTitle, application
                 {t('candidateDetail.contact')}
               </button>
               <button 
-                onClick={() => setShowInterviewModal(true)}
+                onClick={() => {
+                  const blockMessage = getActiveInvitationMessage('ai');
+                  if (blockMessage) {
+                    alert(blockMessage);
+                    return;
+                  }
+                  setShowInterviewModal(true);
+                }}
                 style={{
                   padding: '10px 20px',
                   background: '#3B82F6',
@@ -397,7 +433,14 @@ const CandidateDetailModal = ({ candidate, onClose, jobId, jobTitle, application
                 {t('cvEvaluation.inviteToAIInterview', 'AI Görüşmesine Davet Et')}
               </button>
               <button 
-                onClick={() => setShowLikertModal(true)}
+                onClick={() => {
+                  const blockMessage = getActiveInvitationMessage('likert');
+                  if (blockMessage) {
+                    alert(blockMessage);
+                    return;
+                  }
+                  setShowLikertModal(true);
+                }}
                 style={{
                   padding: '10px 20px',
                   background: '#10B981',
@@ -417,7 +460,14 @@ const CandidateDetailModal = ({ candidate, onClose, jobId, jobTitle, application
                 Send Likert Test
               </button>
               <button 
-                onClick={() => setShowSecondInterviewModal(true)}
+                onClick={() => {
+                  const blockMessage = getActiveInvitationMessage('second');
+                  if (blockMessage) {
+                    alert(blockMessage);
+                    return;
+                  }
+                  setShowSecondInterviewModal(true);
+                }}
                 style={{
                   padding: '10px 20px',
                   background: '#8B5CF6',
