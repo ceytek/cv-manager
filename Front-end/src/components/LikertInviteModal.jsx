@@ -7,7 +7,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { X, ClipboardList, Copy, Check, Clock, AlertTriangle, Hash, Mail, Eye, Link2, Send } from 'lucide-react';
-import { CREATE_LIKERT_SESSION } from '../graphql/likert';
+import { CREATE_LIKERT_SESSION, GET_LIKERT_SESSION_BY_APPLICATION } from '../graphql/likert';
 import { JOB_QUERY } from '../graphql/jobs';
 import { GET_LIKERT_TEMPLATES } from '../graphql/likertTemplate';
 
@@ -29,12 +29,43 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
     fetchPolicy: 'network-only',
   });
 
+  // Check for existing session
+  const { data: existingSessionData, loading: checkingExisting } = useQuery(GET_LIKERT_SESSION_BY_APPLICATION, {
+    variables: { applicationId: application?.id },
+    skip: !application?.id || !isOpen,
+    fetchPolicy: 'network-only',
+  });
+
   // Fetch email templates
   const { data: templatesData } = useQuery(GET_LIKERT_TEMPLATES, {
     fetchPolicy: 'network-only',
   });
 
   const [createSession] = useMutation(CREATE_LIKERT_SESSION);
+  
+  // Check if there's an active (not completed/expired) session
+  const existingSession = existingSessionData?.likertSessionByApplication;
+  const hasActiveSession = existingSession && 
+    existingSession.status !== 'completed' && 
+    existingSession.status !== 'expired';
+  
+  // Auto-populate if there's an existing active session
+  useEffect(() => {
+    if (hasActiveSession && existingSession && !generatedLink) {
+      const baseUrl = window.location.origin;
+      const link = `${baseUrl}/likert/${existingSession.token}`;
+      setGeneratedLink(link);
+      setSessionStatus('existing');
+      setSessionDetails({
+        status: existingSession.status,
+        expiresAt: existingSession.expiresAt,
+        templateName: existingSession.template?.name,
+        questionCount: existingSession.template?.questionCount || 0,
+        scaleType: existingSession.template?.scaleType || 5,
+        createdAt: existingSession.createdAt,
+      });
+    }
+  }, [hasActiveSession, existingSession, generatedLink]);
 
   const job = jobData?.job;
   const likertEnabled = job?.likertEnabled;
@@ -190,7 +221,7 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
         {/* Body */}
         <div style={{ padding: '24px', overflowY: 'auto', flex: 1 }}>
           {/* Loading */}
-          {jobLoading && (
+          {(jobLoading || checkingExisting) && (
             <div style={{ textAlign: 'center', padding: '32px', color: '#6B7280' }}>
               Yükleniyor...
             </div>
@@ -204,7 +235,7 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
           )}
 
           {/* Likert Not Enabled */}
-          {!jobLoading && !likertEnabled && (
+          {!jobLoading && !checkingExisting && !likertEnabled && (
             <div style={{ textAlign: 'center', padding: '32px' }}>
               <AlertTriangle size={48} color="#F59E0B" style={{ marginBottom: '16px' }} />
               <h3 style={{ margin: '0 0 8px', color: '#374151' }}>Likert Test Aktif Değil</h3>
@@ -213,7 +244,7 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
           )}
 
           {/* Main Content */}
-          {!jobLoading && likertEnabled && (
+          {!jobLoading && !checkingExisting && likertEnabled && (
             <>
               {/* Status Banners - Only show after link is created */}
               {generatedLink && sessionStatus === 'existing' && (
@@ -221,20 +252,55 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
                   background: '#FEF3C7', 
                   border: '1px solid #F59E0B',
                   borderRadius: '12px', 
-                  padding: '16px', 
+                  padding: '20px', 
                   marginBottom: '20px',
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '12px'
                 }}>
-                  <AlertTriangle size={24} color="#D97706" style={{ flexShrink: 0 }} />
-                  <div>
-                    <h4 style={{ margin: '0 0 4px', fontSize: '15px', fontWeight: '600', color: '#92400E' }}>
-                      Bu adayın tamamlanmamış bir testi var
-                    </h4>
-                    <p style={{ margin: 0, fontSize: '14px', color: '#A16207' }}>
-                      {candidate?.name} için daha önce Likert test daveti gönderilmiş. Mevcut linki kullanabilirsiniz.
-                    </p>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '16px' }}>
+                    <AlertTriangle size={24} color="#D97706" style={{ flexShrink: 0 }} />
+                    <div>
+                      <h4 style={{ margin: '0 0 4px', fontSize: '15px', fontWeight: '600', color: '#92400E' }}>
+                        Bu adayın tamamlanmamış bir Likert testi var
+                      </h4>
+                      <p style={{ margin: 0, fontSize: '14px', color: '#A16207' }}>
+                        {candidate?.name} için daha önce Likert test daveti gönderilmiş. Mevcut linki kullanabilirsiniz.
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Session Details */}
+                  <div style={{ 
+                    background: 'rgba(255,255,255,0.7)', 
+                    borderRadius: '8px', 
+                    padding: '12px',
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '12px',
+                    fontSize: '13px',
+                  }}>
+                    <div>
+                      <span style={{ color: '#92400E', fontWeight: '500' }}>Durum:</span>{' '}
+                      <span style={{ color: '#78350F', fontWeight: '600' }}>
+                        {sessionDetails?.status === 'pending' ? 'Bekliyor' : 
+                         sessionDetails?.status === 'in_progress' ? 'Devam Ediyor' : 
+                         sessionDetails?.status}
+                      </span>
+                    </div>
+                    <div>
+                      <span style={{ color: '#92400E', fontWeight: '500' }}>Son Geçerlilik:</span>{' '}
+                      <span style={{ color: '#78350F', fontWeight: '600' }}>
+                        {sessionDetails?.expiresAt ? new Date(sessionDetails.expiresAt).toLocaleString('tr-TR', {
+                          day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                        }) : '-'}
+                      </span>
+                    </div>
+                    <div>
+                      <span style={{ color: '#92400E', fontWeight: '500' }}>Test Şablonu:</span>{' '}
+                      <span style={{ color: '#78350F', fontWeight: '600' }}>{sessionDetails?.templateName || '-'}</span>
+                    </div>
+                    <div>
+                      <span style={{ color: '#92400E', fontWeight: '500' }}>Soru Sayısı:</span>{' '}
+                      <span style={{ color: '#78350F', fontWeight: '600' }}>{sessionDetails?.questionCount || 0}</span>
+                    </div>
                   </div>
                 </div>
               )}
