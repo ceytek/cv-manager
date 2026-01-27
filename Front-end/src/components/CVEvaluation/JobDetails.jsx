@@ -62,14 +62,15 @@ const JobDetails = ({ job, onBack, departments }) => {
   const getScoreColor = (n) => (n >= 80 ? '#10B981' : n >= 60 ? '#F59E0B' : '#EF4444');
 
   // Get the latest session status for display
-  // Priority: Second Interview > Likert > Interview
+  // Priority: Active Interview > Rejection > Completed Interview > Likert > AI Interview
   const getLatestSessionStatus = (app) => {
-    // Check rejection first (highest priority)
-    if (app.status?.toUpperCase() === 'REJECTED' || app.rejectedAt) {
-      return { text: t('jobDetails.sessionStatus.rejected', 'Reddedildi'), color: '#DC2626', bg: '#FEE2E2' };
+    // Active interview (invited) takes highest priority - even over rejection
+    // This allows re-inviting rejected candidates
+    if (app.hasSecondInterview && app.secondInterviewStatus === 'invited') {
+      return { text: t('jobDetails.sessionStatus.secondInterviewInvited', 'Mülakat Daveti'), color: '#8B5CF6', bg: '#EDE9FE' };
     }
     
-    // Second Interview takes priority (Yüzyüze/Online Görüşme)
+    // Second Interview completed/no_show/cancelled statuses
     if (app.secondInterviewStatus === 'completed') {
       if (app.secondInterviewOutcome === 'passed') {
         return { text: t('jobDetails.sessionStatus.secondInterviewPassed', 'Mülakat Başarılı'), color: '#10B981', bg: '#D1FAE5' };
@@ -88,8 +89,10 @@ const JobDetails = ({ job, onBack, departments }) => {
     if (app.secondInterviewStatus === 'cancelled') {
       return { text: t('jobDetails.sessionStatus.secondInterviewCancelled', 'Mülakat İptal'), color: '#6B7280', bg: '#F3F4F6' };
     }
-    if (app.hasSecondInterview && app.secondInterviewStatus === 'invited') {
-      return { text: t('jobDetails.sessionStatus.secondInterviewInvited', 'Mülakat Daveti'), color: '#8B5CF6', bg: '#EDE9FE' };
+    
+    // Check rejection (but only if no active interview)
+    if (app.status?.toUpperCase() === 'REJECTED' || app.rejectedAt) {
+      return { text: t('jobDetails.sessionStatus.rejected', 'Reddedildi'), color: '#DC2626', bg: '#FEE2E2' };
     }
     
     // Likert takes priority if it exists and has any status
@@ -610,9 +613,12 @@ const JobDetails = ({ job, onBack, departments }) => {
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelectedApp(app);
-                        // Show feedback modal for all interview statuses (invited, no_show, etc.)
-                        setSecondInterviewData({ application: app });
-                        setShowSecondInterviewFeedback(true);
+                        // Only show feedback modal if there's an active (invited) interview
+                        if (app.secondInterviewStatus === 'invited') {
+                          setSecondInterviewData({ application: app });
+                          setShowSecondInterviewFeedback(true);
+                        }
+                        // For completed/no_show/cancelled, don't open modal - user should send new invite
                       }}
                       style={{
                         display: 'flex',
@@ -621,16 +627,22 @@ const JobDetails = ({ job, onBack, departments }) => {
                         width: 30,
                         height: 30,
                         padding: 0,
-                        background: app.secondInterviewStatus === 'completed' ? '#D1FAE5' : '#EDE9FE',
+                        background: app.secondInterviewStatus === 'completed' ? '#D1FAE5' 
+                          : app.secondInterviewStatus === 'invited' ? '#EDE9FE' 
+                          : '#F3F4F6',
                         border: 'none',
                         borderRadius: 6,
-                        cursor: 'pointer',
-                        color: app.secondInterviewStatus === 'completed' ? '#10B981' : '#8B5CF6',
+                        cursor: app.secondInterviewStatus === 'invited' ? 'pointer' : 'default',
+                        color: app.secondInterviewStatus === 'completed' ? '#10B981' 
+                          : app.secondInterviewStatus === 'invited' ? '#8B5CF6'
+                          : '#6B7280',
                         transition: 'all 0.15s',
                       }}
                       title={app.secondInterviewStatus === 'completed' 
                         ? t('jobDetails.sessionStatus.secondInterviewCompleted', 'Mülakat Tamamlandı') 
-                        : t('jobDetails.sessionStatus.secondInterviewInvited', 'Mülakat Daveti')}
+                        : app.secondInterviewStatus === 'invited'
+                        ? t('jobDetails.sessionStatus.secondInterviewInvited', 'Mülakat Daveti')
+                        : t('jobDetails.sessionStatus.secondInterviewNoShow', 'Mülakat - Gelmedi')}
                     >
                       <Users size={15} />
                     </button>
