@@ -1243,9 +1243,17 @@ class Query:
                 likert_session = db.query(LikertSession).filter(
                     LikertSession.application_id == app.id
                 ).first()
+                # Get the most recent active (invited) interview, or the latest one if none active
+                from app.modules.second_interview.models import SecondInterviewStatus
                 second_interview = db.query(SecondInterview).filter(
-                    SecondInterview.application_id == app.id
-                ).first()
+                    SecondInterview.application_id == app.id,
+                    SecondInterview.status == SecondInterviewStatus.INVITED
+                ).order_by(SecondInterview.created_at.desc()).first()
+                
+                if not second_interview:
+                    second_interview = db.query(SecondInterview).filter(
+                        SecondInterview.application_id == app.id
+                    ).order_by(SecondInterview.created_at.desc()).first()
                 
                 # Build second interview type if exists
                 second_interview_type = None
