@@ -3280,7 +3280,7 @@ class Mutation(CompanyMutation):
 
     @strawberry.mutation
     def delete_candidate(self, id: str, info: Info) -> MessageType:
-        """Delete a candidate/CV (admin only) - cascades to all related records"""
+        """Delete a candidate/CV (admin only) - manually deletes all related records"""
         request = info.context["request"]
         auth_header = request.headers.get("authorization")
         if not auth_header:
@@ -3301,6 +3301,8 @@ class Mutation(CompanyMutation):
             company_id = get_company_id_from_token(token)
             
             from app.models.candidate import Candidate
+            from app.models.application import Application
+            from sqlalchemy import text
             import os
             
             # Find the candidate
@@ -3316,7 +3318,23 @@ class Mutation(CompanyMutation):
             cv_file_path = candidate.cv_file_path
             cv_photo_path = candidate.cv_photo_path
             
-            # Delete the candidate (CASCADE will handle related records)
+            # Get all application IDs for this candidate
+            application_ids = [app.id for app in db.query(Application).filter(Application.candidate_id == id).all()]
+            
+            # Manually delete related records in correct order
+            if application_ids:
+                # Delete interview sessions
+                db.execute(text("DELETE FROM interview_sessions WHERE application_id = ANY(:ids)"), {"ids": application_ids})
+                # Delete likert sessions  
+                db.execute(text("DELETE FROM likert_sessions WHERE application_id = ANY(:ids)"), {"ids": application_ids})
+                # Delete second interviews
+                db.execute(text("DELETE FROM second_interviews WHERE application_id = ANY(:ids)"), {"ids": application_ids})
+                # Delete application history
+                db.execute(text("DELETE FROM application_history WHERE application_id = ANY(:ids)"), {"ids": application_ids})
+                # Delete applications
+                db.execute(text("DELETE FROM applications WHERE candidate_id = :cid"), {"cid": id})
+            
+            # Delete the candidate
             db.delete(candidate)
             db.commit()
             

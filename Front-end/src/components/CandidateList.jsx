@@ -407,11 +407,27 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
   
   // Confirm delete
   const confirmDelete = async () => {
+    console.log('confirmDelete called');
+    console.log('deleteConfirmCandidate:', deleteConfirmCandidate);
+    console.log('deleteWarningCandidate:', deleteWarningCandidate);
+    
     const candidateToDelete = deleteConfirmCandidate || deleteWarningCandidate;
-    if (!candidateToDelete) return;
+    console.log('candidateToDelete:', candidateToDelete);
+    
+    if (!candidateToDelete) {
+      console.error('No candidate to delete!');
+      return;
+    }
     
     setIsDeleting(true);
-    await deleteCandidate({ variables: { id: candidateToDelete.id } });
+    console.log('Calling deleteCandidate mutation with id:', candidateToDelete.id);
+    
+    try {
+      const result = await deleteCandidate({ variables: { id: candidateToDelete.id } });
+      console.log('Delete result:', result);
+    } catch (error) {
+      console.error('Delete error:', error);
+    }
   };
 
   // Refetch when onRefresh changes
