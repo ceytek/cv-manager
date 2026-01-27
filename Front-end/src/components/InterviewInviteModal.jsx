@@ -10,6 +10,8 @@ import { X, Sparkles, Copy, Check, Clock, AlertTriangle, Hash, Mail, Eye, Chevro
 import { CREATE_INTERVIEW_SESSION } from '../graphql/interview';
 import { JOB_QUERY } from '../graphql/jobs';
 import { GET_AI_INTERVIEW_EMAIL_TEMPLATES } from '../graphql/aiInterviewTemplate';
+import { GET_LIKERT_SESSION_BY_APPLICATION } from '../graphql/likert';
+import { GET_SECOND_INTERVIEW_BY_APPLICATION } from '../graphql/secondInterview';
 
 const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, onSuccess }) => {
   const { t, i18n } = useTranslation();
@@ -30,6 +32,20 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
     fetchPolicy: 'network-only',
   });
 
+  // Check for active Likert session
+  const { data: likertData, loading: likertLoading } = useQuery(GET_LIKERT_SESSION_BY_APPLICATION, {
+    variables: { applicationId: application?.id },
+    skip: !application?.id || !isOpen,
+    fetchPolicy: 'network-only',
+  });
+
+  // Check for active Second Interview
+  const { data: secondInterviewData, loading: secondInterviewLoading } = useQuery(GET_SECOND_INTERVIEW_BY_APPLICATION, {
+    variables: { applicationId: application?.id },
+    skip: !application?.id || !isOpen,
+    fetchPolicy: 'network-only',
+  });
+
   // Fetch email templates
   const { data: templatesData } = useQuery(GET_AI_INTERVIEW_EMAIL_TEMPLATES, {
     variables: { activeOnly: true },
@@ -37,6 +53,16 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
   });
 
   const [createSession] = useMutation(CREATE_INTERVIEW_SESSION);
+  
+  // Check for active sessions blocking this invitation
+  const activeLikert = likertData?.likertSessionByApplication;
+  const hasActiveLikert = activeLikert && ['pending', 'in_progress'].includes(activeLikert.status?.toLowerCase());
+  
+  const activeSecondInterview = secondInterviewData?.secondInterviewByApplication;
+  const hasActiveSecondInterview = activeSecondInterview && activeSecondInterview.status?.toLowerCase() === 'invited';
+  
+  const isBlocked = hasActiveLikert || hasActiveSecondInterview;
+  const blockingType = hasActiveLikert ? 'Likert Test' : hasActiveSecondInterview ? 'Yüzyüze/Online Mülakat' : null;
 
   const job = jobData?.job;
   const interviewEnabled = job?.interviewEnabled;
@@ -212,9 +238,31 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
         {/* Body */}
         <div style={{ padding: '24px', overflowY: 'auto', flex: 1 }}>
           {/* Loading */}
-          {jobLoading && (
+          {(jobLoading || likertLoading || secondInterviewLoading) && (
             <div style={{ textAlign: 'center', padding: '32px', color: '#6B7280' }}>
               Yükleniyor...
+            </div>
+          )}
+
+          {/* Blocking Warning - Active Likert or Second Interview */}
+          {!jobLoading && !likertLoading && !secondInterviewLoading && isBlocked && (
+            <div style={{ 
+              background: '#FEE2E2', 
+              border: '2px solid #DC2626',
+              borderRadius: '12px', 
+              padding: '20px', 
+              textAlign: 'center'
+            }}>
+              <AlertTriangle size={48} color="#DC2626" style={{ marginBottom: '16px' }} />
+              <h3 style={{ margin: '0 0 12px', color: '#991B1B', fontSize: '18px' }}>
+                AI Görüşmesi Daveti Gönderilemez
+              </h3>
+              <p style={{ margin: '0 0 16px', color: '#DC2626', fontSize: '15px' }}>
+                Bu adayın aktif bitirilmemiş <strong>{blockingType}</strong> daveti vardır.
+              </p>
+              <p style={{ margin: 0, color: '#7F1D1D', fontSize: '14px' }}>
+                Yeni davet göndermeden önce mevcut daveti tamamlayın veya iptal edin.
+              </p>
             </div>
           )}
 
@@ -226,7 +274,7 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
           )}
 
           {/* Interview Not Enabled */}
-          {!jobLoading && !interviewEnabled && (
+          {!jobLoading && !likertLoading && !secondInterviewLoading && !isBlocked && !interviewEnabled && (
             <div style={{ textAlign: 'center', padding: '32px' }}>
               <AlertTriangle size={48} color="#F59E0B" style={{ marginBottom: '16px' }} />
               <h3 style={{ margin: '0 0 8px', color: '#374151' }}>AI Görüşmesi Aktif Değil</h3>
@@ -235,7 +283,7 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
           )}
 
           {/* Main Content */}
-          {!jobLoading && interviewEnabled && (
+          {!jobLoading && !likertLoading && !secondInterviewLoading && !isBlocked && interviewEnabled && (
             <>
               {/* Status Banners - Only show after link is created */}
               {generatedLink && sessionStatus === 'existing' && (
@@ -509,7 +557,7 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
 
         {/* Footer */}
         <div style={{ padding: '16px 24px', borderTop: '1px solid #E5E7EB', display: 'flex', justifyContent: 'flex-end', gap: '12px', flexShrink: 0 }}>
-          {!generatedLink && interviewEnabled ? (
+          {!generatedLink && !isBlocked && interviewEnabled ? (
             <>
               <button 
                 onClick={onClose}

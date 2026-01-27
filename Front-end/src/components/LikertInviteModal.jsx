@@ -10,6 +10,8 @@ import { X, ClipboardList, Copy, Check, Clock, AlertTriangle, Hash, Mail, Eye, L
 import { CREATE_LIKERT_SESSION, GET_LIKERT_SESSION_BY_APPLICATION } from '../graphql/likert';
 import { JOB_QUERY } from '../graphql/jobs';
 import { GET_LIKERT_TEMPLATES } from '../graphql/likertTemplate';
+import { GET_INTERVIEW_SESSION_BY_APPLICATION } from '../graphql/interview';
+import { GET_SECOND_INTERVIEW_BY_APPLICATION } from '../graphql/secondInterview';
 
 const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onSuccess }) => {
   const { t, i18n } = useTranslation();
@@ -29,8 +31,22 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
     fetchPolicy: 'network-only',
   });
 
-  // Check for existing session
+  // Check for existing Likert session
   const { data: existingSessionData, loading: checkingExisting } = useQuery(GET_LIKERT_SESSION_BY_APPLICATION, {
+    variables: { applicationId: application?.id },
+    skip: !application?.id || !isOpen,
+    fetchPolicy: 'network-only',
+  });
+
+  // Check for active AI Interview session
+  const { data: aiInterviewData, loading: aiInterviewLoading } = useQuery(GET_INTERVIEW_SESSION_BY_APPLICATION, {
+    variables: { applicationId: application?.id },
+    skip: !application?.id || !isOpen,
+    fetchPolicy: 'network-only',
+  });
+
+  // Check for active Second Interview
+  const { data: secondInterviewData, loading: secondInterviewLoading } = useQuery(GET_SECOND_INTERVIEW_BY_APPLICATION, {
     variables: { applicationId: application?.id },
     skip: !application?.id || !isOpen,
     fetchPolicy: 'network-only',
@@ -43,11 +59,21 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
 
   const [createSession] = useMutation(CREATE_LIKERT_SESSION);
   
-  // Check if there's an active (not completed/expired) session
+  // Check if there's an active (not completed/expired) Likert session
   const existingSession = existingSessionData?.likertSessionByApplication;
   const hasActiveSession = existingSession && 
     existingSession.status !== 'completed' && 
     existingSession.status !== 'expired';
+  
+  // Check for active sessions blocking this invitation
+  const activeAIInterview = aiInterviewData?.interviewSessionByApplication;
+  const hasActiveAIInterview = activeAIInterview && ['pending', 'in_progress'].includes(activeAIInterview.status?.toLowerCase());
+  
+  const activeSecondInterview = secondInterviewData?.secondInterviewByApplication;
+  const hasActiveSecondInterview = activeSecondInterview && activeSecondInterview.status?.toLowerCase() === 'invited';
+  
+  const isBlocked = hasActiveAIInterview || hasActiveSecondInterview;
+  const blockingType = hasActiveAIInterview ? 'AI Görüşmesi' : hasActiveSecondInterview ? 'Yüzyüze/Online Mülakat' : null;
   
   // Auto-populate if there's an existing active session
   useEffect(() => {
@@ -221,9 +247,31 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
         {/* Body */}
         <div style={{ padding: '24px', overflowY: 'auto', flex: 1 }}>
           {/* Loading */}
-          {(jobLoading || checkingExisting) && (
+          {(jobLoading || checkingExisting || aiInterviewLoading || secondInterviewLoading) && (
             <div style={{ textAlign: 'center', padding: '32px', color: '#6B7280' }}>
               Yükleniyor...
+            </div>
+          )}
+
+          {/* Blocking Warning - Active AI Interview or Second Interview */}
+          {!jobLoading && !checkingExisting && !aiInterviewLoading && !secondInterviewLoading && isBlocked && (
+            <div style={{ 
+              background: '#FEE2E2', 
+              border: '2px solid #DC2626',
+              borderRadius: '12px', 
+              padding: '20px', 
+              textAlign: 'center'
+            }}>
+              <AlertTriangle size={48} color="#DC2626" style={{ marginBottom: '16px' }} />
+              <h3 style={{ margin: '0 0 12px', color: '#991B1B', fontSize: '18px' }}>
+                Likert Test Daveti Gönderilemez
+              </h3>
+              <p style={{ margin: '0 0 16px', color: '#DC2626', fontSize: '15px' }}>
+                Bu adayın aktif bitirilmemiş <strong>{blockingType}</strong> daveti vardır.
+              </p>
+              <p style={{ margin: 0, color: '#7F1D1D', fontSize: '14px' }}>
+                Yeni davet göndermeden önce mevcut daveti tamamlayın veya iptal edin.
+              </p>
             </div>
           )}
 
@@ -235,7 +283,7 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
           )}
 
           {/* Likert Not Enabled */}
-          {!jobLoading && !checkingExisting && !likertEnabled && (
+          {!jobLoading && !checkingExisting && !aiInterviewLoading && !secondInterviewLoading && !isBlocked && !likertEnabled && (
             <div style={{ textAlign: 'center', padding: '32px' }}>
               <AlertTriangle size={48} color="#F59E0B" style={{ marginBottom: '16px' }} />
               <h3 style={{ margin: '0 0 8px', color: '#374151' }}>Likert Test Aktif Değil</h3>
@@ -244,7 +292,7 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
           )}
 
           {/* Main Content */}
-          {!jobLoading && !checkingExisting && likertEnabled && (
+          {!jobLoading && !checkingExisting && !aiInterviewLoading && !secondInterviewLoading && !isBlocked && likertEnabled && (
             <>
               {/* Status Banners - Only show after link is created */}
               {generatedLink && sessionStatus === 'existing' && (
@@ -570,7 +618,7 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
             Vazgeç
           </button>
           
-          {!generatedLink && likertEnabled && (
+          {!generatedLink && !isBlocked && likertEnabled && (
             <button 
               onClick={handleSendInvitation} 
               disabled={sending}

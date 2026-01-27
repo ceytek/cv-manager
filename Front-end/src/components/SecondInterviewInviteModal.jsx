@@ -26,6 +26,9 @@ import {
 import { GET_SECOND_INTERVIEW_TEMPLATES } from '../graphql/secondInterviewTemplate';
 import { GET_COMPANY_ADDRESSES } from '../graphql/companyAddress';
 import { ME_QUERY } from '../graphql/auth';
+import { GET_INTERVIEW_SESSION_BY_APPLICATION } from '../graphql/interview';
+import { GET_LIKERT_SESSION_BY_APPLICATION } from '../graphql/likert';
+import { AlertTriangle } from 'lucide-react';
 
 const SecondInterviewInviteModal = ({ 
   isOpen, 
@@ -89,12 +92,36 @@ const SecondInterviewInviteModal = ({
     skip: !isOpen || !application?.id,
     fetchPolicy: 'network-only', // Her zaman backend'den kontrol et
   });
+
+  // Check for active AI Interview session
+  const { data: aiInterviewData, loading: aiInterviewLoading } = useQuery(GET_INTERVIEW_SESSION_BY_APPLICATION, {
+    variables: { applicationId: application?.id },
+    skip: !application?.id || !isOpen,
+    fetchPolicy: 'network-only',
+  });
+
+  // Check for active Likert session
+  const { data: likertData, loading: likertLoading } = useQuery(GET_LIKERT_SESSION_BY_APPLICATION, {
+    variables: { applicationId: application?.id },
+    skip: !application?.id || !isOpen,
+    fetchPolicy: 'network-only',
+  });
   
   // Backend'den gelen aktif mülakat (tarihi gelmemiş veya tamamlanmamış)
   const activeInterviewFromBackend = activeData?.checkActiveInterview;
   
   // Aktif mülakat var mı? (prop olarak veya backend'den)
   const hasActiveInterview = !!existingInterview || !!activeInterviewFromBackend;
+  
+  // Check for blocking sessions (AI Interview or Likert)
+  const activeAIInterview = aiInterviewData?.interviewSessionByApplication;
+  const hasActiveAIInterview = activeAIInterview && ['pending', 'in_progress'].includes(activeAIInterview.status?.toLowerCase());
+  
+  const activeLikert = likertData?.likertSessionByApplication;
+  const hasActiveLikert = activeLikert && ['pending', 'in_progress'].includes(activeLikert.status?.toLowerCase());
+  
+  const isBlockedByOther = hasActiveAIInterview || hasActiveLikert;
+  const blockingType = hasActiveAIInterview ? 'AI Görüşmesi' : hasActiveLikert ? 'Likert Test' : null;
   
   // Modal açıldığında kontrol yap
   useEffect(() => {
@@ -340,7 +367,37 @@ const SecondInterviewInviteModal = ({
 
         {/* Body */}
         <div style={{ padding: '24px' }}>
-          {isViewMode ? (
+          {/* Loading state */}
+          {(checkingActive || aiInterviewLoading || likertLoading) && (
+            <div style={{ textAlign: 'center', padding: '32px', color: '#6B7280' }}>
+              Kontrol ediliyor...
+            </div>
+          )}
+          
+          {/* Blocking Warning - Active AI Interview or Likert */}
+          {!checkingActive && !aiInterviewLoading && !likertLoading && isBlockedByOther && (
+            <div style={{ 
+              background: '#FEE2E2', 
+              border: '2px solid #DC2626',
+              borderRadius: '12px', 
+              padding: '20px', 
+              textAlign: 'center'
+            }}>
+              <AlertTriangle size={48} color="#DC2626" style={{ marginBottom: '16px' }} />
+              <h3 style={{ margin: '0 0 12px', color: '#991B1B', fontSize: '18px' }}>
+                Yüzyüze/Online Mülakat Daveti Gönderilemez
+              </h3>
+              <p style={{ margin: '0 0 16px', color: '#DC2626', fontSize: '15px' }}>
+                Bu adayın aktif bitirilmemiş <strong>{blockingType}</strong> daveti vardır.
+              </p>
+              <p style={{ margin: 0, color: '#7F1D1D', fontSize: '14px' }}>
+                Yeni davet göndermeden önce mevcut daveti tamamlayın veya iptal edin.
+              </p>
+            </div>
+          )}
+          
+          {!checkingActive && !aiInterviewLoading && !likertLoading && !isBlockedByOther && (
+            isViewMode ? (
             /* View Existing Interview */
             <>
               <div style={{
@@ -1083,6 +1140,7 @@ const SecondInterviewInviteModal = ({
                 />
               </div>
             </>
+          )
           )}
         </div>
 

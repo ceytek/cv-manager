@@ -64,13 +64,31 @@ const JobDetails = ({ job, onBack, departments }) => {
   // Get the latest session status for display
   // Priority: Active Interview > Rejection > Completed Interview > Likert > AI Interview
   const getLatestSessionStatus = (app) => {
-    // Active interview (invited) takes highest priority - even over rejection
-    // This allows re-inviting rejected candidates
+    // PRIORITY 1: Active invitations (pending/in_progress states) - highest priority
+    // This allows re-inviting candidates even after rejection
+    
+    // Second Interview - invited
     if (app.hasSecondInterview && app.secondInterviewStatus === 'invited') {
       return { text: t('jobDetails.sessionStatus.secondInterviewInvited', 'Mülakat Daveti'), color: '#8B5CF6', bg: '#EDE9FE' };
     }
     
-    // Second Interview completed/no_show/cancelled statuses
+    // Likert Test - pending/in_progress
+    if (app.hasLikertSession && (app.likertSessionStatus === 'pending' || app.likertSessionStatus === 'in_progress')) {
+      if (app.likertSessionStatus === 'in_progress') {
+        return { text: t('jobDetails.sessionStatus.likertInProgress'), color: '#3B82F6', bg: '#DBEAFE' };
+      }
+      return { text: t('jobDetails.sessionStatus.likertSent'), color: '#8B5CF6', bg: '#EDE9FE' };
+    }
+    
+    // AI Interview - pending/in_progress
+    if (app.hasInterviewSession && (app.interviewSessionStatus === 'pending' || app.interviewSessionStatus === 'in_progress')) {
+      if (app.interviewSessionStatus === 'in_progress') {
+        return { text: t('jobDetails.sessionStatus.interviewInProgress'), color: '#3B82F6', bg: '#DBEAFE' };
+      }
+      return { text: t('jobDetails.sessionStatus.interviewSent'), color: '#8B5CF6', bg: '#EDE9FE' };
+    }
+    
+    // PRIORITY 2: Second Interview completed/no_show/cancelled statuses
     if (app.secondInterviewStatus === 'completed') {
       if (app.secondInterviewOutcome === 'passed') {
         return { text: t('jobDetails.sessionStatus.secondInterviewPassed', 'Mülakat Başarılı'), color: '#10B981', bg: '#D1FAE5' };
@@ -90,34 +108,21 @@ const JobDetails = ({ job, onBack, departments }) => {
       return { text: t('jobDetails.sessionStatus.secondInterviewCancelled', 'Mülakat İptal'), color: '#6B7280', bg: '#F3F4F6' };
     }
     
-    // Check rejection (but only if no active interview)
+    // PRIORITY 3: Check rejection (but only if no active invitation)
     if (app.status?.toUpperCase() === 'REJECTED' || app.rejectedAt) {
       return { text: t('jobDetails.sessionStatus.rejected', 'Reddedildi'), color: '#DC2626', bg: '#FEE2E2' };
     }
     
-    // Likert takes priority if it exists and has any status
+    // PRIORITY 4: Completed/Expired states (not active)
     if (app.likertSessionStatus === 'completed') {
       return { text: t('jobDetails.sessionStatus.likertCompleted'), color: '#10B981', bg: '#D1FAE5' };
-    }
-    if (app.likertSessionStatus === 'in_progress') {
-      return { text: t('jobDetails.sessionStatus.likertInProgress'), color: '#3B82F6', bg: '#DBEAFE' };
-    }
-    if (app.hasLikertSession && app.likertSessionStatus === 'pending') {
-      return { text: t('jobDetails.sessionStatus.likertSent'), color: '#8B5CF6', bg: '#EDE9FE' };
     }
     if (app.likertSessionStatus === 'expired') {
       return { text: t('jobDetails.sessionStatus.likertExpired'), color: '#EF4444', bg: '#FEE2E2' };
     }
     
-    // Then check Interview status
     if (app.interviewSessionStatus === 'completed') {
       return { text: t('jobDetails.sessionStatus.interviewCompleted'), color: '#10B981', bg: '#D1FAE5' };
-    }
-    if (app.interviewSessionStatus === 'in_progress') {
-      return { text: t('jobDetails.sessionStatus.interviewInProgress'), color: '#3B82F6', bg: '#DBEAFE' };
-    }
-    if (app.hasInterviewSession && app.interviewSessionStatus === 'pending') {
-      return { text: t('jobDetails.sessionStatus.interviewSent'), color: '#8B5CF6', bg: '#EDE9FE' };
     }
     if (app.interviewSessionStatus === 'expired') {
       return { text: t('jobDetails.sessionStatus.interviewExpired'), color: '#EF4444', bg: '#FEE2E2' };
