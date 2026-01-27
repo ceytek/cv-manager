@@ -773,6 +773,10 @@ const Dashboard = ({ currentUser, onLogout }) => {
           <AIInterviewTemplatesPage />
         )}
 
+        {activeMenu === 'interview-messages' && interviewMessagesMenu === 'likertTest' && (
+          <LikertTemplatesPage />
+        )}
+
         {/* Show dashboard widgets unless a settings/templates/interview-messages subpage is open */}
   {!(activeMenu === 'settings' && settingsMenu) && !(activeMenu === 'templates' && templatesMenu) && !(activeMenu === 'interview-messages' && interviewMessagesMenu) && activeMenu !== 'departments' && activeMenu !== 'jobs' && activeMenu !== 'cvs' && activeMenu !== 'cv-evaluation' && activeMenu !== 'talent-pool' && activeMenu !== 'usage-history' && activeMenu !== 'templates' && activeMenu !== 'interview-messages' && (
         <div className="stats-grid-kaggle">

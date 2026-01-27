@@ -1375,6 +1375,23 @@
       "noAddresses": "No addresses defined yet. You can add from Settings → Company Addresses."
     }
   },
+  "likertEmailTemplates": {
+    "title": "Likert Test Templates",
+    "subtitle": "Manage Likert test invitation messages",
+    "newTemplate": "New Template",
+    "editTemplate": "Edit Template",
+    "noTemplates": "No templates yet",
+    "createFirst": "Create your first template for Likert test invitations",
+    "deleteConfirmTitle": "Delete Template",
+    "deleteConfirmMessage": "Are you sure you want to delete this template?",
+    "templateName": "Template Name",
+    "emailSubject": "Email Subject",
+    "emailBody": "Email Body",
+    "availableVariables": "Available Variables",
+    "dragVariables": "Drag and drop or click to insert variables",
+    "setAsDefault": "Default Template",
+    "preview": "Preview"
+  },
   "aiInterviewTemplates": {
     "title": "AI Interview Templates",
     "subtitle": "Manage AI interview invitation emails",

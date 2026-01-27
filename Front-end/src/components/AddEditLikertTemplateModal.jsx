@@ -1,443 +1,525 @@
 /**
- * Add/Edit Likert Template Modal
+ * Add/Edit Likert Test Template Modal
+ * Supports drag-and-drop variables for dynamic content
  */
-import React, { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
+import React, { useState, useRef, useEffect } from 'react';
 import { useMutation, useQuery } from '@apollo/client/react';
-import { X, Plus, Trash2, Globe, ListChecks, Clock } from 'lucide-react';
-import { CREATE_LIKERT_TEMPLATE, UPDATE_LIKERT_TEMPLATE, GET_LIKERT_TEMPLATE } from '../graphql/likert';
+import { useTranslation } from 'react-i18next';
+import { X, GripVertical, User, Briefcase, Building2, Link2, Calendar, ClipboardList } from 'lucide-react';
+import { 
+  CREATE_LIKERT_TEMPLATE, 
+  UPDATE_LIKERT_TEMPLATE,
+  GET_LIKERT_TEMPLATE_VARIABLES,
+  DEFAULT_LIKERT_TEMPLATE,
+} from '../graphql/likertTemplate';
 
-const defaultScaleLabels = {
-  tr: {
-    3: ['Katılmıyorum', 'Kararsızım', 'Katılıyorum'],
-    4: ['Kesinlikle Katılmıyorum', 'Katılmıyorum', 'Katılıyorum', 'Kesinlikle Katılıyorum'],
-    5: ['Kesinlikle Katılmıyorum', 'Katılmıyorum', 'Kararsızım', 'Katılıyorum', 'Kesinlikle Katılıyorum'],
-  },
-  en: {
-    3: ['Disagree', 'Neutral', 'Agree'],
-    4: ['Strongly Disagree', 'Disagree', 'Agree', 'Strongly Agree'],
-    5: ['Strongly Disagree', 'Disagree', 'Neutral', 'Agree', 'Strongly Agree'],
-  }
-};
-
-const AddEditLikertTemplateModal = ({ isOpen, onClose, onSuccess, template }) => {
-  const { t } = useTranslation();
+const AddEditLikertTemplateModal = ({ template, onClose }) => {
+  const { t, i18n } = useTranslation();
+  const isEnglish = i18n.language === 'en';
   const isEdit = !!template;
-
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [scaleType, setScaleType] = useState(5);
-  const [language, setLanguage] = useState('tr');
-  const [scaleLabels, setScaleLabels] = useState(defaultScaleLabels['tr'][5]);
-  const [hasTimeLimit, setHasTimeLimit] = useState(false);
-  const [timeLimit, setTimeLimit] = useState(30 * 60); // Default 30 minutes in seconds
-  const [questions, setQuestions] = useState([]);
+  
+  const [name, setName] = useState(template?.name || '');
+  const [subject, setSubject] = useState(template?.subject || '');
+  const [body, setBody] = useState(template?.body || '');
+  const [isActive, setIsActive] = useState(template?.isActive ?? true);
+  const [isDefault, setIsDefault] = useState(template?.isDefault ?? false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  const [draggedVar, setDraggedVar] = useState(null);
+  
+  const subjectRef = useRef(null);
+  const bodyRef = useRef(null);
+  const [activeField, setActiveField] = useState(null);
 
-  const { data: templateData } = useQuery(GET_LIKERT_TEMPLATE, {
-    variables: { id: template?.id },
-    skip: !template?.id,
-    fetchPolicy: 'network-only',
-  });
+  // Fetch available variables
+  const { data: variablesData } = useQuery(GET_LIKERT_TEMPLATE_VARIABLES);
+  const variables = variablesData?.likertTemplateVariables?.variables || [];
 
   const [createTemplate] = useMutation(CREATE_LIKERT_TEMPLATE);
   const [updateTemplate] = useMutation(UPDATE_LIKERT_TEMPLATE);
 
+  // Set default content when creating new template
   useEffect(() => {
-    if (templateData?.likertTemplate) {
-      const t = templateData.likertTemplate;
-      setName(t.name || '');
-      setDescription(t.description || '');
-      const st = t.scaleType || 5;
-      setScaleType(st);
-      setScaleLabels(t.scaleLabels || defaultScaleLabels[st]);
-      setLanguage(t.language || 'tr');
-      setHasTimeLimit(!!t.timeLimit);
-      setTimeLimit(t.timeLimit || 30 * 60);
-      setQuestions(t.questions?.map(q => ({
-        id: q.id,
-        text: q.questionText,
-        order: q.questionOrder,
-        isReverseScored: q.isReverseScored || false,
-      })) || []);
-    } else if (!template) {
-      setName(''); setDescription(''); setScaleType(5); setLanguage('tr'); setScaleLabels(defaultScaleLabels['tr'][5]); setHasTimeLimit(false); setTimeLimit(30 * 60); setQuestions([]);
+    if (!isEdit && !subject && !body) {
+      if (isEnglish) {
+        setSubject(DEFAULT_LIKERT_TEMPLATE.subject_en);
+        setBody(DEFAULT_LIKERT_TEMPLATE.body_en);
+      } else {
+        setSubject(DEFAULT_LIKERT_TEMPLATE.subject_tr);
+        setBody(DEFAULT_LIKERT_TEMPLATE.body_tr);
+      }
     }
-  }, [templateData, template]);
-  
-  // Update scale labels when scale type or language changes
-  useEffect(() => {
-    setScaleLabels(prev => {
-      const targetLen = parseInt(scaleType);
-      const langLabels = defaultScaleLabels[language] || defaultScaleLabels['tr'];
-      // Always update if language changed or length mismatch
-      return langLabels[targetLen] || langLabels[5];
+  }, [isEdit, isEnglish]);
+
+  // Variable icons
+  const getVariableIcon = (key) => {
+    switch(key) {
+      case 'candidate_name':
+        return <User size={14} />;
+      case 'position':
+        return <Briefcase size={14} />;
+      case 'company_name':
+        return <Building2 size={14} />;
+      case 'test_link':
+        return <Link2 size={14} />;
+      case 'expiry_date':
+        return <Calendar size={14} />;
+      default:
+        return <GripVertical size={14} />;
+    }
+  };
+
+  // Sample values for preview
+  const getSampleValue = (key) => {
+    const samples = {
+      candidate_name: isEnglish ? 'John Doe' : 'Ahmet Yılmaz',
+      position: isEnglish ? 'Software Developer' : 'Yazılım Geliştirici',
+      company_name: isEnglish ? 'ABC Company' : 'ABC Şirketi',
+      test_link: 'https://hrsmart.app/likert/abc123',
+      expiry_date: isEnglish ? 'February 1, 2026' : '1 Şubat 2026',
+    };
+    return samples[key] || key;
+  };
+
+  // Handle drag start
+  const handleDragStart = (e, variable) => {
+    setDraggedVar(variable);
+    e.dataTransfer.setData('text/plain', `{${variable.key}}`);
+    e.dataTransfer.effectAllowed = 'copy';
+  };
+
+  // Handle drag over
+  const handleDragOver = (e, field) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    setActiveField(field);
+  };
+
+  // Handle drag leave
+  const handleDragLeave = () => {
+    setActiveField(null);
+  };
+
+  // Handle drop
+  const handleDrop = (e, field) => {
+    e.preventDefault();
+    setActiveField(null);
+    
+    const variableText = e.dataTransfer.getData('text/plain');
+    
+    if (field === 'subject') {
+      const input = subjectRef.current;
+      const start = input.selectionStart || subject.length;
+      const newValue = subject.slice(0, start) + variableText + subject.slice(start);
+      setSubject(newValue);
+    } else if (field === 'body') {
+      const textarea = bodyRef.current;
+      const start = textarea.selectionStart || body.length;
+      const newValue = body.slice(0, start) + variableText + body.slice(start);
+      setBody(newValue);
+    }
+    
+    setDraggedVar(null);
+  };
+
+  // Insert variable at cursor
+  const insertVariable = (variable, field) => {
+    const variableText = `{${variable.key}}`;
+    
+    if (field === 'subject') {
+      const input = subjectRef.current;
+      const start = input.selectionStart || subject.length;
+      const newValue = subject.slice(0, start) + variableText + subject.slice(start);
+      setSubject(newValue);
+      setTimeout(() => {
+        input.focus();
+        input.setSelectionRange(start + variableText.length, start + variableText.length);
+      }, 0);
+    } else {
+      const textarea = bodyRef.current;
+      const start = textarea.selectionStart || body.length;
+      const newValue = body.slice(0, start) + variableText + body.slice(start);
+      setBody(newValue);
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + variableText.length, start + variableText.length);
+      }, 0);
+    }
+  };
+
+  // Get preview content with replaced variables
+  const getPreview = (content) => {
+    let preview = content;
+    variables.forEach(v => {
+      const regex = new RegExp(`\\{${v.key}\\}`, 'g');
+      preview = preview.replace(regex, getSampleValue(v.key));
     });
-  }, [scaleType, language]);
-
-  const addQuestion = () => {
-    setQuestions([...questions, { id: `new-${Date.now()}`, text: '', order: questions.length + 1, isReverseScored: false }]);
-  };
-
-  const removeQuestion = (index) => {
-    const updated = questions.filter((_, i) => i !== index);
-    updated.forEach((q, i) => q.order = i + 1);
-    setQuestions(updated);
-  };
-
-  const moveQuestion = (index, direction) => {
-    if ((direction === -1 && index === 0) || (direction === 1 && index === questions.length - 1)) return;
-    const newQuestions = [...questions];
-    [newQuestions[index], newQuestions[index + direction]] = [newQuestions[index + direction], newQuestions[index]];
-    newQuestions.forEach((q, i) => q.order = i + 1);
-    setQuestions(newQuestions);
+    return preview;
   };
 
   const handleSave = async () => {
-    if (!name.trim()) { setError(t('likertTemplateModal.nameRequired') || 'Template name is required'); return; }
-    const validQuestions = questions.filter(q => q.text.trim());
-    if (validQuestions.length === 0) { setError(t('likertTemplateModal.questionsRequired') || 'At least one question is required'); return; }
+    if (!name.trim() || !subject.trim() || !body.trim()) {
+      alert(isEnglish 
+        ? 'Please fill in all required fields' 
+        : 'Lütfen tüm zorunlu alanları doldurun');
+      return;
+    }
 
     setSaving(true);
-    setError('');
-
     try {
       const input = {
         name: name.trim(),
-        description: description.trim() || null,
-        scaleType: parseInt(scaleType),
-        scaleLabels: scaleLabels,
-        language,
-        timeLimit: hasTimeLimit ? parseInt(timeLimit) : null,
-        questions: validQuestions.map((q, i) => ({ 
-          id: q.id || null,  // Include existing question ID for updates
-          questionText: q.text.trim(), 
-          questionOrder: i + 1, 
-          isReverseScored: q.isReverseScored || false 
-        })),
+        subject: subject.trim(),
+        body: body.trim(),
+        language: isEnglish ? 'EN' : 'TR',
+        isActive,
+        isDefault,
       };
 
       if (isEdit) {
-        await updateTemplate({ variables: { id: template.id, input } });
+        await updateTemplate({
+          variables: { id: template.id, input }
+        });
       } else {
-        await createTemplate({ variables: { input } });
+        await createTemplate({
+          variables: { input }
+        });
       }
-      onSuccess?.();
-    } catch (err) {
-      console.error('[LikertTemplate] Error:', err);
-      setError(err.message);
+      onClose();
+    } catch (error) {
+      alert((isEnglish ? 'Error: ' : 'Hata: ') + error.message);
     } finally {
       setSaving(false);
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-      <div style={{ background: 'white', borderRadius: '16px', width: '90%', maxWidth: '700px', maxHeight: '90vh', overflow: 'auto' }}>
-        <div style={{ padding: '20px 24px', borderBottom: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '600' }}>{isEdit ? t('likertTemplateModal.titleEdit') : t('likertTemplateModal.titleAdd')}</h2>
-          <button onClick={onClose} style={{ padding: '8px', background: 'transparent', border: 'none', cursor: 'pointer' }}><X size={20} color="#6B7280" /></button>
+    <div style={{
+      position: 'fixed',
+      inset: 0,
+      background: 'rgba(0,0,0,0.5)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1000,
+      padding: 20,
+    }}>
+      <div style={{
+        background: 'white',
+        borderRadius: 16,
+        width: '100%',
+        maxWidth: 900,
+        maxHeight: '90vh',
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+      }}>
+        {/* Header */}
+        <div style={{
+          padding: '20px 24px',
+          background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: 'white' }}>
+            <ClipboardList size={24} />
+            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>
+              {isEdit 
+                ? t('likertEmailTemplates.editTemplate', 'Şablonu Düzenle')
+                : t('likertEmailTemplates.newTemplate', 'Yeni Şablon')}
+            </h2>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              padding: 8,
+              background: 'rgba(255,255,255,0.2)',
+              border: 'none',
+              borderRadius: 8,
+              cursor: 'pointer',
+              display: 'flex',
+            }}
+          >
+            <X size={20} color="white" />
+          </button>
         </div>
 
-        <div style={{ padding: '24px' }}>
-          {error && <div style={{ padding: '12px', background: '#FEE2E2', color: '#DC2626', borderRadius: '8px', marginBottom: '16px', fontSize: '14px' }}>{error}</div>}
-
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px' }}>{t('likertTemplateModal.templateName')} *</label>
-            <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={t('likertTemplateModal.templateNamePlaceholder')} className="text-input" style={{ width: '100%' }} />
-          </div>
-
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px' }}>{t('likertTemplateModal.description')}</label>
-            <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('likertTemplateModal.descriptionPlaceholder')} className="text-input" style={{ width: '100%', minHeight: '80px', resize: 'vertical' }} />
-          </div>
-
-          {/* Test Language */}
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px' }}>
-              <Globe size={14} style={{ display: 'inline', marginRight: '6px' }} />
-              {language === 'en' ? 'Test Language' : 'Test Dili'}
-            </label>
-            <p style={{ fontSize: '12px', color: '#6B7280', marginBottom: '12px' }}>
-              {language === 'en' 
-                ? 'The selected language determines the static texts (welcome, start, complete, etc.) on the candidate\'s test page.'
-                : 'Seçilen dil, adayın test sayfasındaki sabit metinleri (hoş geldiniz, başla, tamamla vb.) belirler.'}
-            </p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <button 
-                type="button"
-                onClick={() => setLanguage('tr')}
-                style={{ 
-                  padding: '12px', 
-                  border: `2px solid ${language === 'tr' ? '#8B5CF6' : '#E5E7EB'}`, 
-                  borderRadius: '8px', 
-                  background: language === 'tr' ? '#8B5CF6' : 'white',
-                  color: language === 'tr' ? 'white' : '#374151',
-                  cursor: 'pointer',
-                  fontWeight: '500',
-                  fontSize: '14px',
-                }}
-              >
-                TR - Türkçe
-              </button>
-              <button 
-                type="button"
-                onClick={() => setLanguage('en')}
-                style={{ 
-                  padding: '12px', 
-                  border: `2px solid ${language === 'en' ? '#8B5CF6' : '#E5E7EB'}`, 
-                  borderRadius: '8px', 
-                  background: language === 'en' ? '#8B5CF6' : 'white',
-                  color: language === 'en' ? 'white' : '#374151',
-                  cursor: 'pointer',
-                  fontWeight: '500',
-                  fontSize: '14px',
-                }}
-              >
-                EN - English
-              </button>
-            </div>
-          </div>
-
-          {/* Scale Settings */}
-          <div style={{ marginBottom: '20px', padding: '16px', background: '#F3F4F6', borderRadius: '12px', border: '1px solid #E5E7EB' }}>
-            <h3 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: '600', color: '#8B5CF6' }}>
-              {language === 'en' ? 'Option Settings' : 'Seçenek Ayarları'}
-            </h3>
-            
-            {/* Scale Type */}
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px' }}>
-                {language === 'en' ? 'Number of Options' : 'Seçenek Sayısı'}
-              </label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
-                {[3, 4, 5].map(val => (
-                  <button 
-                    key={val}
-                    type="button"
-                    onClick={() => setScaleType(val)}
-                    style={{ 
-                      padding: '12px', 
-                      border: `2px solid ${scaleType == val ? '#8B5CF6' : '#E5E7EB'}`, 
-                      borderRadius: '8px', 
-                      background: scaleType == val ? '#8B5CF6' : 'white',
-                      color: scaleType == val ? 'white' : '#374151',
-                      cursor: 'pointer',
-                      fontWeight: '500',
-                      fontSize: '14px',
-                    }}
-                  >
-                    {val}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Scale Labels */}
+        {/* Body */}
+        <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 24 }}>
+            {/* Left - Form */}
             <div>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', fontSize: '14px' }}>
-                {language === 'en' ? 'Scale Labels' : 'Ölçek Etiketleri'}
-              </label>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {scaleLabels.map((label, index) => (
-                  <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <span style={{ 
-                      width: '28px', 
-                      height: '28px', 
-                      borderRadius: '50%', 
-                      background: '#8B5CF6', 
-                      color: 'white', 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      justifyContent: 'center', 
-                      fontSize: '12px', 
-                      fontWeight: '600',
-                      flexShrink: 0,
-                    }}>{index + 1}</span>
-                    <input
-                      type="text"
-                      value={label}
-                      onChange={(e) => {
-                        const newLabels = [...scaleLabels];
-                        newLabels[index] = e.target.value;
-                        setScaleLabels(newLabels);
-                      }}
-                      className="text-input"
-                      style={{ flex: 1 }}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Time Limit Settings */}
-          <div style={{ marginBottom: '20px', padding: '16px', background: '#FEF3C7', borderRadius: '12px', border: '1px solid #FDE68A' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: hasTimeLimit ? '16px' : '0' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Clock size={18} color="#D97706" />
-                <span style={{ fontWeight: '600', fontSize: '14px', color: '#92400E' }}>
-                  {language === 'en' ? 'Time Limit' : 'Süre Sınırı'}
-                </span>
-              </div>
-              <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+              {/* Template Name */}
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ 
+                  display: 'block', 
+                  fontSize: 14, 
+                  fontWeight: 600, 
+                  color: '#374151',
+                  marginBottom: 6 
+                }}>
+                  {t('likertEmailTemplates.templateName', 'Şablon Adı')} *
+                </label>
                 <input
-                  type="checkbox"
-                  checked={hasTimeLimit}
-                  onChange={(e) => setHasTimeLimit(e.target.checked)}
-                  style={{ marginRight: '8px', width: '18px', height: '18px', accentColor: '#D97706' }}
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder={isEnglish ? 'e.g. Default Likert Invitation' : 'örn. Varsayılan Likert Daveti'}
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    border: '1px solid #D1D5DB',
+                    borderRadius: 8,
+                    fontSize: 14,
+                    outline: 'none',
+                  }}
                 />
-                <span style={{ fontSize: '13px', color: '#78350F' }}>
-                  {language === 'en' ? 'Enable time limit' : 'Süre sınırı aktif'}
-                </span>
-              </label>
-            </div>
-            
-            {hasTimeLimit && (
-              <div>
-                <p style={{ fontSize: '12px', color: '#92400E', marginBottom: '12px' }}>
-                  {language === 'en' 
-                    ? 'Candidate must complete the test within this time. If time runs out, only completed answers will be saved.'
-                    : 'Aday testi bu süre içinde tamamlamalı. Süre dolarsa sadece tamamlanan cevaplar kaydedilir.'}
-                </p>
-                <select 
-                  value={timeLimit} 
-                  onChange={(e) => setTimeLimit(parseInt(e.target.value))} 
-                  className="text-input" 
-                  style={{ width: '100%' }}
-                >
-                  <option value={5 * 60}>5 {language === 'en' ? 'minutes' : 'dakika'}</option>
-                  <option value={10 * 60}>10 {language === 'en' ? 'minutes' : 'dakika'}</option>
-                  <option value={15 * 60}>15 {language === 'en' ? 'minutes' : 'dakika'}</option>
-                  <option value={20 * 60}>20 {language === 'en' ? 'minutes' : 'dakika'}</option>
-                  <option value={30 * 60}>30 {language === 'en' ? 'minutes' : 'dakika'}</option>
-                  <option value={45 * 60}>45 {language === 'en' ? 'minutes' : 'dakika'}</option>
-                  <option value={60 * 60}>60 {language === 'en' ? 'minutes' : 'dakika'}</option>
-                </select>
               </div>
-            )}
-          </div>
 
-          {/* Questions */}
-          <div style={{ marginBottom: '20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <label style={{ fontWeight: '600', fontSize: '15px' }}>
-                {language === 'en' ? 'Questions' : 'Sorular'} ({questions.length})
-              </label>
-              <button onClick={addQuestion} className="btn" style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'transparent', border: 'none', color: '#374151', cursor: 'pointer', fontWeight: '500' }}>
-                <Plus size={16} /> {language === 'en' ? 'Add Question' : 'Soru Ekle'}
-              </button>
-            </div>
-            
-            {questions.length === 0 ? (
-              <div style={{ 
-                padding: '40px 20px', 
-                background: '#F9FAFB', 
-                borderRadius: '12px', 
-                border: '2px dashed #E5E7EB',
-                textAlign: 'center',
-                color: '#9CA3AF',
-              }}>
-                <div style={{ fontSize: '32px', marginBottom: '8px' }}>❓</div>
-                <p style={{ margin: 0, fontSize: '14px' }}>
-                  {language === 'en' 
-                    ? 'No questions added yet. Click the button above to add questions.'
-                    : 'Henüz soru eklenmedi. Soru eklemek için yukarıdaki butona tıklayın.'}
-                </p>
+              {/* Subject */}
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ 
+                  display: 'block', 
+                  fontSize: 14, 
+                  fontWeight: 600, 
+                  color: '#374151',
+                  marginBottom: 6 
+                }}>
+                  {t('likertEmailTemplates.emailSubject', 'E-posta Konusu')} *
+                </label>
+                <input
+                  ref={subjectRef}
+                  type="text"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  onDragOver={(e) => handleDragOver(e, 'subject')}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, 'subject')}
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    border: `2px solid ${activeField === 'subject' ? '#F59E0B' : '#D1D5DB'}`,
+                    borderRadius: 8,
+                    fontSize: 14,
+                    outline: 'none',
+                    transition: 'border-color 0.2s',
+                  }}
+                />
               </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {questions.map((q, index) => (
-                  <div key={q.id} style={{ 
-                    display: 'flex', 
-                    alignItems: 'flex-start', 
-                    gap: '12px', 
-                    padding: '16px', 
-                    background: 'white', 
-                    borderRadius: '12px', 
-                    border: '1px solid #E5E7EB',
-                  }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                      <button 
-                        onClick={() => moveQuestion(index, -1)} 
-                        disabled={index === 0} 
-                        style={{ 
-                          padding: '4px', 
-                          background: 'transparent', 
-                          border: 'none', 
-                          cursor: index === 0 ? 'default' : 'pointer', 
-                          color: index === 0 ? '#D1D5DB' : '#6B7280',
-                          fontSize: '10px',
-                        }}
-                      >▲</button>
-                      <span style={{ 
-                        width: '28px', 
-                        height: '28px', 
-                        borderRadius: '50%', 
-                        background: '#F3F4F6', 
-                        color: '#6B7280', 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        justifyContent: 'center', 
-                        fontSize: '12px', 
-                        fontWeight: '600',
-                      }}>{index + 1}</span>
-                      <button 
-                        onClick={() => moveQuestion(index, 1)} 
-                        disabled={index === questions.length - 1} 
-                        style={{ 
-                          padding: '4px', 
-                          background: 'transparent', 
-                          border: 'none', 
-                          cursor: index === questions.length - 1 ? 'default' : 'pointer', 
-                          color: index === questions.length - 1 ? '#D1D5DB' : '#6B7280',
-                          fontSize: '10px',
-                        }}
-                      >▼</button>
-                    </div>
-                    <textarea
-                      value={q.text}
-                      onChange={(e) => {
-                        const updated = [...questions];
-                        updated[index].text = e.target.value;
-                        setQuestions(updated);
+
+              {/* Body */}
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ 
+                  display: 'block', 
+                  fontSize: 14, 
+                  fontWeight: 600, 
+                  color: '#374151',
+                  marginBottom: 6 
+                }}>
+                  {t('likertEmailTemplates.emailBody', 'E-posta İçeriği')} *
+                </label>
+                <textarea
+                  ref={bodyRef}
+                  value={body}
+                  onChange={(e) => setBody(e.target.value)}
+                  onDragOver={(e) => handleDragOver(e, 'body')}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, 'body')}
+                  rows={12}
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    border: `2px solid ${activeField === 'body' ? '#F59E0B' : '#D1D5DB'}`,
+                    borderRadius: 8,
+                    fontSize: 14,
+                    outline: 'none',
+                    resize: 'vertical',
+                    fontFamily: 'inherit',
+                    transition: 'border-color 0.2s',
+                  }}
+                />
+              </div>
+
+              {/* Options */}
+              <div style={{ display: 'flex', gap: 24 }}>
+                <label style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: 8,
+                  cursor: 'pointer',
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={isActive}
+                    onChange={(e) => setIsActive(e.target.checked)}
+                    style={{ width: 18, height: 18 }}
+                  />
+                  <span style={{ fontSize: 14, color: '#374151' }}>
+                    {t('common.active', 'Aktif')}
+                  </span>
+                </label>
+                <label style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: 8,
+                  cursor: 'pointer',
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={isDefault}
+                    onChange={(e) => setIsDefault(e.target.checked)}
+                    style={{ width: 18, height: 18 }}
+                  />
+                  <span style={{ fontSize: 14, color: '#374151' }}>
+                    {t('likertEmailTemplates.setAsDefault', 'Varsayılan Şablon')}
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            {/* Right - Variables */}
+            <div>
+              <div style={{
+                background: '#FFFBEB',
+                borderRadius: 12,
+                padding: 16,
+                border: '1px solid #FDE68A',
+              }}>
+                <h4 style={{ 
+                  fontSize: 14, 
+                  fontWeight: 600, 
+                  color: '#92400E',
+                  marginBottom: 12,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                }}>
+                  <GripVertical size={16} />
+                  {t('likertEmailTemplates.availableVariables', 'Kullanılabilir Değişkenler')}
+                </h4>
+                <p style={{ fontSize: 12, color: '#B45309', marginBottom: 12 }}>
+                  {t('likertEmailTemplates.dragVariables', 'Değişkenleri sürükleyip bırakın veya tıklayın')}
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {variables.map((v) => (
+                    <div
+                      key={v.key}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, v)}
+                      onClick={() => insertVariable(v, 'body')}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '8px 12px',
+                        background: 'white',
+                        borderRadius: 6,
+                        fontSize: 13,
+                        cursor: 'grab',
+                        border: '1px solid #FDE68A',
+                        transition: 'all 0.2s',
                       }}
-                      placeholder={language === 'en' ? 'Enter your question here...' : 'Sorunuzu buraya yazın...'}
-                      className="text-input"
-                      style={{ 
-                        flex: 1, 
-                        minHeight: '60px', 
-                        resize: 'vertical',
-                        fontFamily: 'monospace',
-                        fontSize: '14px',
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = '#FEF3C7';
+                        e.currentTarget.style.transform = 'translateX(4px)';
                       }}
-                    />
-                    <button 
-                      onClick={() => removeQuestion(index)} 
-                      style={{ 
-                        padding: '8px', 
-                        background: '#FEE2E2', 
-                        border: 'none', 
-                        borderRadius: '8px', 
-                        cursor: 'pointer', 
-                        color: '#DC2626',
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'white';
+                        e.currentTarget.style.transform = 'translateX(0)';
                       }}
                     >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                ))}
+                      {getVariableIcon(v.key)}
+                      <span style={{ flex: 1 }}>
+                        {isEnglish ? v.labelEn : v.labelTr}
+                      </span>
+                      <code style={{ 
+                        fontSize: 11, 
+                        color: '#D97706',
+                        background: '#FEF3C7',
+                        padding: '2px 6px',
+                        borderRadius: 4,
+                      }}>
+                        {`{${v.key}}`}
+                      </code>
+                    </div>
+                  ))}
+                </div>
               </div>
-            )}
+
+              {/* Preview */}
+              <div style={{ marginTop: 16 }}>
+                <h4 style={{ 
+                  fontSize: 14, 
+                  fontWeight: 600, 
+                  color: '#374151',
+                  marginBottom: 8 
+                }}>
+                  {t('likertEmailTemplates.preview', 'Önizleme')}
+                </h4>
+                <div style={{
+                  background: '#F9FAFB',
+                  borderRadius: 8,
+                  padding: 12,
+                  fontSize: 12,
+                  color: '#4B5563',
+                  maxHeight: 200,
+                  overflow: 'auto',
+                }}>
+                  <div style={{ fontWeight: 600, marginBottom: 8 }}>
+                    {t('common.subject', 'Konu')}: {getPreview(subject)}
+                  </div>
+                  <div style={{ whiteSpace: 'pre-wrap' }}>
+                    {getPreview(body)}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div style={{ padding: '16px 24px', borderTop: '1px solid #E5E7EB', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-          <button onClick={onClose} className="btn btn-secondary" disabled={saving}>{t('common.cancel')}</button>
-          <button onClick={handleSave} className="btn btn-primary" disabled={saving}>{saving ? t('common.saving') : t('common.save')}</button>
+        {/* Footer */}
+        <div style={{
+          padding: '16px 24px',
+          borderTop: '1px solid #E5E7EB',
+          display: 'flex',
+          justifyContent: 'flex-end',
+          gap: 12,
+        }}>
+          <button
+            onClick={onClose}
+            disabled={saving}
+            style={{
+              padding: '10px 20px',
+              background: '#F3F4F6',
+              color: '#374151',
+              border: 'none',
+              borderRadius: 8,
+              fontSize: 14,
+              fontWeight: 500,
+              cursor: 'pointer',
+            }}
+          >
+            {t('common.cancel', 'İptal')}
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            style={{
+              padding: '10px 24px',
+              background: '#F59E0B',
+              color: 'white',
+              border: 'none',
+              borderRadius: 8,
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: 'pointer',
+              opacity: saving ? 0.7 : 1,
+            }}
+          >
+            {saving 
+              ? t('common.saving', 'Kaydediliyor...') 
+              : t('common.save', 'Kaydet')}
+          </button>
         </div>
       </div>
     </div>
@@ -445,4 +527,3 @@ const AddEditLikertTemplateModal = ({ isOpen, onClose, onSuccess, template }) =>
 };
 
 export default AddEditLikertTemplateModal;
-

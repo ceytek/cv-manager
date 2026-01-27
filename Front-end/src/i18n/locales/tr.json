@@ -1375,6 +1375,23 @@
       "noAddresses": "Henüz adres tanımlı değil. Ayarlar → Şirket Adresleri'nden ekleyebilirsiniz."
     }
   },
+  "likertEmailTemplates": {
+    "title": "Likert Test Şablonları",
+    "subtitle": "Likert test davet mesajlarını yönetin",
+    "newTemplate": "Yeni Şablon",
+    "editTemplate": "Şablonu Düzenle",
+    "noTemplates": "Henüz şablon yok",
+    "createFirst": "Likert test daveti için ilk şablonunuzu oluşturun",
+    "deleteConfirmTitle": "Şablonu Sil",
+    "deleteConfirmMessage": "şablonunu silmek istediğinize emin misiniz?",
+    "templateName": "Şablon Adı",
+    "emailSubject": "E-posta Konusu",
+    "emailBody": "E-posta İçeriği",
+    "availableVariables": "Kullanılabilir Değişkenler",
+    "dragVariables": "Değişkenleri sürükleyip bırakın veya tıklayın",
+    "setAsDefault": "Varsayılan Şablon",
+    "preview": "Önizleme"
+  },
   "aiInterviewTemplates": {
     "title": "AI Görüşme Şablonları",
     "subtitle": "AI görüşme davet e-postalarını yönetin",

@@ -147,6 +147,12 @@ from app.graphql.types import (
     AIInterviewEmailTemplateUpdateInput,
     AIInterviewEmailTemplateResponse,
     AIInterviewEmailTemplateListResponse,
+    # Likert Test Template types
+    LikertTemplateGQLType,
+    LikertTemplateInput,
+    LikertTemplateUpdateInput,
+    LikertTemplateResponse,
+    LikertTemplateVariablesResponse,
 )
 from app.services.auth import AuthService
 from app.services.department import DepartmentService
@@ -2262,6 +2268,28 @@ class Query:
         """Get all AI interview email templates for the company"""
         from app.modules.ai_interview_template.resolvers import ai_interview_email_templates as get_templates
         return get_templates(info, language, active_only)
+
+    # ============================================
+    # Likert Test Template Queries
+    # ============================================
+    
+    @strawberry.field
+    def likert_templates(self, info: Info) -> List[LikertTemplateGQLType]:
+        """Get all Likert test templates for the company"""
+        from app.modules.likert_template.resolvers import get_likert_templates
+        return get_likert_templates(info)
+
+    @strawberry.field
+    def likert_template(self, info: Info, id: str) -> Optional[LikertTemplateGQLType]:
+        """Get a single Likert test template by ID"""
+        from app.modules.likert_template.resolvers import get_likert_template
+        return get_likert_template(info, id)
+
+    @strawberry.field
+    def likert_template_variables(self, info: Info) -> LikertTemplateVariablesResponse:
+        """Get available template variables for Likert test templates"""
+        from app.modules.likert_template.resolvers import get_likert_template_variables
+        return get_likert_template_variables(info)
 
     # ============================================
     # Company Address Queries
@@ -4402,6 +4430,41 @@ class Mutation(CompanyMutation):
         """Delete an AI interview email template"""
         from app.modules.ai_interview_template.resolvers import delete_ai_interview_email_template
         return delete_ai_interview_email_template(info, id)
+
+    # ============================================
+    # Likert Test Template Mutations
+    # ============================================
+
+    @strawberry.mutation
+    async def create_likert_template(
+        self, 
+        info: Info, 
+        input: LikertTemplateInput
+    ) -> LikertTemplateResponse:
+        """Create a new Likert test email template"""
+        from app.modules.likert_template.resolvers import create_likert_template
+        return await create_likert_template(info, input)
+
+    @strawberry.mutation
+    async def update_likert_template(
+        self, 
+        info: Info, 
+        id: str,
+        input: LikertTemplateUpdateInput
+    ) -> LikertTemplateResponse:
+        """Update a Likert test email template"""
+        from app.modules.likert_template.resolvers import update_likert_template
+        return await update_likert_template(info, id, input)
+
+    @strawberry.mutation
+    async def delete_likert_template(
+        self, 
+        info: Info, 
+        id: str
+    ) -> MessageType:
+        """Delete a Likert test template"""
+        from app.modules.likert_template.resolvers import delete_likert_template
+        return await delete_likert_template(info, id)
 
     # ============================================
     # Company Address Mutations

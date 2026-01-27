@@ -2,12 +2,13 @@
  * Likert Test Invite Modal
  * Send Likert test invitation to a candidate
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery } from '@apollo/client/react';
-import { X, ListChecks, Copy, Check, Clock, HelpCircle, Hash } from 'lucide-react';
+import { X, ListChecks, Copy, Check, Clock, HelpCircle, Hash, Mail, Eye, EyeOff } from 'lucide-react';
 import { CREATE_LIKERT_SESSION } from '../graphql/likert';
 import { JOB_QUERY } from '../graphql/jobs';
+import { GET_LIKERT_TEMPLATES } from '../graphql/likertTemplate';
 
 const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onSuccess }) => {
   const { t, i18n } = useTranslation();
@@ -19,12 +20,21 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
   const [sessionStatus, setSessionStatus] = useState(null); // 'new', 'existing', 'completed', 'expired'
   const [statusMessage, setStatusMessage] = useState('');
   const [error, setError] = useState('');
+  
+  // Template state
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
+  const [showPreview, setShowPreview] = useState(false);
 
   // Fetch fresh job data
   const { data: jobData, loading: jobLoading, error: jobError } = useQuery(JOB_QUERY, {
     variables: { id: jobId },
     skip: !jobId,
     fetchPolicy: 'network-only',
+  });
+  
+  // Fetch email templates
+  const { data: templatesData } = useQuery(GET_LIKERT_TEMPLATES, {
+    skip: !isOpen,
   });
 
   const [createSession] = useMutation(CREATE_LIKERT_SESSION);
@@ -35,6 +45,44 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
   const questionCount = likertTemplate?.questionCount || 0;
   const scaleType = likertTemplate?.scaleType || 5;
   const deadlineHours = job?.likertDeadlineHours || 72;
+  
+  // Email templates
+  const emailTemplates = templatesData?.likertTemplates?.filter(t => t.isActive) || [];
+  const selectedEmailTemplate = emailTemplates.find(t => t.id === selectedTemplateId);
+  
+  // Set default template if available
+  useEffect(() => {
+    if (emailTemplates.length > 0 && !selectedTemplateId) {
+      const defaultTemplate = emailTemplates.find(t => t.isDefault);
+      if (defaultTemplate) {
+        setSelectedTemplateId(defaultTemplate.id);
+      } else if (emailTemplates.length === 1) {
+        setSelectedTemplateId(emailTemplates[0].id);
+      }
+    }
+  }, [emailTemplates, selectedTemplateId]);
+  
+  // Replace variables in template
+  const replaceVariables = (content) => {
+    if (!content) return '';
+    const expiryDate = new Date();
+    expiryDate.setHours(expiryDate.getHours() + deadlineHours);
+    
+    return content
+      .replace(/{candidate_name}/g, candidate?.name || (isEnglish ? 'Candidate Name' : 'Aday Adı'))
+      .replace(/{position}/g, job?.title || (isEnglish ? 'Position' : 'Pozisyon'))
+      .replace(/{company_name}/g, job?.companyName || (isEnglish ? 'Company' : 'Şirket'))
+      .replace(/{test_link}/g, 'https://hrsmart.app/likert/...')
+      .replace(/{expiry_date}/g, expiryDate.toLocaleDateString(isEnglish ? 'en-US' : 'tr-TR', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric'
+      }));
+  };
+  
+  // Preview content
+  const previewSubject = selectedEmailTemplate ? replaceVariables(selectedEmailTemplate.subject) : '';
+  const previewBody = selectedEmailTemplate ? replaceVariables(selectedEmailTemplate.body) : '';
 
   const handleSend = async () => {
     setSending(true);
@@ -314,13 +362,110 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
                 </div>
               </div>
 
-              {/* Template Info */}
+              {/* Test Template Info */}
               {likertTemplate && (
                 <div style={{ background: '#F9FAFB', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
                   <h4 style={{ margin: '0 0 8px', fontSize: '14px', fontWeight: '600', color: '#374151' }}>{t('likertInvite.testTemplate', 'Test Template')}</h4>
                   <div style={{ fontSize: '16px', fontWeight: '600', color: '#5B21B6' }}>{likertTemplate.name}</div>
                   {likertTemplate.description && (
                     <p style={{ margin: '8px 0 0', fontSize: '13px', color: '#6B7280' }}>{likertTemplate.description}</p>
+                  )}
+                </div>
+              )}
+              
+              {/* Email Template Selection */}
+              {emailTemplates.length > 0 && (
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#374151', marginBottom: '8px' }}>
+                    <Mail size={14} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle' }} />
+                    {t('likertInvite.emailTemplate', 'E-posta Şablonu')}
+                  </label>
+                  <select
+                    value={selectedTemplateId}
+                    onChange={(e) => setSelectedTemplateId(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '1px solid #E5E7EB',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      background: 'white',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <option value="">{t('likertInvite.selectTemplate', '-- Şablon Seçin --')}</option>
+                    {emailTemplates.map((tmpl) => (
+                      <option key={tmpl.id} value={tmpl.id}>
+                        {tmpl.name} {tmpl.isDefault ? '⭐' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              
+              {/* Email Preview */}
+              {selectedEmailTemplate && (
+                <div style={{ marginBottom: '20px' }}>
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'space-between',
+                    marginBottom: '8px',
+                  }}>
+                    <label style={{ fontSize: '14px', fontWeight: '600', color: '#374151' }}>
+                      {t('likertInvite.emailPreview', 'E-posta Önizlemesi')}
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setShowPreview(!showPreview)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '6px 12px',
+                        background: 'transparent',
+                        border: '1px solid #D1D5DB',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        color: '#6B7280',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {showPreview ? <EyeOff size={14} /> : <Eye size={14} />}
+                      {showPreview ? t('common.hide', 'Gizle') : t('common.show', 'Göster')}
+                    </button>
+                  </div>
+                  
+                  {showPreview && (
+                    <div style={{
+                      background: '#F9FAFB',
+                      borderRadius: '12px',
+                      border: '1px solid #E5E7EB',
+                      overflow: 'hidden',
+                    }}>
+                      <div style={{
+                        padding: '12px 16px',
+                        borderBottom: '1px solid #E5E7EB',
+                        background: 'white',
+                      }}>
+                        <div style={{ fontSize: '12px', color: '#6B7280', marginBottom: '4px' }}>
+                          {t('common.subject', 'Konu')}:
+                        </div>
+                        <div style={{ fontSize: '14px', fontWeight: '600', color: '#111827' }}>
+                          {previewSubject}
+                        </div>
+                      </div>
+                      <div style={{ padding: '16px' }}>
+                        <div style={{ 
+                          fontSize: '13px', 
+                          color: '#374151',
+                          whiteSpace: 'pre-wrap',
+                          lineHeight: '1.6',
+                        }}>
+                          {previewBody}
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
               )}
