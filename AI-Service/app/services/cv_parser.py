@@ -96,10 +96,12 @@ class CVParserService:
             system_prompt = SYSTEM_PROMPT
             user_prompt = get_user_prompt(cv_text)
             
-            # Call OpenAI
+            # Call OpenAI with LangFuse tracing
             parsed_data = await openai_client.get_structured_response(
                 system_prompt=system_prompt,
-                user_prompt=user_prompt
+                user_prompt=user_prompt,
+                trace_name="cv_parsing",
+                trace_metadata={"text_length": len(cv_text)}
             )
             
             return parsed_data

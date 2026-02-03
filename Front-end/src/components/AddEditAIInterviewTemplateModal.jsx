@@ -3,6 +3,7 @@
  * Supports drag-and-drop variables for dynamic content
  */
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useMutation } from '@apollo/client/react';
 import { useTranslation } from 'react-i18next';
 import { X, GripVertical, User, Briefcase, Building2, Calendar, Clock, Link2, Timer, Sparkles, Eye } from 'lucide-react';
@@ -200,7 +201,7 @@ const AddEditAIInterviewTemplateModal = ({ isOpen, template, variables = [], onC
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div style={{
       position: 'fixed',
       inset: 0,
@@ -570,7 +571,8 @@ const AddEditAIInterviewTemplateModal = ({ isOpen, template, variables = [], onC
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

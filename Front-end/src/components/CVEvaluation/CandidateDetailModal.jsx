@@ -5,8 +5,9 @@
 import React, { useMemo, useState } from 'react';
 import { useQuery } from '@apollo/client/react';
 import { useTranslation } from 'react-i18next';
-import { X, Briefcase, GraduationCap, Award, MapPin, Mail, Phone, Linkedin, CheckCircle2, XCircle, AlertCircle, Video, ListChecks, MailX, Sparkles, Star, Users } from 'lucide-react';
+import { X, Briefcase, GraduationCap, Award, MapPin, Mail, Phone, Linkedin, CheckCircle2, XCircle, AlertCircle, Video, ListChecks, MailX, Sparkles, Star, Users, FileText } from 'lucide-react';
 import InterviewInviteModal from '../InterviewInviteModal';
+import CreateOfferModal from '../CreateOfferModal';
 import LikertInviteModal from '../LikertInviteModal';
 import SendRejectionModal from '../SendRejectionModal';
 import AddToTalentPoolModal from '../AddToTalentPoolModal';
@@ -26,6 +27,7 @@ const CandidateDetailModal = ({ candidate, onClose, jobId, jobTitle, application
   const [showEditTalentPoolModal, setShowEditTalentPoolModal] = useState(false);
   const [showSecondInterviewModal, setShowSecondInterviewModal] = useState(false);
   const [showQuickTagModal, setShowQuickTagModal] = useState(false);
+  const [showOfferModal, setShowOfferModal] = useState(false);
   const [selectedKeywordForTag, setSelectedKeywordForTag] = useState('');
   const [existingTagAlert, setExistingTagAlert] = useState(null);
   
@@ -73,8 +75,31 @@ const CandidateDetailModal = ({ candidate, onClose, jobId, jobTitle, application
   const hasActiveSecondInterview = application?.hasSecondInterview && 
     application?.secondInterviewStatus?.toLowerCase() === 'invited';
   
+  // Check offer status
+  const isOfferAccepted = application?.status?.toUpperCase() === 'OFFER_ACCEPTED';
+  const isOfferSent = application?.status?.toUpperCase() === 'OFFER_SENT';
+  
+  // Helper function to check if actions are blocked due to offer status
+  const getOfferBlockMessage = () => {
+    if (isOfferAccepted) {
+      return isEnglish 
+        ? 'This candidate has been hired. No further actions can be taken.'
+        : 'Bu aday işe alındı. Başka işlem yapılamaz.';
+    }
+    if (isOfferSent) {
+      return isEnglish 
+        ? 'There is a pending offer for this candidate. Please process the offer first (accept or reject).'
+        : 'Bu aday için gönderilmiş teklif var. Önce teklifi işleyin (kabul veya red).';
+    }
+    return null;
+  };
+
   // Helper function to check for active invitations
   const getActiveInvitationMessage = (excludeType) => {
+    // First check offer status
+    const offerBlock = getOfferBlockMessage();
+    if (offerBlock) return offerBlock;
+    
     const activeTypes = [];
     if (excludeType !== 'ai' && hasActiveAIInterview) {
       activeTypes.push('AI Görüşmesi');
@@ -416,18 +441,20 @@ const CandidateDetailModal = ({ candidate, onClose, jobId, jobTitle, application
                 }}
                 style={{
                   padding: '10px 20px',
-                  background: '#3B82F6',
+                  background: (isOfferAccepted || isOfferSent) ? '#9CA3AF' : '#3B82F6',
                   color: 'white',
                   border: 'none',
                   borderRadius: 8,
                   fontSize: 14,
                   fontWeight: 600,
-                  cursor: 'pointer',
+                  cursor: (isOfferAccepted || isOfferSent) ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: 8,
+                  opacity: (isOfferAccepted || isOfferSent) ? 0.6 : 1,
                 }}
+                title={isOfferAccepted ? (isEnglish ? 'Candidate hired' : 'Aday işe alındı') : isOfferSent ? (isEnglish ? 'Pending offer' : 'Bekleyen teklif') : ''}
               >
                 <Video size={16} />
                 {t('cvEvaluation.inviteToAIInterview', 'AI Görüşmesine Davet Et')}
@@ -443,18 +470,20 @@ const CandidateDetailModal = ({ candidate, onClose, jobId, jobTitle, application
                 }}
                 style={{
                   padding: '10px 20px',
-                  background: '#10B981',
+                  background: (isOfferAccepted || isOfferSent) ? '#9CA3AF' : '#10B981',
                   color: 'white',
                   border: 'none',
                   borderRadius: 8,
                   fontSize: 14,
                   fontWeight: 600,
-                  cursor: 'pointer',
+                  cursor: (isOfferAccepted || isOfferSent) ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: 8,
+                  opacity: (isOfferAccepted || isOfferSent) ? 0.6 : 1,
                 }}
+                title={isOfferAccepted ? (isEnglish ? 'Candidate hired' : 'Aday işe alındı') : isOfferSent ? (isEnglish ? 'Pending offer' : 'Bekleyen teklif') : ''}
               >
                 <ListChecks size={16} />
                 Send Likert Test
@@ -470,24 +499,32 @@ const CandidateDetailModal = ({ candidate, onClose, jobId, jobTitle, application
                 }}
                 style={{
                   padding: '10px 20px',
-                  background: '#8B5CF6',
+                  background: (isOfferAccepted || isOfferSent) ? '#9CA3AF' : '#8B5CF6',
                   color: 'white',
                   border: 'none',
                   borderRadius: 8,
                   fontSize: 14,
                   fontWeight: 600,
-                  cursor: 'pointer',
+                  cursor: (isOfferAccepted || isOfferSent) ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: 8,
+                  opacity: (isOfferAccepted || isOfferSent) ? 0.6 : 1,
                 }}
+                title={isOfferAccepted ? (isEnglish ? 'Candidate hired' : 'Aday işe alındı') : isOfferSent ? (isEnglish ? 'Pending offer' : 'Bekleyen teklif') : ''}
               >
                 <Users size={16} />
                 {t('candidateDetail.secondInterview', 'Yüzyüze/Online Mülakat')}
               </button>
               <button 
                 onClick={() => {
+                  // Check offer status first
+                  const offerBlock = getOfferBlockMessage();
+                  if (offerBlock) {
+                    alert(offerBlock);
+                    return;
+                  }
                   if (isRejected) {
                     alert(isEnglish 
                       ? 'This candidate has already been rejected. You cannot send another rejection message.' 
@@ -499,23 +536,54 @@ const CandidateDetailModal = ({ candidate, onClose, jobId, jobTitle, application
                 }}
                 style={{
                   padding: '10px 20px',
-                  background: isRejected ? '#9CA3AF' : '#DC2626',
+                  background: (isRejected || isOfferAccepted || isOfferSent) ? '#9CA3AF' : '#DC2626',
                   color: 'white',
                   border: 'none',
                   borderRadius: 8,
                   fontSize: 14,
                   fontWeight: 600,
-                  cursor: isRejected ? 'not-allowed' : 'pointer',
+                  cursor: (isRejected || isOfferAccepted || isOfferSent) ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: 8,
-                  opacity: isRejected ? 0.6 : 1,
+                  opacity: (isRejected || isOfferAccepted || isOfferSent) ? 0.6 : 1,
                 }}
-                title={isRejected ? (isEnglish ? 'Already rejected' : 'Zaten reddedildi') : ''}
+                title={isOfferAccepted ? (isEnglish ? 'Candidate hired' : 'Aday işe alındı') : isOfferSent ? (isEnglish ? 'Pending offer' : 'Bekleyen teklif') : isRejected ? (isEnglish ? 'Already rejected' : 'Zaten reddedildi') : ''}
               >
                 <MailX size={16} />
                 {t('candidateDetail.sendRejection', 'Red Mesajı Gönder')}
+              </button>
+              <button 
+                onClick={() => {
+                  // Check offer status first
+                  const offerBlock = getOfferBlockMessage();
+                  if (offerBlock) {
+                    alert(offerBlock);
+                    return;
+                  }
+                  setShowOfferModal(true);
+                }}
+                style={{
+                  padding: '10px 20px',
+                  background: (isOfferAccepted || isOfferSent) ? '#9CA3AF' : 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 8,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: (isOfferAccepted || isOfferSent) ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  boxShadow: (isOfferAccepted || isOfferSent) ? 'none' : '0 4px 12px rgba(16, 185, 129, 0.3)',
+                  opacity: (isOfferAccepted || isOfferSent) ? 0.6 : 1,
+                }}
+                title={isOfferAccepted ? (isEnglish ? 'Candidate hired' : 'Aday işe alındı') : isOfferSent ? (isEnglish ? 'Pending offer' : 'Bekleyen teklif') : ''}
+              >
+                <FileText size={16} />
+                {t('candidateDetail.createOffer', 'Teklif Yap')}
               </button>
             </div>
           </div>
@@ -603,6 +671,7 @@ const CandidateDetailModal = ({ candidate, onClose, jobId, jobTitle, application
       {/* Interview Invite Modal */}
       {showInterviewModal && (
         <InterviewInviteModal
+          key={`interview-${application?.id || 'new'}`}
           isOpen={showInterviewModal}
           onClose={() => setShowInterviewModal(false)}
           candidate={candidate?.candidate || candidate}
@@ -617,6 +686,7 @@ const CandidateDetailModal = ({ candidate, onClose, jobId, jobTitle, application
       {/* Likert Invite Modal */}
       {showLikertModal && (
         <LikertInviteModal
+          key={`likert-${application?.id || 'new'}`}
           isOpen={showLikertModal}
           onClose={() => setShowLikertModal(false)}
           candidate={candidate?.candidate || candidate}
@@ -673,6 +743,7 @@ const CandidateDetailModal = ({ candidate, onClose, jobId, jobTitle, application
       {/* Second Interview Invite Modal */}
       {showSecondInterviewModal && (
         <SecondInterviewInviteModal
+          key={`second-interview-${application?.id || 'new'}`}
           isOpen={showSecondInterviewModal}
           onClose={() => setShowSecondInterviewModal(false)}
           candidate={candidate?.candidate || candidate}
@@ -699,6 +770,24 @@ const CandidateDetailModal = ({ candidate, onClose, jobId, jobTitle, application
           refetchTags();
         }}
       />
+      
+      {/* Create Offer Modal */}
+      {showOfferModal && (
+        <CreateOfferModal
+          key={`offer-${application?.id || 'new'}`}
+          isOpen={showOfferModal}
+          onClose={() => setShowOfferModal(false)}
+          candidate={candidate?.candidate || candidate}
+          application={application}
+          jobTitle={jobTitle}
+          companyName={application?.companyName || ''}
+          onSuccess={(action) => {
+            setShowOfferModal(false);
+            // Pass action to parent so it can switch to offer tab when offer is sent
+            onRefetch?.(action === 'sent' ? 'offer_sent' : null);
+          }}
+        />
+      )}
     </div>
   );
 };

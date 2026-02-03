@@ -1,9 +1,41 @@
 import React, { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@apollo/client/react';
-import { Brain, List, LayoutGrid, MapPin, Briefcase, Users, Eye, Calendar, Search, Filter, ChevronDown, X } from 'lucide-react';
+import { 
+  Brain, List, LayoutGrid, MapPin, Briefcase, Users, Eye, Calendar, Search, Filter, ChevronDown, X,
+  Building2, Calculator, Code, Wrench, Headphones, Megaphone, Scale,
+  Factory, Truck, ShoppingCart, HeartPulse, GraduationCap, Globe,
+  BarChart2, Shield, FileText
+} from 'lucide-react';
 import { JOBS_QUERY } from '../../graphql/jobs';
 import { DEPARTMENTS_QUERY } from '../../graphql/departments';
+
+// Department icon mapping
+const DEPARTMENT_ICON_MAP = {
+  'building-2': Building2,
+  'briefcase': Briefcase,
+  'users': Users,
+  'calculator': Calculator,
+  'code': Code,
+  'wrench': Wrench,
+  'headphones': Headphones,
+  'megaphone': Megaphone,
+  'scale': Scale,
+  'factory': Factory,
+  'truck': Truck,
+  'shopping-cart': ShoppingCart,
+  'heart-pulse': HeartPulse,
+  'graduation-cap': GraduationCap,
+  'globe': Globe,
+  'bar-chart-2': BarChart2,
+  'shield': Shield,
+  'file-text': FileText,
+};
+
+// Get icon component by id
+const getDeptIcon = (iconId) => {
+  return DEPARTMENT_ICON_MAP[iconId] || Building2;
+};
 
 // Simple Jobs Overview list for CV Evaluation module
 const JobsOverview = ({ onGoToAIEvaluation, onOpenDetails }) => {
@@ -14,7 +46,7 @@ const JobsOverview = ({ onGoToAIEvaluation, onOpenDetails }) => {
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('all');
-  const [selectedStatuses, setSelectedStatuses] = useState(['active', 'closed', 'archived']); // Default: exclude 'draft'
+  const [selectedStatuses, setSelectedStatuses] = useState(['active']); // Default: only active jobs
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   
   const { data, loading, error } = useQuery(JOBS_QUERY, {
@@ -79,10 +111,10 @@ const JobsOverview = ({ onGoToAIEvaluation, onOpenDetails }) => {
   const clearFilters = () => {
     setSearchTerm('');
     setSelectedDepartment('all');
-    setSelectedStatuses(['active', 'closed', 'archived']);
+    setSelectedStatuses(['active']);
   };
 
-  const hasActiveFilters = searchTerm || selectedDepartment !== 'all' || !selectedStatuses.includes('active') || selectedStatuses.includes('draft') || selectedStatuses.length !== 3;
+  const hasActiveFilters = searchTerm || selectedDepartment !== 'all' || selectedStatuses.length !== 1 || !selectedStatuses.includes('active');
 
   if (loading) return <div style={{ padding: 24 }}>{t('common.loading')}</div>;
   if (error) return <div style={{ padding: 24, color: '#DC2626' }}>{t('common.error')}: {error.message}</div>;
@@ -395,6 +427,7 @@ const JobsOverview = ({ onGoToAIEvaluation, onOpenDetails }) => {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }}>
           {jobs.map((job) => {
             const applicantCount = job.analysisCount || 0;
+            const DeptIconGrid = getDeptIcon(job.department?.icon);
             
             return (
               <div
@@ -436,29 +469,35 @@ const JobsOverview = ({ onGoToAIEvaluation, onOpenDetails }) => {
                 
                 {/* Card Body */}
                 <div style={{ padding: 20 }}>
-                  <h3 style={{ 
-                    fontSize: 16, 
-                    fontWeight: 600, 
-                    color: '#1F2937', 
-                    margin: 0, 
-                    marginBottom: 8,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}>
-                    {job.title}
-                  </h3>
-                  
-                  <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
                     {job.department && (
-                      <span style={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: '50%',
-                        background: job.department.color || '#6B7280',
+                      <div style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 10,
+                        background: job.department.color || '#6366F1',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
                         flexShrink: 0,
-                      }} />
+                      }}>
+                        <DeptIconGrid size={20} color="white" />
+                      </div>
                     )}
+                    <h3 style={{ 
+                      fontSize: 16, 
+                      fontWeight: 600, 
+                      color: '#1F2937', 
+                      margin: 0, 
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}>
+                      {job.title}
+                    </h3>
+                  </div>
+                  
+                  <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6, paddingLeft: 52 }}>
                     {job.department?.name || '-'}
                   </p>
                   
@@ -569,7 +608,9 @@ const JobsOverview = ({ onGoToAIEvaluation, onOpenDetails }) => {
             <div>{t('cvEvaluation.status')}</div>
             <div>{t('cvEvaluation.operations')}</div>
           </div>
-          {jobs.map((job) => (
+          {jobs.map((job) => {
+            const DeptIcon = getDeptIcon(job.department?.icon);
+            return (
             <div key={job.id} style={{ 
               display: 'grid', 
               gridTemplateColumns: '2fr 1fr 1fr 1fr 100px 100px', 
@@ -577,7 +618,23 @@ const JobsOverview = ({ onGoToAIEvaluation, onOpenDetails }) => {
               borderBottom: '1px solid #E5E7EB', 
               alignItems: 'center' 
             }}>
-              <div style={{ fontWeight: 600, color: '#111827' }}>{job.title}</div>
+              <div style={{ fontWeight: 600, color: '#111827', display: 'flex', alignItems: 'center', gap: 10 }}>
+                {job.department && (
+                  <div style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 8,
+                    background: job.department.color || '#6366F1',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}>
+                    <DeptIcon size={16} color="white" />
+                  </div>
+                )}
+                <span>{job.title}</span>
+              </div>
               <div style={{ color: '#6B7280', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
                 {job.department && (
                   <span style={{
@@ -668,7 +725,8 @@ const JobsOverview = ({ onGoToAIEvaluation, onOpenDetails }) => {
                 </button>
               </div>
             </div>
-          ))}
+          );
+          })}
         </div>
       )}
     </div>

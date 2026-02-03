@@ -4,8 +4,9 @@
  */
 import React, { useEffect, useState, useMemo } from 'react';
 import { useQuery, useMutation } from '@apollo/client/react';
-import { JOBS_QUERY, DELETE_JOB_MUTATION } from '../graphql/jobs';
-import { Search, MapPin, Users, Calendar, Sparkles, FileText, Eye, Video, ListChecks, Edit2, Trash2, Briefcase, Clock, Building2, X, List, LayoutGrid } from 'lucide-react';
+import { JOBS_QUERY, DELETE_JOB_MUTATION, DUPLICATE_JOB_MUTATION } from '../graphql/jobs';
+import { Search, MapPin, Users, Calendar, Sparkles, FileText, Eye, Video, ListChecks, Edit2, Trash2, Briefcase, Clock, Building2, X, List, LayoutGrid, Copy, CheckCircle, QrCode, Share2, Link2, Check } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import JobForm from './JobForm';
 import AIJobCreator from './JobForm/AIJobCreator';
 import JobPreviewModal from './JobForm/JobPreviewModal';
@@ -31,8 +32,23 @@ const JobsPage = ({ departments = [], initialCreate = false, onViewApplications 
   const [deleteConfirmJob, setDeleteConfirmJob] = useState(null);
   const [deleteErrorJob, setDeleteErrorJob] = useState(null);
 
+  // Copy/Duplicate modal states
+  const [copyConfirmJob, setCopyConfirmJob] = useState(null);
+  const [copySuccessJob, setCopySuccessJob] = useState(null);
+
+  // QR Code and Share modal states
+  const [qrCodeJob, setQrCodeJob] = useState(null);
+  const [shareJob, setShareJob] = useState(null);
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  // Highlight newly created/updated job
+  const [highlightedJobId, setHighlightedJobId] = useState(null);
+
   // Delete mutation
   const [deleteJobMutation, { loading: deleting }] = useMutation(DELETE_JOB_MUTATION);
+  
+  // Duplicate mutation
+  const [duplicateJobMutation, { loading: duplicating }] = useMutation(DUPLICATE_JOB_MUTATION);
 
   // When initialCreate is true, show job form modal
   useEffect(() => {
@@ -40,6 +56,25 @@ const JobsPage = ({ departments = [], initialCreate = false, onViewApplications 
       setShowJobFormModal(true);
     }
   }, [initialCreate]);
+
+  // Clear highlight when clicking anywhere
+  useEffect(() => {
+    if (!highlightedJobId) return;
+    
+    const handleClick = () => {
+      setHighlightedJobId(null);
+    };
+    
+    // Add listener after a short delay to avoid immediate clear
+    const timer = setTimeout(() => {
+      document.addEventListener('click', handleClick);
+    }, 500);
+    
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('click', handleClick);
+    };
+  }, [highlightedJobId]);
 
   // Fetch ALL jobs (without status filter) to get accurate counts
   // Search is done in frontend for better UX (no refetch on every keystroke)
@@ -115,10 +150,25 @@ const JobsPage = ({ departments = [], initialCreate = false, onViewApplications 
     setShowAICreator(false);
   };
 
-  const handleFormSuccess = () => {
+  const handleFormSuccess = (jobInfo) => {
     setShowJobFormModal(false);
     setSelectedJob(null);
     setAiGeneratedData(null);
+    
+    // If job info provided, switch to appropriate tab and highlight
+    if (jobInfo?.id && jobInfo?.status) {
+      // Map job status to filter tab
+      const statusToFilter = {
+        'draft': 'draft',
+        'active': 'active',
+        'closed': 'closed',
+        'archived': 'archived'
+      };
+      const targetFilter = statusToFilter[jobInfo.status] || 'active';
+      setActiveFilter(targetFilter);
+      setHighlightedJobId(jobInfo.id);
+    }
+    
     // Delay refetch to ensure modal is fully closed
     setTimeout(() => {
       refetch();
@@ -164,6 +214,70 @@ const JobsPage = ({ departments = [], initialCreate = false, onViewApplications 
       }
     } catch (err) {
       alert(err.message);
+    }
+  };
+
+  const handleCopyClick = (job, e) => {
+    e?.stopPropagation();
+    setCopyConfirmJob(job);
+  };
+
+  const handleCopyConfirm = async () => {
+    if (!copyConfirmJob) return;
+    
+    try {
+      const result = await duplicateJobMutation({
+        variables: { id: copyConfirmJob.id }
+      });
+      
+      if (result.data?.duplicateJob?.success) {
+        setCopyConfirmJob(null);
+        setCopySuccessJob(copyConfirmJob);
+        refetch();
+      } else {
+        alert(result.data?.duplicateJob?.message || t('common.error'));
+      }
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  // Generate public job link
+  const getPublicJobLink = (jobId) => {
+    const baseUrl = window.location.origin;
+    return `${baseUrl}/apply/${jobId}`;
+  };
+
+  // Handle QR Code button click
+  const handleQrCodeClick = (job, e) => {
+    e?.stopPropagation();
+    setQrCodeJob(job);
+  };
+
+  // Handle Share button click
+  const handleShareClick = (job, e) => {
+    e?.stopPropagation();
+    setShareJob(job);
+    setLinkCopied(false);
+  };
+
+  // Handle copy link to clipboard
+  const handleCopyLink = async (jobId) => {
+    const link = getPublicJobLink(jobId);
+    try {
+      await navigator.clipboard.writeText(link);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch (err) {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = link;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
     }
   };
 
@@ -465,26 +579,31 @@ const JobsPage = ({ departments = [], initialCreate = false, onViewApplications 
           {jobs.map(job => {
             const remotePolicy = getRemotePolicyDisplay(job.remotePolicy);
             const applicantCount = job.analysisCount || 0;
+            const isHighlighted = highlightedJobId === job.id;
             
             return (
               <div
                 key={job.id}
                 style={{
-                  background: 'white',
+                  background: isHighlighted ? '#FEF3C7' : 'white',
                   borderRadius: 16,
-                  border: '1px solid #E5E7EB',
+                  border: isHighlighted ? '2px solid #F59E0B' : '1px solid #E5E7EB',
                   overflow: 'hidden',
-                  transition: 'all 0.2s',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                  transition: 'all 0.3s',
+                  boxShadow: isHighlighted ? '0 8px 25px rgba(245, 158, 11, 0.25)' : '0 1px 3px rgba(0,0,0,0.05)',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.1)';
-                  e.currentTarget.style.borderColor = '#3B82F6';
+                  if (!isHighlighted) {
+                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.1)';
+                    e.currentTarget.style.borderColor = '#3B82F6';
+                  }
                   e.currentTarget.style.transform = 'translateY(-2px)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)';
-                  e.currentTarget.style.borderColor = '#E5E7EB';
+                  if (!isHighlighted) {
+                    e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)';
+                    e.currentTarget.style.borderColor = '#E5E7EB';
+                  }
                   e.currentTarget.style.transform = 'translateY(0)';
                 }}
               >
@@ -515,6 +634,20 @@ const JobsPage = ({ departments = [], initialCreate = false, onViewApplications 
                     </div>
                     <div style={{ display: 'flex', gap: 4 }}>
                       <button
+                        onClick={(e) => handleShareClick(job, e)}
+                        style={{
+                          padding: 6,
+                          background: 'transparent',
+                          border: 'none',
+                          borderRadius: 6,
+                          cursor: 'pointer',
+                          color: '#6366F1',
+                        }}
+                        title={t('jobs.shareTooltip', 'İlanı paylaş')}
+                      >
+                        <Share2 size={14} />
+                      </button>
+                      <button
                         onClick={(e) => handleEditJob(job, e)}
                         style={{
                           padding: 6,
@@ -524,8 +657,23 @@ const JobsPage = ({ departments = [], initialCreate = false, onViewApplications 
                           cursor: 'pointer',
                           color: '#6B7280',
                         }}
+                        title={t('common.edit', 'Düzenle')}
                       >
                         <Edit2 size={14} />
+                      </button>
+                      <button
+                        onClick={(e) => handleCopyClick(job, e)}
+                        style={{
+                          padding: 6,
+                          background: 'transparent',
+                          border: 'none',
+                          borderRadius: 6,
+                          cursor: 'pointer',
+                          color: '#6B7280',
+                        }}
+                        title={t('jobs.copyTooltip', 'İlanı kopyala')}
+                      >
+                        <Copy size={14} />
                       </button>
                     </div>
                   </div>
@@ -760,25 +908,30 @@ const JobsPage = ({ departments = [], initialCreate = false, onViewApplications 
           {jobs.map(job => {
             const remotePolicy = getRemotePolicyDisplay(job.remotePolicy);
             const applicantCount = job.analysisCount || 0;
+            const isHighlighted = highlightedJobId === job.id;
             
             return (
               <div
                 key={job.id}
                 style={{
-                  background: 'white',
+                  background: isHighlighted ? '#FEF3C7' : 'white',
                   borderRadius: 16,
                   padding: 24,
-                  border: '1px solid #E5E7EB',
-                  transition: 'all 0.2s',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                  border: isHighlighted ? '2px solid #F59E0B' : '1px solid #E5E7EB',
+                  transition: 'all 0.3s',
+                  boxShadow: isHighlighted ? '0 8px 25px rgba(245, 158, 11, 0.25)' : '0 1px 3px rgba(0,0,0,0.05)',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
-                  e.currentTarget.style.borderColor = '#3B82F6';
+                  if (!isHighlighted) {
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
+                    e.currentTarget.style.borderColor = '#3B82F6';
+                  }
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)';
-                  e.currentTarget.style.borderColor = '#E5E7EB';
+                  if (!isHighlighted) {
+                    e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)';
+                    e.currentTarget.style.borderColor = '#E5E7EB';
+                  }
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -822,7 +975,7 @@ const JobsPage = ({ departments = [], initialCreate = false, onViewApplications 
                       <DepartmentWithColor deptId={job.departmentId} />
                     </p>
                     
-                    <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', fontSize: 13, color: '#6B7280' }}>
+                    <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', fontSize: 13, color: '#6B7280', alignItems: 'center' }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <span>{remotePolicy.icon}</span> {remotePolicy.label}
                       </span>
@@ -995,6 +1148,26 @@ const JobsPage = ({ departments = [], initialCreate = false, onViewApplications 
                         Likert
                       </button>
 
+                      {/* Share Button */}
+                      <button
+                        onClick={(e) => handleShareClick(job, e)}
+                        style={{
+                          padding: '8px',
+                          background: '#EEF2FF',
+                          border: '1px solid #C7D2FE',
+                          borderRadius: 8,
+                          color: '#6366F1',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                        title={t('jobs.shareTooltip', 'İlanı paylaş')}
+                      >
+                        <Share2 size={16} />
+                      </button>
+
                       {/* Edit Button */}
                       <button
                         onClick={(e) => handleEditJob(job, e)}
@@ -1012,15 +1185,32 @@ const JobsPage = ({ departments = [], initialCreate = false, onViewApplications 
                         <Edit2 size={16} />
                       </button>
 
-                      {/* Delete Button */}
+                      {/* Copy Button */}
                       <button
-                        onClick={(e) => handleDeleteClick(job, e)}
+                        onClick={(e) => handleCopyClick(job, e)}
                         style={{
                           padding: '8px',
                           background: '#F3F4F6',
                           border: 'none',
                           borderRadius: 8,
                           color: '#6B7280',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s'
+                        }}
+                        title={t('jobs.copyTooltip', 'İlanı kopyala')}
+                      >
+                        <Copy size={16} />
+                      </button>
+
+                      {/* Delete Button */}
+                      <button
+                        onClick={(e) => handleDeleteClick(job, e)}
+                        style={{
+                          padding: '8px',
+                          background: '#FEE2E2',
+                          border: 'none',
+                          borderRadius: 8,
+                          color: '#DC2626',
                           cursor: 'pointer',
                           transition: 'all 0.2s'
                         }}
@@ -1263,6 +1453,413 @@ const JobsPage = ({ departments = [], initialCreate = false, onViewApplications 
                 {t('common.ok', 'Tamam')}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Copy Confirmation Modal */}
+      {copyConfirmJob && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1100
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: 16,
+            padding: 32,
+            maxWidth: 420,
+            width: '90%',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              width: 56,
+              height: 56,
+              background: '#EEF2FF',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 20px'
+            }}>
+              <Copy size={28} color="#6366F1" />
+            </div>
+            <h3 style={{ margin: '0 0 12px', fontSize: 18, fontWeight: 600 }}>
+              {t('jobs.copyConfirmTitle', 'İlanı Kopyala')}
+            </h3>
+            <p style={{ margin: '0 0 28px', fontSize: 14, color: '#6B7280', lineHeight: 1.6 }}>
+              {t('jobs.copyConfirmMessage', 'Bu ilanın bir kopyası taslağa kaydedilecek. Devam etmek istiyor musunuz?')}
+            </p>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+              <button
+                onClick={() => setCopyConfirmJob(null)}
+                style={{
+                  padding: '12px 28px',
+                  background: '#F3F4F6',
+                  border: 'none',
+                  borderRadius: 8,
+                  fontSize: 14,
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  color: '#374151'
+                }}
+              >
+                {t('common.cancel', 'İptal')}
+              </button>
+              <button
+                onClick={handleCopyConfirm}
+                disabled={duplicating}
+                style={{
+                  padding: '12px 28px',
+                  background: '#6D28D9',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 8,
+                  fontSize: 14,
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  opacity: duplicating ? 0.6 : 1
+                }}
+              >
+                {duplicating ? t('common.processing', 'İşleniyor...') : t('common.yes', 'Evet')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Copy Success Modal */}
+      {copySuccessJob && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1100
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: 16,
+            padding: 32,
+            maxWidth: 420,
+            width: '90%',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              width: 56,
+              height: 56,
+              background: '#DCFCE7',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 20px'
+            }}>
+              <CheckCircle size={28} color="#16A34A" />
+            </div>
+            <h3 style={{ margin: '0 0 12px', fontSize: 18, fontWeight: 600 }}>
+              {t('jobs.copySuccessTitle', 'Başarılı')}
+            </h3>
+            <p style={{ margin: '0 0 28px', fontSize: 14, color: '#6B7280', lineHeight: 1.6 }}>
+              {t('jobs.copySuccessMessage', 'İlanın bir kopyası taslaklara kaydedilmiştir')}
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <button
+                onClick={() => setCopySuccessJob(null)}
+                style={{
+                  padding: '12px 28px',
+                  background: '#6D28D9',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 8,
+                  fontSize: 14,
+                  fontWeight: 500,
+                  cursor: 'pointer'
+                }}
+              >
+                {t('common.ok', 'Tamam')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* QR Code Modal */}
+      {qrCodeJob && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1100
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: 16,
+            padding: 32,
+            maxWidth: 420,
+            width: '90%',
+            textAlign: 'center'
+          }}>
+            {/* Close button */}
+            <button
+              onClick={() => setQrCodeJob(null)}
+              style={{
+                position: 'absolute',
+                top: 16,
+                right: 16,
+                background: '#F3F4F6',
+                border: 'none',
+                borderRadius: 8,
+                padding: 8,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <X size={18} color="#6B7280" />
+            </button>
+
+            <div style={{
+              width: 56,
+              height: 56,
+              background: '#F0FDF4',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 20px'
+            }}>
+              <QrCode size={28} color="#16A34A" />
+            </div>
+
+            <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 600 }}>
+              {t('jobs.qrCodeTitle', 'İlan QR Kodu')}
+            </h3>
+            <p style={{ margin: '0 0 24px', fontSize: 14, color: '#6B7280' }}>
+              {qrCodeJob.title}
+            </p>
+
+            {/* QR Code */}
+            <div style={{
+              background: 'white',
+              padding: 16,
+              borderRadius: 12,
+              border: '2px solid #E5E7EB',
+              display: 'inline-block',
+              marginBottom: 20
+            }}>
+              <QRCodeSVG 
+                value={getPublicJobLink(qrCodeJob.id)}
+                size={180}
+                level="H"
+                includeMargin={false}
+              />
+            </div>
+
+            {/* Link Display */}
+            <div style={{
+              background: '#F9FAFB',
+              borderRadius: 8,
+              padding: '12px 16px',
+              marginBottom: 20,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8
+            }}>
+              <Link2 size={16} color="#6B7280" />
+              <span style={{
+                flex: 1,
+                fontSize: 12,
+                color: '#374151',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                textAlign: 'left'
+              }}>
+                {getPublicJobLink(qrCodeJob.id)}
+              </span>
+              <button
+                onClick={() => handleCopyLink(qrCodeJob.id)}
+                style={{
+                  background: linkCopied ? '#DCFCE7' : '#EEF2FF',
+                  border: 'none',
+                  borderRadius: 6,
+                  padding: '6px 12px',
+                  fontSize: 12,
+                  fontWeight: 500,
+                  color: linkCopied ? '#16A34A' : '#6366F1',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  transition: 'all 0.2s'
+                }}
+              >
+                {linkCopied ? <Check size={14} /> : <Copy size={14} />}
+                {linkCopied ? t('jobs.copied', 'Kopyalandı') : t('jobs.copyLink', 'Kopyala')}
+              </button>
+            </div>
+
+            <button
+              onClick={() => setQrCodeJob(null)}
+              style={{
+                padding: '12px 28px',
+                background: '#6D28D9',
+                color: 'white',
+                border: 'none',
+                borderRadius: 8,
+                fontSize: 14,
+                fontWeight: 500,
+                cursor: 'pointer'
+              }}
+            >
+              {t('common.close', 'Kapat')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Share Modal */}
+      {shareJob && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1100
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: 16,
+            padding: 32,
+            maxWidth: 480,
+            width: '90%',
+            position: 'relative'
+          }}>
+            {/* Close button */}
+            <button
+              onClick={() => setShareJob(null)}
+              style={{
+                position: 'absolute',
+                top: 16,
+                right: 16,
+                background: '#F3F4F6',
+                border: 'none',
+                borderRadius: 8,
+                padding: 8,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <X size={18} color="#6B7280" />
+            </button>
+
+            <div style={{ textAlign: 'center', marginBottom: 24 }}>
+              <div style={{
+                width: 56,
+                height: 56,
+                background: '#EEF2FF',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 16px'
+              }}>
+                <Share2 size={28} color="#6366F1" />
+              </div>
+              <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 600 }}>
+                {t('jobs.shareTitle', 'İlanı Paylaş')}
+              </h3>
+              <p style={{ margin: 0, fontSize: 14, color: '#6B7280' }}>
+                {shareJob.title}
+              </p>
+            </div>
+
+            {/* Link Input with Copy */}
+            <div style={{
+              background: '#F9FAFB',
+              borderRadius: 10,
+              padding: 4,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              border: '1px solid #E5E7EB'
+            }}>
+              <div style={{
+                flex: 1,
+                padding: '12px 16px',
+                fontSize: 13,
+                color: '#374151',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
+              }}>
+                {getPublicJobLink(shareJob.id)}
+              </div>
+              <button
+                onClick={() => handleCopyLink(shareJob.id)}
+                style={{
+                  background: linkCopied ? '#16A34A' : '#6366F1',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: '12px 20px',
+                  fontSize: 14,
+                  fontWeight: 500,
+                  color: 'white',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  transition: 'all 0.2s',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {linkCopied ? <Check size={16} /> : <Copy size={16} />}
+                {linkCopied ? t('jobs.copied', 'Kopyalandı!') : t('jobs.copyLink', 'Linki Kopyala')}
+              </button>
+            </div>
+
+            {/* QR Code Button */}
+            <button
+              onClick={() => {
+                setShareJob(null);
+                setQrCodeJob(shareJob);
+              }}
+              style={{
+                width: '100%',
+                marginTop: 16,
+                padding: '12px',
+                background: '#F0FDF4',
+                border: '1px solid #86EFAC',
+                borderRadius: 8,
+                fontSize: 14,
+                fontWeight: 500,
+                color: '#16A34A',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                transition: 'all 0.2s'
+              }}
+            >
+              <QrCode size={18} />
+              {t('jobs.showQrCode', 'QR Kod Göster')}
+            </button>
           </div>
         </div>
       )}

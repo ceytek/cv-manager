@@ -18,6 +18,12 @@ class Settings(BaseSettings):
     # Service Configuration
     AI_SERVICE_PORT: int = 8001
     
+    # LangFuse Configuration (Optional - for AI observability)
+    LANGFUSE_ENABLED: bool = False
+    LANGFUSE_SECRET_KEY: Optional[str] = None
+    LANGFUSE_PUBLIC_KEY: Optional[str] = None
+    LANGFUSE_HOST: str = "http://localhost:3000"
+    
     class Config:
         env_file = ".env"
         case_sensitive = True

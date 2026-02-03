@@ -29,6 +29,14 @@ export const APPLICATIONS_QUERY = gql`
       rejectionNote
       rejectedAt
       rejectionTemplateId
+      isInLonglist
+      longlistAt
+      longlistBy
+      longlistNote
+      isShortlisted
+      shortlistedAt
+      shortlistedBy
+      shortlistNote
       hasSecondInterview
       secondInterviewStatus
       secondInterviewOutcome
@@ -76,6 +84,11 @@ export const APPLICATIONS_QUERY = gql`
         uploadedAt
         inTalentPool
         talentPoolEntryId
+        talentPoolTags {
+          id
+          name
+          color
+        }
         department {
           id
           name

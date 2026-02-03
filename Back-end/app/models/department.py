@@ -15,6 +15,8 @@ class Department(Base):
     is_active = Column(Boolean, default=True, nullable=False)
     # Department color (hex format like #3B82F6)
     color = Column(String(7), nullable=True, default=None)
+    # Department icon (lucide icon name like 'briefcase', 'users', etc.)
+    icon = Column(String(50), nullable=True, default='building-2')
     # Multi-tenancy (should be NOT NULL after migrations)
     company_id = Column(UUID(as_uuid=True), ForeignKey('companies.id'), nullable=False, index=True)
 

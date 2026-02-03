@@ -346,6 +346,7 @@ const AIInterviewTemplatesPage = () => {
       {/* Add/Edit Modal */}
       {showModal && (
         <AddEditAIInterviewTemplateModal
+          key={`modal-${editingTemplate?.id || 'new'}`}
           isOpen={showModal}
           onClose={handleModalClose}
           template={editingTemplate}

@@ -1,7 +1,7 @@
 /**
  * Departments Management Page
  * Admin-only page for managing departments
- * Card-based layout with job counts
+ * Card-based layout with job counts - Modal-based form
  */
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -15,149 +15,188 @@ import {
   DEPARTMENT_HAS_RELATED_RECORDS_QUERY,
 } from '../graphql/departments';
 import client from '../apolloClient';
-import { Edit2, Trash2, Plus, Briefcase, Building2, List, LayoutGrid } from 'lucide-react';
+import { 
+  Edit2, Trash2, Plus, Briefcase, Building2, List, LayoutGrid,
+  Users, Calculator, Code, Wrench, Headphones, Megaphone, Scale,
+  Factory, Truck, ShoppingCart, HeartPulse, GraduationCap, Globe,
+  BarChart2, Shield, FileText, Check, X, XCircle
+} from 'lucide-react';
+
+// Predefined department icons
+const DEPARTMENT_ICONS = [
+  { id: 'building-2', name_tr: 'Genel / Yönetim', name_en: 'General / Management', Icon: Building2 },
+  { id: 'briefcase', name_tr: 'İş / Operasyon', name_en: 'Business / Operations', Icon: Briefcase },
+  { id: 'users', name_tr: 'İnsan Kaynakları', name_en: 'Human Resources', Icon: Users },
+  { id: 'calculator', name_tr: 'Finans / Muhasebe', name_en: 'Finance / Accounting', Icon: Calculator },
+  { id: 'code', name_tr: 'Yazılım / IT', name_en: 'Software / IT', Icon: Code },
+  { id: 'wrench', name_tr: 'Teknik / Mühendislik', name_en: 'Technical / Engineering', Icon: Wrench },
+  { id: 'headphones', name_tr: 'Müşteri Hizmetleri', name_en: 'Customer Service', Icon: Headphones },
+  { id: 'megaphone', name_tr: 'Pazarlama', name_en: 'Marketing', Icon: Megaphone },
+  { id: 'scale', name_tr: 'Hukuk', name_en: 'Legal', Icon: Scale },
+  { id: 'factory', name_tr: 'Üretim', name_en: 'Manufacturing', Icon: Factory },
+  { id: 'truck', name_tr: 'Lojistik', name_en: 'Logistics', Icon: Truck },
+  { id: 'shopping-cart', name_tr: 'Satın Alma', name_en: 'Procurement', Icon: ShoppingCart },
+  { id: 'heart-pulse', name_tr: 'Sağlık / İSG', name_en: 'Health / Safety', Icon: HeartPulse },
+  { id: 'graduation-cap', name_tr: 'Eğitim / Akademi', name_en: 'Education / Academy', Icon: GraduationCap },
+  { id: 'globe', name_tr: 'Uluslararası', name_en: 'International', Icon: Globe },
+  { id: 'bar-chart-2', name_tr: 'Analiz / BI', name_en: 'Analytics / BI', Icon: BarChart2 },
+  { id: 'shield', name_tr: 'Güvenlik', name_en: 'Security', Icon: Shield },
+  { id: 'file-text', name_tr: 'İdari İşler', name_en: 'Administrative', Icon: FileText },
+];
+
+// Predefined color palette for departments
+const DEPARTMENT_COLORS = [
+  '#EF4444', // Red
+  '#F97316', // Orange
+  '#F59E0B', // Amber
+  '#EAB308', // Yellow
+  '#84CC16', // Lime
+  '#22C55E', // Green
+  '#10B981', // Emerald
+  '#14B8A6', // Teal
+  '#06B6D4', // Cyan
+  '#0EA5E9', // Sky
+  '#3B82F6', // Blue
+  '#6366F1', // Indigo
+  '#8B5CF6', // Violet
+  '#A855F7', // Purple
+  '#D946EF', // Fuchsia
+  '#EC4899', // Pink
+];
+
+// Get icon component by id
+const getIconComponent = (iconId) => {
+  const found = DEPARTMENT_ICONS.find(i => i.id === iconId);
+  return found ? found.Icon : Building2;
+};
 
 const DepartmentsPage = ({ initialShowAddForm = false, onAddFormClosed }) => {
-  const { t } = useTranslation();
-  const [formData, setFormData] = useState({ name: '', isActive: true });
-  const [editingId, setEditingId] = useState(null);
-  const [error, setError] = useState('');
+  const { t, i18n } = useTranslation();
+  
+  // Modal state
+  const [showModal, setShowModal] = useState(false);
+  const [editingDept, setEditingDept] = useState(null);
+  
+  // Form state
+  const [deptName, setDeptName] = useState('');
+  const [deptIcon, setDeptIcon] = useState('building-2');
+  const [deptColor, setDeptColor] = useState('#6366F1');
+  const [deptActive, setDeptActive] = useState(true);
+  const [formError, setFormError] = useState('');
+  
+  // Other state
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [cannotDeleteModal, setCannotDeleteModal] = useState(null);
+  const [viewMode, setViewMode] = useState('cards');
   const [success, setSuccess] = useState('');
-  const [deleteConfirm, setDeleteConfirm] = useState(null); // { id, name }
-  const [cannotDeleteModal, setCannotDeleteModal] = useState(null); // { name }
-  const [showAddForm, setShowAddForm] = useState(initialShowAddForm);
-  const [viewMode, setViewMode] = useState('cards'); // 'cards' or 'list'
 
   // Handle initialShowAddForm prop change
   React.useEffect(() => {
     if (initialShowAddForm) {
-      setShowAddForm(true);
+      openCreateModal();
     }
   }, [initialShowAddForm]);
 
-  // Custom setShowAddForm that also notifies parent when closing
-  const handleSetShowAddForm = (value) => {
-    setShowAddForm(value);
-    if (!value && onAddFormClosed) {
+  // Custom close handler that notifies parent
+  const closeModal = () => {
+    setShowModal(false);
+    if (onAddFormClosed) {
       onAddFormClosed();
     }
   };
 
-  // Fetch departments (including inactive ones to show in admin list)
+  // Fetch departments
   const { data, loading, error: queryError, refetch } = useQuery(DEPARTMENTS_QUERY, {
     variables: { includeInactive: true },
     fetchPolicy: 'network-only',
   });
 
   // Mutations
-  const [createDepartment] = useMutation(CREATE_DEPARTMENT_MUTATION, {
+  const [createDepartment, { loading: creating }] = useMutation(CREATE_DEPARTMENT_MUTATION, {
     refetchQueries: [{ query: DEPARTMENTS_QUERY, variables: { includeInactive: true } }],
   });
 
-  const [updateDepartment] = useMutation(UPDATE_DEPARTMENT_MUTATION, {
+  const [updateDepartment, { loading: updating }] = useMutation(UPDATE_DEPARTMENT_MUTATION, {
     refetchQueries: [{ query: DEPARTMENTS_QUERY, variables: { includeInactive: true } }],
   });
 
-  const [toggleDepartmentActive] = useMutation(TOGGLE_DEPARTMENT_ACTIVE_MUTATION, {
+  const [deleteDepartment, { loading: deleting }] = useMutation(DELETE_DEPARTMENT_MUTATION, {
     refetchQueries: [{ query: DEPARTMENTS_QUERY, variables: { includeInactive: true } }],
   });
 
-  const [deleteDepartment] = useMutation(DELETE_DEPARTMENT_MUTATION, {
-    refetchQueries: [{ query: DEPARTMENTS_QUERY, variables: { includeInactive: true } }],
-  });
+  const openCreateModal = () => {
+    setEditingDept(null);
+    setDeptName('');
+    setDeptIcon('building-2');
+    setDeptColor('#6366F1');
+    setDeptActive(true);
+    setFormError('');
+    setShowModal(true);
+  };
 
-  // Handle form submission
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
+  const openEditModal = (dept) => {
+    setEditingDept(dept);
+    setDeptName(dept.name);
+    setDeptIcon(dept.icon || 'building-2');
+    setDeptColor(dept.color || '#6366F1');
+    setDeptActive(dept.isActive);
+    setFormError('');
+    setShowModal(true);
+  };
 
-    if (!formData.name.trim()) {
-      setError(t('departments.nameRequired'));
+  const handleSave = async () => {
+    if (!deptName.trim()) {
+      setFormError(t('departments.nameRequired'));
       return;
     }
 
-    if (formData.name.trim().length < 2) {
-      setError(t('departments.nameMinLength'));
+    if (deptName.trim().length < 2) {
+      setFormError(t('departments.nameMinLength'));
       return;
     }
 
     try {
-      if (editingId) {
-        // Update existing department
+      if (editingDept) {
         await updateDepartment({
           variables: {
-            id: editingId,
+            id: editingDept.id,
             input: {
-              name: formData.name.trim(),
-              isActive: formData.isActive,
+              name: deptName.trim(),
+              isActive: deptActive,
+              icon: deptIcon,
+              color: deptColor,
             },
           },
         });
         setSuccess(t('departments.updateSuccess'));
-        setEditingId(null);
       } else {
-        // Create new department
         await createDepartment({
           variables: {
             input: {
-              name: formData.name.trim(),
-              isActive: formData.isActive,
+              name: deptName.trim(),
+              isActive: deptActive,
+              icon: deptIcon,
+              color: deptColor,
             },
           },
         });
         setSuccess(t('departments.createSuccess'));
       }
-      setFormData({ name: '', isActive: true });
-      // Force immediate refetch
-      await refetch();
       
-      // Clear success message after 3 seconds
+      await refetch();
+      closeModal();
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
-      setError(err.message || t('departments.errorOccurred'));
+      setFormError(err.message || t('departments.errorOccurred'));
     }
   };
 
-  // Handle edit
-  const handleEdit = (dept) => {
-    setEditingId(dept.id);
-    setFormData({ name: dept.name, isActive: dept.isActive });
-    setError('');
-    setSuccess('');
-  };
-
-  // Handle toggle active
-  const handleToggleActive = async (id) => {
-    try {
-      setError('');
-      setSuccess('');
-      await toggleDepartmentActive({ variables: { id } });
-      setSuccess(t('departments.statusChangeSuccess'));
-      await refetch();
-      
-      // Clear success message after 3 seconds
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (err) {
-      setError(err.message || t('departments.statusChangeError'));
-    }
-  };
-
-  // Handle cancel edit
-  const handleCancelEdit = () => {
-    setEditingId(null);
-    setFormData({ name: '', isActive: true });
-    setError('');
-    setSuccess('');
-  };
-
-  // Check if department can be deleted (before showing modal)
+  // Check if department can be deleted
   const handleDeleteClick = async (dept) => {
-    setError('');
+    setFormError('');
     setSuccess('');
     
     try {
-      // First check if department has related records
       const { data } = await client.query({
         query: DEPARTMENT_HAS_RELATED_RECORDS_QUERY,
         variables: { id: dept.id },
@@ -165,33 +204,26 @@ const DepartmentsPage = ({ initialShowAddForm = false, onAddFormClosed }) => {
       });
       
       if (data?.departmentHasRelatedRecords) {
-        // Has related records - show warning modal
         setCannotDeleteModal({ name: dept.name });
       } else {
-        // No related records - show confirmation modal
         setDeleteConfirm({ id: dept.id, name: dept.name });
       }
     } catch (err) {
-      setError(err.message || t('departments.deleteError'));
+      setFormError(err.message || t('departments.deleteError'));
     }
   };
 
-  // Handle delete (after confirmation)
   const handleDelete = async () => {
     if (!deleteConfirm) return;
     
     try {
-      setError('');
-      setSuccess('');
       await deleteDepartment({ variables: { id: deleteConfirm.id } });
       setSuccess(t('departments.deleteSuccess'));
       setDeleteConfirm(null);
       await refetch();
-      
-      // Clear success message after 3 seconds
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
-      setError(err.message || t('departments.deleteError'));
+      setFormError(err.message || t('departments.deleteError'));
       setDeleteConfirm(null);
     }
   };
@@ -213,6 +245,7 @@ const DepartmentsPage = ({ initialShowAddForm = false, onAddFormClosed }) => {
   }
 
   const departments = data?.departments || [];
+  const SelectedIcon = getIconComponent(deptIcon);
 
   return (
     <div style={{ padding: 24 }}>
@@ -254,7 +287,6 @@ const DepartmentsPage = ({ initialShowAddForm = false, onAddFormClosed }) => {
                 color: viewMode === 'list' ? '#1F2937' : '#6B7280',
                 cursor: 'pointer',
                 boxShadow: viewMode === 'list' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                transition: 'all 0.15s',
               }}
             >
               <List size={16} />
@@ -275,7 +307,6 @@ const DepartmentsPage = ({ initialShowAddForm = false, onAddFormClosed }) => {
                 color: viewMode === 'cards' ? '#1F2937' : '#6B7280',
                 cursor: 'pointer',
                 boxShadow: viewMode === 'cards' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                transition: 'all 0.15s',
               }}
             >
               <LayoutGrid size={16} />
@@ -283,7 +314,7 @@ const DepartmentsPage = ({ initialShowAddForm = false, onAddFormClosed }) => {
             </button>
           </div>
           <button
-            onClick={() => { setShowAddForm(true); setEditingId(null); setFormData({ name: '', isActive: true }); }}
+            onClick={openCreateModal}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -305,20 +336,7 @@ const DepartmentsPage = ({ initialShowAddForm = false, onAddFormClosed }) => {
         </div>
       </div>
 
-      {/* Messages */}
-      {error && (
-        <div style={{
-          padding: '12px 16px',
-          background: '#FEF2F2',
-          border: '1px solid #FECACA',
-          borderRadius: 8,
-          color: '#B91C1C',
-          marginBottom: 16,
-          fontSize: 14,
-        }}>
-          {error}
-        </div>
-      )}
+      {/* Success Message */}
       {success && (
         <div style={{
           padding: '12px 16px',
@@ -333,100 +351,6 @@ const DepartmentsPage = ({ initialShowAddForm = false, onAddFormClosed }) => {
         </div>
       )}
 
-      {/* Add/Edit Form Modal */}
-      {(showAddForm || editingId) && (
-        <div style={{
-          background: 'white',
-          borderRadius: 16,
-          padding: 24,
-          marginBottom: 24,
-          boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-          border: '1px solid #E5E7EB',
-        }}>
-          <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 16, color: '#1F2937' }}>
-            {editingId ? t('departments.editDepartment', 'Departmanı Düzenle') : t('departments.addNew', 'Yeni Departman')}
-          </h3>
-          <form onSubmit={handleSubmit}>
-            <div style={{ display: 'flex', gap: 16, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-              <div style={{ flex: 1, minWidth: 250 }}>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 6 }}>
-                  {t('departments.departmentName', 'Departman Adı')}
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder={t('departments.namePlaceholder')}
-                  required
-                  minLength={2}
-                  maxLength={100}
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    border: '1px solid #D1D5DB',
-                    borderRadius: 8,
-                    fontSize: 14,
-                  }}
-                />
-              </div>
-              <label style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 8, 
-                fontSize: 14, 
-                color: '#374151',
-                cursor: 'pointer',
-                padding: '10px 0',
-              }}>
-                <input
-                  type="checkbox"
-                  checked={formData.isActive}
-                  onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                  style={{ width: 18, height: 18, cursor: 'pointer' }}
-                />
-                {t('departments.active')}
-              </label>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button
-                  type="submit"
-                  style={{
-                    padding: '10px 20px',
-                    background: '#6366F1',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: 8,
-                    fontSize: 14,
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {editingId ? t('departments.update') : t('departments.save')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { handleSetShowAddForm(false); handleCancelEdit(); }}
-                  style={{
-                    padding: '10px 20px',
-                    background: '#F3F4F6',
-                    color: '#374151',
-                    border: 'none',
-                    borderRadius: 8,
-                    fontSize: 14,
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {t('departments.cancel')}
-                </button>
-              </div>
-            </div>
-            <p style={{ marginTop: 8, fontSize: 12, color: '#9CA3AF' }}>
-              {t('departments.lengthInfo')}
-            </p>
-          </form>
-        </div>
-      )}
-
       {/* Department Cards Grid */}
       {viewMode === 'cards' && (
         <div style={{
@@ -434,7 +358,9 @@ const DepartmentsPage = ({ initialShowAddForm = false, onAddFormClosed }) => {
           gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
           gap: 20,
         }}>
-          {departments.map((dept) => (
+          {departments.map((dept) => {
+            const DeptIcon = getIconComponent(dept.icon);
+            return (
             <div
               key={dept.id}
               style={{
@@ -444,7 +370,6 @@ const DepartmentsPage = ({ initialShowAddForm = false, onAddFormClosed }) => {
                 boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
                 border: '1px solid #E5E7EB',
                 transition: 'all 0.2s',
-                cursor: 'default',
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.1)';
@@ -483,14 +408,9 @@ const DepartmentsPage = ({ initialShowAddForm = false, onAddFormClosed }) => {
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}>
-                  <Building2 size={22} color="white" />
+                  <DeptIcon size={22} color="white" />
                 </div>
-                <h3 style={{ 
-                  fontSize: 18, 
-                  fontWeight: 600, 
-                  color: '#1F2937',
-                  margin: 0,
-                }}>
+                <h3 style={{ fontSize: 18, fontWeight: 600, color: '#1F2937', margin: 0 }}>
                   {dept.name}
                 </h3>
               </div>
@@ -509,11 +429,7 @@ const DepartmentsPage = ({ initialShowAddForm = false, onAddFormClosed }) => {
                 <span style={{ fontSize: 14, color: '#4B5563' }}>
                   {t('departments.jobCount', 'İlan Sayısı')}:
                 </span>
-                <span style={{ 
-                  fontSize: 16, 
-                  fontWeight: 700, 
-                  color: dept.jobCount > 0 ? (dept.color || '#6366F1') : '#9CA3AF',
-                }}>
+                <span style={{ fontSize: 16, fontWeight: 700, color: dept.jobCount > 0 ? (dept.color || '#6366F1') : '#9CA3AF' }}>
                   {dept.jobCount || 0}
                 </span>
               </div>
@@ -521,7 +437,7 @@ const DepartmentsPage = ({ initialShowAddForm = false, onAddFormClosed }) => {
               {/* Actions */}
               <div style={{ display: 'flex', gap: 8 }}>
                 <button
-                  onClick={() => handleEdit(dept)}
+                  onClick={() => openEditModal(dept)}
                   style={{
                     flex: 1,
                     display: 'flex',
@@ -536,10 +452,7 @@ const DepartmentsPage = ({ initialShowAddForm = false, onAddFormClosed }) => {
                     fontWeight: 500,
                     color: '#374151',
                     cursor: 'pointer',
-                    transition: 'background 0.15s',
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = '#E5E7EB'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = '#F3F4F6'}
                 >
                   <Edit2 size={16} />
                   {t('departments.edit')}
@@ -556,16 +469,14 @@ const DepartmentsPage = ({ initialShowAddForm = false, onAddFormClosed }) => {
                     borderRadius: 8,
                     color: '#B91C1C',
                     cursor: 'pointer',
-                    transition: 'background 0.15s',
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = '#FEE2E2'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = '#FEF2F2'}
                 >
                   <Trash2 size={16} />
                 </button>
               </div>
             </div>
-          ))}
+          );
+          })}
         </div>
       )}
 
@@ -599,16 +510,10 @@ const DepartmentsPage = ({ initialShowAddForm = false, onAddFormClosed }) => {
               </tr>
             </thead>
             <tbody>
-              {departments.map((dept, index) => (
-                <tr 
-                  key={dept.id}
-                  style={{ 
-                    borderBottom: index < departments.length - 1 ? '1px solid #E5E7EB' : 'none',
-                    transition: 'background 0.15s',
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = '#F9FAFB'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
-                >
+              {departments.map((dept, index) => {
+                const DeptIcon = getIconComponent(dept.icon);
+                return (
+                <tr key={dept.id} style={{ borderBottom: index < departments.length - 1 ? '1px solid #E5E7EB' : 'none' }}>
                   <td style={{ padding: '16px 20px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                       <div style={{
@@ -620,7 +525,7 @@ const DepartmentsPage = ({ initialShowAddForm = false, onAddFormClosed }) => {
                         alignItems: 'center',
                         justifyContent: 'center',
                       }}>
-                        <Building2 size={18} color="white" />
+                        <DeptIcon size={18} color="white" />
                       </div>
                       <span style={{ fontSize: 14, fontWeight: 600, color: '#1F2937' }}>
                         {dept.name}
@@ -640,11 +545,7 @@ const DepartmentsPage = ({ initialShowAddForm = false, onAddFormClosed }) => {
                     </span>
                   </td>
                   <td style={{ padding: '16px 20px', textAlign: 'center' }}>
-                    <span style={{ 
-                      fontSize: 14, 
-                      fontWeight: 600, 
-                      color: dept.jobCount > 0 ? (dept.color || '#6366F1') : '#9CA3AF',
-                    }}>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: dept.jobCount > 0 ? (dept.color || '#6366F1') : '#9CA3AF' }}>
                       {dept.jobCount || 0}
                     </span>
                   </td>
@@ -654,11 +555,10 @@ const DepartmentsPage = ({ initialShowAddForm = false, onAddFormClosed }) => {
                   <td style={{ padding: '16px 20px' }}>
                     <div style={{ display: 'flex', justifyContent: 'center', gap: 8 }}>
                       <button
-                        onClick={() => handleEdit(dept)}
+                        onClick={() => openEditModal(dept)}
                         style={{
                           display: 'flex',
                           alignItems: 'center',
-                          justifyContent: 'center',
                           gap: 4,
                           padding: '8px 12px',
                           background: '#F3F4F6',
@@ -668,10 +568,7 @@ const DepartmentsPage = ({ initialShowAddForm = false, onAddFormClosed }) => {
                           fontWeight: 500,
                           color: '#374151',
                           cursor: 'pointer',
-                          transition: 'background 0.15s',
                         }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = '#E5E7EB'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = '#F3F4F6'}
                       >
                         <Edit2 size={14} />
                         {t('departments.edit')}
@@ -681,24 +578,21 @@ const DepartmentsPage = ({ initialShowAddForm = false, onAddFormClosed }) => {
                         style={{
                           display: 'flex',
                           alignItems: 'center',
-                          justifyContent: 'center',
                           padding: '8px 10px',
                           background: '#FEF2F2',
                           border: 'none',
                           borderRadius: 6,
                           color: '#B91C1C',
                           cursor: 'pointer',
-                          transition: 'background 0.15s',
                         }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = '#FEE2E2'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = '#FEF2F2'}
                       >
                         <Trash2 size={14} />
                       </button>
                     </div>
                   </td>
                 </tr>
-              ))}
+              );
+              })}
             </tbody>
           </table>
         </div>
@@ -721,7 +615,7 @@ const DepartmentsPage = ({ initialShowAddForm = false, onAddFormClosed }) => {
             {t('departments.createFirst', 'İlk departmanınızı oluşturarak başlayın')}
           </p>
           <button
-            onClick={() => setShowAddForm(true)}
+            onClick={openCreateModal}
             style={{
               padding: '12px 24px',
               background: '#6366F1',
@@ -736,6 +630,225 @@ const DepartmentsPage = ({ initialShowAddForm = false, onAddFormClosed }) => {
             <Plus size={16} style={{ marginRight: 8, verticalAlign: 'middle' }} />
             {t('departments.addNew', 'Yeni Departman')}
           </button>
+        </div>
+      )}
+
+      {/* Create/Edit Modal */}
+      {showModal && (
+        <div style={{ 
+          position: 'fixed', 
+          inset: 0, 
+          background: 'rgba(0,0,0,0.5)', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          zIndex: 1000 
+        }}>
+          <div style={{ 
+            background: 'white', 
+            borderRadius: 16, 
+            padding: 28, 
+            maxWidth: 480, 
+            width: '90%',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+          }}>
+            <h3 style={{ margin: '0 0 24px', fontSize: 20, fontWeight: 600, color: '#111827' }}>
+              {editingDept ? t('departments.editDepartment', 'Departmanı Düzenle') : t('departments.addNew', 'Yeni Departman Oluştur')}
+            </h3>
+            
+            {/* Department Name Input */}
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#374151', marginBottom: 8 }}>
+                {t('departments.departmentName', 'Departman Adı')}
+              </label>
+              <input
+                type="text"
+                value={deptName}
+                onChange={(e) => setDeptName(e.target.value)}
+                placeholder={t('departments.namePlaceholder')}
+                style={{
+                  width: '100%',
+                  padding: '12px 14px',
+                  border: '1px solid #D1D5DB',
+                  borderRadius: 10,
+                  fontSize: 14,
+                  outline: 'none',
+                  transition: 'border-color 0.15s',
+                }}
+                onFocus={(e) => e.target.style.borderColor = '#6366F1'}
+                onBlur={(e) => e.target.style.borderColor = '#D1D5DB'}
+              />
+            </div>
+
+            {/* Icon Picker */}
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#374151', marginBottom: 10 }}>
+                {t('departments.icon', 'İkon')}
+              </label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {DEPARTMENT_ICONS.map((iconItem) => {
+                  const IconComp = iconItem.Icon;
+                  const isSelected = deptIcon === iconItem.id;
+                  return (
+                    <button
+                      key={iconItem.id}
+                      type="button"
+                      onClick={() => setDeptIcon(iconItem.id)}
+                      title={i18n.language === 'tr' ? iconItem.name_tr : iconItem.name_en}
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 10,
+                        background: isSelected ? deptColor : '#F3F4F6',
+                        border: isSelected ? '2px solid #111827' : '2px solid transparent',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      <IconComp size={20} color={isSelected ? 'white' : '#6B7280'} />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Color Picker */}
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#374151', marginBottom: 10 }}>
+                {t('departments.color', 'Renk')}
+              </label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {DEPARTMENT_COLORS.map(color => (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => setDeptColor(color)}
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 8,
+                      background: color,
+                      border: deptColor === color ? '3px solid #111827' : '2px solid transparent',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {deptColor === color && <Check size={16} color="white" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Active Checkbox */}
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 10, 
+                fontSize: 14, 
+                color: '#374151',
+                cursor: 'pointer',
+              }}>
+                <input
+                  type="checkbox"
+                  checked={deptActive}
+                  onChange={(e) => setDeptActive(e.target.checked)}
+                  style={{ width: 18, height: 18, cursor: 'pointer', accentColor: '#6366F1' }}
+                />
+                {t('departments.active')}
+              </label>
+            </div>
+
+            {/* Preview */}
+            <div style={{ marginBottom: 24, padding: 16, background: '#F9FAFB', borderRadius: 12 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#6B7280', marginBottom: 10 }}>
+                {t('common.preview', 'Önizleme')}
+              </label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 10,
+                  background: deptColor,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <SelectedIcon size={22} color="white" />
+                </div>
+                <span style={{ fontSize: 16, fontWeight: 600, color: '#111827' }}>
+                  {deptName || t('departments.namePlaceholder')}
+                </span>
+              </div>
+            </div>
+
+            {/* Error Message */}
+            {formError && (
+              <div style={{ 
+                padding: 12, 
+                background: '#FEE2E2', 
+                borderRadius: 8, 
+                color: '#DC2626', 
+                fontSize: 14,
+                marginBottom: 20,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8
+              }}>
+                <XCircle size={16} />
+                {formError}
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+              <button 
+                onClick={closeModal}
+                style={{
+                  padding: '10px 20px',
+                  background: '#F3F4F6',
+                  border: 'none',
+                  borderRadius: 8,
+                  fontSize: 14,
+                  fontWeight: 500,
+                  color: '#374151',
+                  cursor: 'pointer',
+                }}
+              >
+                {t('common.cancel', 'İptal')}
+              </button>
+              <button 
+                onClick={handleSave}
+                disabled={creating || updating}
+                style={{
+                  padding: '10px 24px',
+                  background: '#6366F1',
+                  border: 'none',
+                  borderRadius: 8,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: 'white',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                {(creating || updating) ? (
+                  <div className="loading-spinner" style={{ width: 16, height: 16 }} />
+                ) : (
+                  <Check size={16} />
+                )}
+                {t('common.save', 'Kaydet')}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -756,7 +869,6 @@ const DepartmentsPage = ({ initialShowAddForm = false, onAddFormClosed }) => {
             padding: 24,
             maxWidth: 400,
             width: '90%',
-            boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
           }}>
             <h3 style={{ margin: '0 0 16px', fontSize: 18, fontWeight: 600, color: '#B91C1C' }}>
               ⚠️ {t('departments.cannotDeleteTitle')}
@@ -801,7 +913,6 @@ const DepartmentsPage = ({ initialShowAddForm = false, onAddFormClosed }) => {
             padding: 24,
             maxWidth: 400,
             width: '90%',
-            boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
           }}>
             <h3 style={{ margin: '0 0 16px', fontSize: 18, fontWeight: 600 }}>
               {t('departments.deleteConfirmTitle')}
@@ -825,6 +936,7 @@ const DepartmentsPage = ({ initialShowAddForm = false, onAddFormClosed }) => {
               </button>
               <button
                 onClick={handleDelete}
+                disabled={deleting}
                 style={{
                   padding: '10px 20px',
                   background: '#EF4444',

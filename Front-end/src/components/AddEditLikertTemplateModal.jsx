@@ -3,6 +3,7 @@
  * Supports drag-and-drop variables for dynamic content
  */
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { useTranslation } from 'react-i18next';
 import { X, GripVertical, User, Briefcase, Building2, Link2, Calendar, ClipboardList } from 'lucide-react';
@@ -192,7 +193,7 @@ const AddEditLikertTemplateModal = ({ template, onClose }) => {
     }
   };
 
-  return (
+  return createPortal(
     <div style={{
       position: 'fixed',
       inset: 0,
@@ -522,7 +523,8 @@ const AddEditLikertTemplateModal = ({ template, onClose }) => {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

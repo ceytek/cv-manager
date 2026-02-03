@@ -348,18 +348,8 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
     candidateName: null 
   });
   
-  // Debug: Log talent pool modal state changes
-  React.useEffect(() => {
-    console.log('talentPoolModal state changed:', talentPoolModal);
-  }, [talentPoolModal]);
-  
   // Force state update with a key
   const [, forceUpdate] = React.useReducer(x => x + 1, 0);
-  
-  // Debug: Log when modal state changes
-  React.useEffect(() => {
-    console.log('deleteConfirmCandidate state changed:', deleteConfirmCandidate);
-  }, [deleteConfirmCandidate]);
   
   // Delete mutation and analysis check query
   const [checkAnalysis] = useLazyQuery(CANDIDATE_HAS_ANALYSIS_QUERY);
@@ -383,17 +373,13 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
     try {
       // Check if candidate has analysis
       const result = await checkAnalysis({ variables: { candidateId: candidate.id } });
-      console.log('Analysis check result:', result);
-      console.log('Setting deleteConfirmCandidate to:', candidate);
       
       if (result?.data?.candidateHasAnalysis) {
         // Has analysis - show warning modal
-        console.log('Has analysis, showing warning modal');
         setDeleteWarningCandidate(candidate);
         forceUpdate();
       } else {
         // No analysis - show simple confirm modal
-        console.log('No analysis, showing confirm modal');
         setDeleteConfirmCandidate(candidate);
         forceUpdate();
       }
@@ -407,24 +393,16 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
   
   // Confirm delete
   const confirmDelete = async () => {
-    console.log('confirmDelete called');
-    console.log('deleteConfirmCandidate:', deleteConfirmCandidate);
-    console.log('deleteWarningCandidate:', deleteWarningCandidate);
-    
     const candidateToDelete = deleteConfirmCandidate || deleteWarningCandidate;
-    console.log('candidateToDelete:', candidateToDelete);
     
     if (!candidateToDelete) {
-      console.error('No candidate to delete!');
       return;
     }
     
     setIsDeleting(true);
-    console.log('Calling deleteCandidate mutation with id:', candidateToDelete.id);
     
     try {
-      const result = await deleteCandidate({ variables: { id: candidateToDelete.id } });
-      console.log('Delete result:', result);
+      await deleteCandidate({ variables: { id: candidateToDelete.id } });
     } catch (error) {
       console.error('Delete error:', error);
     }

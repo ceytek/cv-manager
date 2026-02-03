@@ -2,7 +2,7 @@
 Company Model
 Represents a tenant/company in the multi-tenancy system
 """
-from sqlalchemy import Column, String, Boolean, JSON, DateTime
+from sqlalchemy import Column, String, Boolean, JSON, DateTime, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -20,6 +20,7 @@ class Company(Base):
     email = Column(String(255), nullable=False)
     phone = Column(String(50), nullable=True)
     address = Column(String, nullable=True)
+    about = Column(Text, nullable=True)  # Company about/description (HTML)
     subdomain = Column(String(100), unique=True, nullable=True)
     custom_domain = Column(String(255), unique=True, nullable=True)
     logo_url = Column(String(500), nullable=True)

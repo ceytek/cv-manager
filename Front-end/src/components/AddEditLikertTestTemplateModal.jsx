@@ -3,6 +3,7 @@
  * With Manual and AI Question Generation tabs
  */
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { X, Plus, Trash2, Globe, Clock, ListChecks, Sparkles, Wand2, Loader2, RefreshCw, AlertTriangle } from 'lucide-react';
@@ -33,6 +34,19 @@ const AddEditLikertTestTemplateModal = ({ isOpen, onClose, onSuccess, template }
   const [newQuestionReverse, setNewQuestionReverse] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  // Scale labels - editable
+  const defaultScaleLabels = {
+    5: {
+      tr: ['Kesinlikle Katılmıyorum', 'Katılmıyorum', 'Kararsızım', 'Katılıyorum', 'Kesinlikle Katılıyorum'],
+      en: ['Strongly Disagree', 'Disagree', 'Neutral', 'Agree', 'Strongly Agree']
+    },
+    7: {
+      tr: ['Kesinlikle Katılmıyorum', 'Katılmıyorum', 'Biraz Katılmıyorum', 'Kararsızım', 'Biraz Katılıyorum', 'Katılıyorum', 'Kesinlikle Katılıyorum'],
+      en: ['Strongly Disagree', 'Disagree', 'Somewhat Disagree', 'Neutral', 'Somewhat Agree', 'Agree', 'Strongly Agree']
+    }
+  };
+  const [scaleLabels, setScaleLabels] = useState(defaultScaleLabels[5][language] || defaultScaleLabels[5]['tr']);
 
   // AI tab specific state
   const [aiQuestionCount, setAiQuestionCount] = useState(10);
@@ -127,8 +141,14 @@ const AddEditLikertTestTemplateModal = ({ isOpen, onClose, onSuccess, template }
       setAiQuestions([]);
       setActiveTab('manual');
       setError('');
+      setScaleLabels(defaultScaleLabels[5]['tr']);
     }
   }, [isOpen, isEdit]);
+
+  // Update scale labels when scaleType or language changes
+  useEffect(() => {
+    setScaleLabels(defaultScaleLabels[scaleType]?.[language] || defaultScaleLabels[5]['tr']);
+  }, [scaleType, language]);
 
   // Manual question management
   const addQuestion = () => {
@@ -148,6 +168,15 @@ const AddEditLikertTestTemplateModal = ({ isOpen, onClose, onSuccess, template }
 
   const removeQuestion = (index) => {
     const updated = questions.filter((_, i) => i !== index);
+    updated.forEach((q, i) => q.order = i + 1);
+    setQuestions(updated);
+  };
+
+  const moveQuestion = (index, direction) => {
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= questions.length) return;
+    const updated = [...questions];
+    [updated[index], updated[newIndex]] = [updated[newIndex], updated[index]];
     updated.forEach((q, i) => q.order = i + 1);
     setQuestions(updated);
   };
@@ -261,6 +290,15 @@ const AddEditLikertTestTemplateModal = ({ isOpen, onClose, onSuccess, template }
     setAiQuestions(updated);
   };
 
+  const moveAiQuestion = (index, direction) => {
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= aiQuestions.length) return;
+    const updated = [...aiQuestions];
+    [updated[index], updated[newIndex]] = [updated[newIndex], updated[index]];
+    updated.forEach((q, i) => q.order = i + 1);
+    setAiQuestions(updated);
+  };
+
   // Save template
   const handleSave = async () => {
     if (!name.trim()) {
@@ -314,7 +352,7 @@ const AddEditLikertTestTemplateModal = ({ isOpen, onClose, onSuccess, template }
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div style={{
       position: 'fixed',
       inset: 0,
@@ -498,6 +536,106 @@ const AddEditLikertTestTemplateModal = ({ isOpen, onClose, onSuccess, template }
             </div>
           </div>
 
+          {/* Scale Labels - Editable */}
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ display: 'block', marginBottom: 10, fontWeight: 500, fontSize: 14 }}>
+              {isEnglish ? 'Scale Labels' : 'Ölçek Etiketleri'}
+              <span style={{ fontWeight: 400, marginLeft: 8, fontSize: 12, color: '#6B7280' }}>
+                ({isEnglish ? 'click to edit' : 'düzenlemek için tıklayın'})
+              </span>
+            </label>
+            <div style={{ 
+              display: 'flex', 
+              gap: 8, 
+              flexWrap: 'wrap',
+              padding: 16,
+              background: '#F9FAFB',
+              borderRadius: 10,
+              border: '1px solid #E5E7EB'
+            }}>
+              {scaleLabels.map((label, idx) => (
+                <div 
+                  key={idx}
+                  style={{ 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    alignItems: 'center',
+                    gap: 6,
+                    flex: 1,
+                    minWidth: scaleType === 7 ? '100px' : '120px',
+                  }}
+                >
+                  <div style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: '50%',
+                    background: `linear-gradient(135deg, ${
+                      idx === 0 ? '#FEE2E2, #FECACA' :
+                      idx === scaleLabels.length - 1 ? '#D1FAE5, #A7F3D0' :
+                      idx === Math.floor(scaleLabels.length / 2) ? '#FEF3C7, #FDE68A' :
+                      idx < Math.floor(scaleLabels.length / 2) ? '#FED7AA, #FDBA74' :
+                      '#BBF7D0, #86EFAC'
+                    })`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 600,
+                    fontSize: 14,
+                    color: '#374151',
+                    border: '2px solid white',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                  }}>
+                    {idx + 1}
+                  </div>
+                  <input
+                    type="text"
+                    value={label}
+                    onChange={(e) => {
+                      const updated = [...scaleLabels];
+                      updated[idx] = e.target.value;
+                      setScaleLabels(updated);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '6px 8px',
+                      fontSize: 12,
+                      textAlign: 'center',
+                      border: '1px solid #E5E7EB',
+                      borderRadius: 6,
+                      background: 'white',
+                      color: '#374151',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.borderColor = '#3B82F6';
+                      e.target.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.1)';
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = '#E5E7EB';
+                      e.target.style.boxShadow = 'none';
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => setScaleLabels(defaultScaleLabels[scaleType]?.[language] || defaultScaleLabels[5]['tr'])}
+              style={{
+                marginTop: 8,
+                padding: '6px 12px',
+                fontSize: 12,
+                color: '#6B7280',
+                background: 'transparent',
+                border: '1px solid #E5E7EB',
+                borderRadius: 6,
+                cursor: 'pointer',
+              }}
+            >
+              {isEnglish ? '↺ Reset to default' : '↺ Varsayılana sıfırla'}
+            </button>
+          </div>
+
           {/* Time Limit */}
           <div style={{ marginBottom: 20 }}>
             <label style={{ display: 'block', marginBottom: 8, fontWeight: 500, fontSize: 14 }}>
@@ -621,6 +759,39 @@ const AddEditLikertTestTemplateModal = ({ isOpen, onClose, onSuccess, template }
                           border: '1px solid #DDD6FE',
                         }}
                       >
+                        {/* Reorder arrows */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingTop: 4 }}>
+                          <button
+                            onClick={() => moveAiQuestion(index, 'up')}
+                            disabled={index === 0}
+                            style={{
+                              padding: 2,
+                              background: 'transparent',
+                              border: 'none',
+                              cursor: index === 0 ? 'not-allowed' : 'pointer',
+                              color: index === 0 ? '#D1D5DB' : '#6B7280',
+                              fontSize: 10,
+                              lineHeight: 1,
+                            }}
+                          >
+                            ▲
+                          </button>
+                          <button
+                            onClick={() => moveAiQuestion(index, 'down')}
+                            disabled={index === aiQuestions.length - 1}
+                            style={{
+                              padding: 2,
+                              background: 'transparent',
+                              border: 'none',
+                              cursor: index === aiQuestions.length - 1 ? 'not-allowed' : 'pointer',
+                              color: index === aiQuestions.length - 1 ? '#D1D5DB' : '#6B7280',
+                              fontSize: 10,
+                              lineHeight: 1,
+                            }}
+                          >
+                            ▼
+                          </button>
+                        </div>
                         {/* Question number, dimension & direction badges */}
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                           <span style={{ 
@@ -782,8 +953,8 @@ const AddEditLikertTestTemplateModal = ({ isOpen, onClose, onSuccess, template }
               {/* Question list */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {questions.map((q, index) => (
-                  <div 
-                    key={q.id} 
+                  <div
+                    key={q.id}
                     style={{ 
                       display: 'flex', 
                       alignItems: 'center', 
@@ -794,6 +965,39 @@ const AddEditLikertTestTemplateModal = ({ isOpen, onClose, onSuccess, template }
                       border: '1px solid #E5E7EB',
                     }}
                   >
+                    {/* Reorder arrows */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      <button
+                        onClick={() => moveQuestion(index, 'up')}
+                        disabled={index === 0}
+                        style={{
+                          padding: 2,
+                          background: 'transparent',
+                          border: 'none',
+                          cursor: index === 0 ? 'not-allowed' : 'pointer',
+                          color: index === 0 ? '#D1D5DB' : '#6B7280',
+                          fontSize: 10,
+                          lineHeight: 1,
+                        }}
+                      >
+                        ▲
+                      </button>
+                      <button
+                        onClick={() => moveQuestion(index, 'down')}
+                        disabled={index === questions.length - 1}
+                        style={{
+                          padding: 2,
+                          background: 'transparent',
+                          border: 'none',
+                          cursor: index === questions.length - 1 ? 'not-allowed' : 'pointer',
+                          color: index === questions.length - 1 ? '#D1D5DB' : '#6B7280',
+                          fontSize: 10,
+                          lineHeight: 1,
+                        }}
+                      >
+                        ▼
+                      </button>
+                    </div>
                     <span style={{ 
                       width: 24, 
                       height: 24, 
@@ -906,7 +1110,8 @@ const AddEditLikertTestTemplateModal = ({ isOpen, onClose, onSuccess, template }
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

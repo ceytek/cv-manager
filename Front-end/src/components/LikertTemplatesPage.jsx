@@ -346,6 +346,7 @@ const LikertTemplatesPage = () => {
       {/* Add/Edit Modal */}
       {showModal && (
         <AddEditLikertTemplateModal
+          key={`modal-${editingTemplate?.id || 'new'}`}
           template={editingTemplate}
           variables={variables}
           onClose={handleModalClose}

@@ -64,10 +64,14 @@ class DepartmentService:
         if not color:
             color = DepartmentService._get_next_color(db, company_id)
         
+        # Default icon if not provided
+        icon = getattr(department_data, 'icon', None) or 'building-2'
+        
         new_department = Department(
             name=department_data.name,
             is_active=department_data.is_active,
             color=color,
+            icon=icon,
             company_id=company_id
         )
         
@@ -101,6 +105,10 @@ class DepartmentService:
         
         if department_data.color is not None:
             department.color = department_data.color
+        
+        # Update icon if provided
+        if hasattr(department_data, 'icon') and department_data.icon is not None:
+            department.icon = department_data.icon
         
         db.commit()
         db.refresh(department)

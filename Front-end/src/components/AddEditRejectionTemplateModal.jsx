@@ -3,6 +3,7 @@
  * Supports drag-and-drop variables for dynamic content
  */
 import React, { useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useMutation } from '@apollo/client/react';
 import { useTranslation } from 'react-i18next';
 import { X, GripVertical, User, Phone, Briefcase, Mail, Building2, Image } from 'lucide-react';
@@ -158,7 +159,7 @@ const AddEditRejectionTemplateModal = ({ template, onClose, variables }) => {
     return preview;
   };
 
-  return (
+  return createPortal(
     <div style={{
       position: 'fixed',
       top: 0,
@@ -503,7 +504,8 @@ Saygılarımızla`}
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

@@ -349,6 +349,7 @@ const RejectionTemplatesPage = () => {
       {/* Add/Edit Modal */}
       {showModal && (
         <AddEditRejectionTemplateModal
+          key={`modal-${editingTemplate?.id || 'new'}`}
           template={editingTemplate}
           onClose={handleModalClose}
           variables={variables}

@@ -32,7 +32,8 @@ import {
   Plus,
   Sparkles,
   MapPin,
-  MessageSquare
+  MessageSquare,
+  Gift
 } from 'lucide-react';
 import { useQuery, useMutation, useSubscription } from '@apollo/client/react';
 import { USERS_QUERY, DEACTIVATE_USER_MUTATION } from '../graphql/auth';
@@ -54,6 +55,7 @@ import SubscriptionUsageWidget from './SubscriptionUsageWidget';
 import InterviewTemplatesPage from './InterviewTemplatesPage';
 import LikertTemplatesPage from './LikertTemplatesPage';
 import LikertTestTemplatesPage from './LikertTestTemplatesPage';
+import OfferTemplatesPage from './OfferTemplatesPage';
 import AgreementTemplatesPage from './AgreementTemplatesPage';
 import RejectionTemplatesPage from './RejectionTemplatesPage';
 import SecondInterviewTemplatesPage from './SecondInterviewTemplatesPage';
@@ -65,6 +67,9 @@ import DailyActivityWidget from './DailyActivityWidget';
 import TalentPoolTagsPage from './TalentPoolTagsPage';
 import TalentPoolPage from './TalentPoolPage';
 import CompanyAddressesPage from './CompanyAddressesPage';
+import BenefitsManagement from './BenefitsManagement';
+import MessageTemplatesPage from './MessageTemplatesPage';
+import ContentHubPage from './ContentHubPage';
 
 const Dashboard = ({ currentUser, onLogout }) => {
   const { t, i18n } = useTranslation();
@@ -264,83 +269,6 @@ const Dashboard = ({ currentUser, onLogout }) => {
                 <span>{item.label}</span>
               </button>
               
-              {/* Interview Messages Submenu */}
-              {item.id === 'interview-messages' && activeMenu === 'interview-messages' && (
-                <div className="submenu">
-                  <button
-                    className={`submenu-item ${interviewMessagesMenu === 'firstInterview' ? 'active' : ''}`}
-                    onClick={() => setInterviewMessagesMenu('firstInterview')}
-                  >
-                    {t('interviewMessages.firstInterview', '1. Interview')}
-                  </button>
-                  <button
-                    className={`submenu-item ${interviewMessagesMenu === 'secondInterview' ? 'active' : ''}`}
-                    onClick={() => setInterviewMessagesMenu('secondInterview')}
-                  >
-                    {t('interviewMessages.secondInterview', '2. Interview')}
-                  </button>
-                  <button
-                    className={`submenu-item ${interviewMessagesMenu === 'likertTest' ? 'active' : ''}`}
-                    onClick={() => setInterviewMessagesMenu('likertTest')}
-                  >
-                    {t('interviewMessages.likertTest', 'Likert Test')}
-                  </button>
-                  <button
-                    className={`submenu-item ${interviewMessagesMenu === 'rejectionTemplates' ? 'active' : ''}`}
-                    onClick={() => setInterviewMessagesMenu('rejectionTemplates')}
-                  >
-                    {t('interviewMessages.rejection', 'Red Mesajı')}
-                  </button>
-                  <button
-                    className={`submenu-item ${interviewMessagesMenu === 'offer' ? 'active' : ''}`}
-                    onClick={() => setInterviewMessagesMenu('offer')}
-                  >
-                    {t('interviewMessages.offer', 'Teklif')}
-                  </button>
-                  <button
-                    className={`submenu-item ${interviewMessagesMenu === 'confirmation' ? 'active' : ''}`}
-                    onClick={() => setInterviewMessagesMenu('confirmation')}
-                  >
-                    {t('interviewMessages.confirmation', 'Onay')}
-                  </button>
-                </div>
-              )}
-
-              {/* Templates Submenu */}
-              {item.id === 'templates' && activeMenu === 'templates' && (
-                <div className="submenu">
-                  <button
-                    className={`submenu-item ${templatesMenu === 'interviewTemplates' ? 'active' : ''}`}
-                    onClick={() => setTemplatesMenu('interviewTemplates')}
-                  >
-                    {t('templates.interviewTemplates')}
-                  </button>
-                  <button
-                    className={`submenu-item ${templatesMenu === 'likertTemplates' ? 'active' : ''}`}
-                    onClick={() => setTemplatesMenu('likertTemplates')}
-                  >
-                    {t('templates.likertTemplates')}
-                  </button>
-                  <button
-                    className={`submenu-item ${templatesMenu === 'agreementTemplates' ? 'active' : ''}`}
-                    onClick={() => setTemplatesMenu('agreementTemplates')}
-                  >
-                    {t('templates.agreementTemplates')}
-                  </button>
-                  <button
-                    className={`submenu-item ${templatesMenu === 'jobIntroTemplates' ? 'active' : ''}`}
-                    onClick={() => setTemplatesMenu('jobIntroTemplates')}
-                  >
-                    {t('templates.jobIntroTemplates')}
-                  </button>
-                  <button
-                    className={`submenu-item ${templatesMenu === 'jobOutroTemplates' ? 'active' : ''}`}
-                    onClick={() => setTemplatesMenu('jobOutroTemplates')}
-                  >
-                    {t('templates.jobOutroTemplates')}
-                  </button>
-                </div>
-              )}
               
             </div>
           ))}
@@ -650,6 +578,19 @@ const Dashboard = ({ currentUser, onLogout }) => {
                       <span>{t('settings.companyAddresses', 'Şirket Adresleri')}</span>
                     </button>
                   )}
+                  {isAdmin && (
+                    <button 
+                      className="user-dropdown-item" 
+                      onClick={() => { 
+                        setActiveMenu('settings'); 
+                        setSettingsMenu('benefits'); 
+                        setShowUserMenu(false); 
+                      }}
+                    >
+                      <Gift size={16} />
+                      <span>{t('settings.benefits', 'Yan Haklar')}</span>
+                    </button>
+                  )}
                   <button 
                     className="user-dropdown-item" 
                     onClick={() => { 
@@ -741,45 +682,69 @@ const Dashboard = ({ currentUser, onLogout }) => {
           <CompanyAddressesPage />
         )}
 
-        {/* Templates pages */}
+        {/* Benefits Management (admin) */}
+        {activeMenu === 'settings' && settingsMenu === 'benefits' && isAdmin && (
+          <BenefitsManagement />
+        )}
+
+        {/* Content Hub - Dashboard with cards */}
+        {activeMenu === 'templates' && !templatesMenu && (
+          <ContentHubPage 
+            onNavigate={(page) => setTemplatesMenu(page)} 
+          />
+        )}
+
+        {/* Content Hub - Subpages */}
         {activeMenu === 'templates' && templatesMenu === 'interviewTemplates' && (
-          <InterviewTemplatesPage />
+          <InterviewTemplatesPage onBack={() => setTemplatesMenu(null)} />
         )}
 
         {activeMenu === 'templates' && templatesMenu === 'likertTemplates' && (
-          <LikertTestTemplatesPage />
+          <LikertTestTemplatesPage onBack={() => setTemplatesMenu(null)} />
         )}
 
         {activeMenu === 'templates' && templatesMenu === 'agreementTemplates' && (
-          <AgreementTemplatesPage />
+          <AgreementTemplatesPage onBack={() => setTemplatesMenu(null)} />
+        )}
+
+        {activeMenu === 'templates' && templatesMenu === 'offerTemplates' && (
+          <OfferTemplatesPage onBack={() => setTemplatesMenu(null)} />
         )}
 
         {activeMenu === 'templates' && templatesMenu === 'jobIntroTemplates' && (
-          <JobIntroTemplatesPage />
+          <JobIntroTemplatesPage onBack={() => setTemplatesMenu(null)} />
         )}
 
         {activeMenu === 'templates' && templatesMenu === 'jobOutroTemplates' && (
-          <JobOutroTemplatesPage />
+          <JobOutroTemplatesPage onBack={() => setTemplatesMenu(null)} />
         )}
 
+        {/* Interview Messages - Dashboard with cards */}
+        {activeMenu === 'interview-messages' && !interviewMessagesMenu && (
+          <MessageTemplatesPage 
+            onNavigate={(page) => setInterviewMessagesMenu(page)} 
+          />
+        )}
+
+        {/* Interview Messages - Subpages */}
         {activeMenu === 'interview-messages' && interviewMessagesMenu === 'rejectionTemplates' && (
-          <RejectionTemplatesPage />
+          <RejectionTemplatesPage onBack={() => setInterviewMessagesMenu(null)} />
         )}
 
         {activeMenu === 'interview-messages' && interviewMessagesMenu === 'secondInterview' && (
-          <SecondInterviewTemplatesPage />
+          <SecondInterviewTemplatesPage onBack={() => setInterviewMessagesMenu(null)} />
         )}
 
         {activeMenu === 'interview-messages' && interviewMessagesMenu === 'firstInterview' && (
-          <AIInterviewTemplatesPage />
+          <AIInterviewTemplatesPage onBack={() => setInterviewMessagesMenu(null)} />
         )}
 
         {activeMenu === 'interview-messages' && interviewMessagesMenu === 'likertTest' && (
-          <LikertTemplatesPage />
+          <LikertTemplatesPage onBack={() => setInterviewMessagesMenu(null)} />
         )}
 
-        {/* Show dashboard widgets unless a settings/templates/interview-messages subpage is open */}
-  {!(activeMenu === 'settings' && settingsMenu) && !(activeMenu === 'templates' && templatesMenu) && !(activeMenu === 'interview-messages' && interviewMessagesMenu) && activeMenu !== 'departments' && activeMenu !== 'jobs' && activeMenu !== 'cvs' && activeMenu !== 'cv-evaluation' && activeMenu !== 'talent-pool' && activeMenu !== 'usage-history' && activeMenu !== 'templates' && activeMenu !== 'interview-messages' && (
+        {/* Show dashboard widgets unless a settings page is open or other pages are active */}
+  {!(activeMenu === 'settings' && settingsMenu) && activeMenu !== 'departments' && activeMenu !== 'jobs' && activeMenu !== 'cvs' && activeMenu !== 'cv-evaluation' && activeMenu !== 'talent-pool' && activeMenu !== 'usage-history' && activeMenu !== 'templates' && activeMenu !== 'interview-messages' && (
         <div className="stats-grid-kaggle">
           {stats.map((stat, index) => {
             const IconComponent = stat.icon;

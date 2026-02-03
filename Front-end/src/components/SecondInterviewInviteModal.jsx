@@ -3,6 +3,7 @@
  * 2. Görüşme - Manuel HR görüşmesi davet modalı
  */
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { 
@@ -318,7 +319,7 @@ const SecondInterviewInviteModal = ({
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div style={{ 
       position: 'fixed', 
       inset: 0, 
@@ -385,13 +386,14 @@ const SecondInterviewInviteModal = ({
             }}>
               <AlertTriangle size={48} color="#DC2626" style={{ marginBottom: '16px' }} />
               <h3 style={{ margin: '0 0 12px', color: '#991B1B', fontSize: '18px' }}>
-                Yüzyüze/Online Mülakat Daveti Gönderilemez
+                {t('secondInterview.invite.cannotSend')}
               </h3>
-              <p style={{ margin: '0 0 16px', color: '#DC2626', fontSize: '15px' }}>
-                Bu adayın aktif bitirilmemiş <strong>{blockingType}</strong> daveti vardır.
-              </p>
+              <p 
+                style={{ margin: '0 0 16px', color: '#DC2626', fontSize: '15px' }}
+                dangerouslySetInnerHTML={{ __html: t('secondInterview.invite.hasActiveInvite', { type: blockingType }) }}
+              />
               <p style={{ margin: 0, color: '#7F1D1D', fontSize: '14px' }}>
-                Yeni davet göndermeden önce mevcut daveti tamamlayın veya iptal edin.
+                {t('secondInterview.invite.completeOrCancelFirst')}
               </p>
             </div>
           )}
@@ -1211,7 +1213,8 @@ const SecondInterviewInviteModal = ({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

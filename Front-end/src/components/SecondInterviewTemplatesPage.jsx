@@ -425,6 +425,7 @@ const SecondInterviewTemplatesPage = () => {
       {/* Add/Edit Modal */}
       {showModal && (
         <AddEditSecondInterviewTemplateModal
+          key={`modal-${editingTemplate?.id || 'new'}`}
           template={editingTemplate}
           defaultType={activeTab}
           variables={variables}

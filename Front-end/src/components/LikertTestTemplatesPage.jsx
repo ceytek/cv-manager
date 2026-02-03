@@ -376,12 +376,15 @@ const LikertTestTemplatesPage = () => {
       )}
 
       {/* Add/Edit Modal */}
-      <AddEditLikertTestTemplateModal
-        isOpen={showModal}
-        onClose={handleModalClose}
-        onSuccess={handleSuccess}
-        template={editingTemplate}
-      />
+      {showModal && (
+        <AddEditLikertTestTemplateModal
+          key={`modal-${editingTemplate?.id || 'new'}`}
+          isOpen={showModal}
+          onClose={handleModalClose}
+          onSuccess={handleSuccess}
+          template={editingTemplate}
+        />
+      )}
     </div>
   );
 };

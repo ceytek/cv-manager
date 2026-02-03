@@ -37,6 +37,11 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - MODEL_NAME=${MODEL_NAME:-gpt-4o-mini}
       - AI_SERVICE_PORT=8001
+      # LangFuse (Optional - for AI observability)
+      - LANGFUSE_ENABLED=${LANGFUSE_ENABLED:-false}
+      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY:-}
+      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY:-}
+      - LANGFUSE_HOST=${LANGFUSE_HOST:-http://langfuse:3000}
     ports:
       - "127.0.0.1:8001:8001"
     healthcheck:
@@ -103,6 +108,31 @@ services:
       - backend
     ports:
       - "0.0.0.0:80:80"
+    networks:
+      - hrsmart-network
+
+  # ===========================================
+  # LangFuse (AI Observability) - Optional, for development
+  # Enable with LANGFUSE_ENABLED=true in .env
+  # Using V2 for simplicity (no ClickHouse required)
+  # ===========================================
+  langfuse:
+    image: langfuse/langfuse:2
+    container_name: hrsmart-langfuse
+    restart: unless-stopped
+    profiles:
+      - langfuse  # Only starts with --profile langfuse
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-hrsmart}:${POSTGRES_PASSWORD}@postgres:5432/langfuse_db
+      - NEXTAUTH_SECRET=${LANGFUSE_SECRET:-langfuse-secret-key-change-me}
+      - NEXTAUTH_URL=${LANGFUSE_URL:-http://localhost:3000}
+      - SALT=${LANGFUSE_SALT:-langfuse-salt-change-me}
+      - TELEMETRY_ENABLED=false
+    ports:
+      - "0.0.0.0:3000:3000"  # Accessible from outside for development
     networks:
       - hrsmart-network
 

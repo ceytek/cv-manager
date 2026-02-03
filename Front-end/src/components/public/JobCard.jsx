@@ -6,6 +6,29 @@ function JobCard({ job, onApply }) {
   const { t, i18n } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(false);
 
+  // Convert kebab-case to camelCase for translation keys
+  const toTranslationKey = (value) => {
+    if (!value) return '';
+    // full-time -> fullTime, part-time -> partTime
+    return value.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
+  };
+
+  // Get label for employment type
+  const getEmploymentTypeLabel = (type) => {
+    const key = toTranslationKey(type);
+    return t(`job.${key}`, type);
+  };
+
+  // Get label for experience level
+  const getExperienceLevelLabel = (level) => {
+    return t(`job.${level}`, level);
+  };
+
+  // Get label for remote policy
+  const getRemotePolicyLabel = (policy) => {
+    return t(`job.${policy}`, policy);
+  };
+
   const formatDate = (dateString) => {
     if (!dateString) return null;
     const date = new Date(dateString);
@@ -34,8 +57,8 @@ function JobCard({ job, onApply }) {
       <div className="job-card-header">
         <h3>{job.title}</h3>
         <div className="job-badges">
-          <span className="badge badge-type">{t(`job.${job.employment_type}`)}</span>
-          <span className="badge badge-level">{t(`job.${job.experience_level}`)}</span>
+          <span className="badge badge-type">{getEmploymentTypeLabel(job.employment_type)}</span>
+          <span className="badge badge-level">{getExperienceLevelLabel(job.experience_level)}</span>
         </div>
       </div>
 
@@ -43,26 +66,66 @@ function JobCard({ job, onApply }) {
         <div className="job-info">
           <span className="job-location">
             📍 {job.location}
-            {job.remote_policy !== 'office' && ` (${t(`job.${job.remote_policy}`)})`}
+            {job.remote_policy !== 'office' && ` (${getRemotePolicyLabel(job.remote_policy)})`}
           </span>
-          {job.salary_min && job.salary_max && (
-            <span className="job-salary">
-              💰 {job.salary_min.toLocaleString()} - {job.salary_max.toLocaleString()} {job.salary_currency}
-            </span>
-          )}
         </div>
 
         <div className="job-description">
           {isExpanded ? (
             <>
+              {/* Intro Text */}
+              {job.intro_text && (
+                <div className="job-intro" style={{
+                  background: 'linear-gradient(135deg, #EEF2FF 0%, #F3E8FF 100%)',
+                  padding: '16px',
+                  borderRadius: '8px',
+                  marginBottom: '16px',
+                  borderLeft: '3px solid #6366F1'
+                }}>
+                  <h4 style={{ color: '#4F46E5', marginBottom: '8px' }}>📝 {t('publicJob.introduction', 'Giriş')}</h4>
+                  <div dangerouslySetInnerHTML={{ __html: job.intro_text }} />
+                </div>
+              )}
+
+              {/* Company About */}
+              {job.company?.about && (
+                <div className="job-company-about" style={{
+                  background: '#F9FAFB',
+                  padding: '16px',
+                  borderRadius: '8px',
+                  marginBottom: '16px',
+                  border: '1px solid #E5E7EB'
+                }}>
+                  <h4 style={{ color: '#059669', marginBottom: '8px' }}>🏢 {t('publicJob.aboutCompany', 'Hakkımızda')}</h4>
+                  <div dangerouslySetInnerHTML={{ __html: job.company.about }} />
+                </div>
+              )}
+
+              {/* Job Description */}
               <div 
                 dangerouslySetInnerHTML={{ __html: job.description }} 
                 className="job-description-full"
               />
+
+              {/* Requirements */}
               {job.requirements && (
                 <div className="job-requirements">
                   <h4>{t('publicCareers.requirements')}</h4>
                   <div dangerouslySetInnerHTML={{ __html: job.requirements }} />
+                </div>
+              )}
+
+              {/* Outro Text (What We Offer) */}
+              {job.outro_text && (
+                <div className="job-outro" style={{
+                  background: 'linear-gradient(135deg, #ECFDF5 0%, #F0FDF4 100%)',
+                  padding: '16px',
+                  borderRadius: '8px',
+                  marginTop: '16px',
+                  borderLeft: '3px solid #10B981'
+                }}>
+                  <h4 style={{ color: '#059669', marginBottom: '8px' }}>🎁 {t('publicJob.whatWeOffer', 'Neler Sunuyoruz')}</h4>
+                  <div dangerouslySetInnerHTML={{ __html: job.outro_text }} />
                 </div>
               )}
             </>
@@ -91,12 +154,6 @@ function JobCard({ job, onApply }) {
           </div>
         )}
 
-        {job.deadline && (
-          <div className="job-deadline">
-            <strong>{t('publicCareers.deadline')}: </strong>
-            {formatDate(job.deadline)}
-          </div>
-        )}
       </div>
 
       <div className="job-card-footer">

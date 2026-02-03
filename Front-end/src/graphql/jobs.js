@@ -23,7 +23,7 @@ export const JOBS_QUERY = gql`
       id
       title
       departmentId
-      department { id name color }
+      department { id name color icon }
       introText
       outroText
       description
@@ -38,10 +38,6 @@ export const JOBS_QUERY = gql`
       requiredEducation
       preferredMajors
       requiredLanguages
-      salaryMin
-      salaryMax
-      salaryCurrency
-      deadline
       startDate
       status
       isActive
@@ -67,7 +63,7 @@ export const JOB_QUERY = gql`
       id
       title
       departmentId
-      department { id name color }
+      department { id name color icon }
       description
       descriptionPlain
       requirements
@@ -80,10 +76,6 @@ export const JOB_QUERY = gql`
       requiredEducation
       preferredMajors
       requiredLanguages
-      salaryMin
-      salaryMax
-      salaryCurrency
-      deadline
       startDate
       status
       isActive
@@ -155,10 +147,6 @@ export const CREATE_JOB_MUTATION = gql`
       requiredEducation
       preferredMajors
       requiredLanguages
-      salaryMin
-      salaryMax
-      salaryCurrency
-      deadline
       startDate
       status
       isActive
@@ -192,10 +180,6 @@ export const UPDATE_JOB_MUTATION = gql`
       requiredEducation
       preferredMajors
       requiredLanguages
-      salaryMin
-      salaryMax
-      salaryCurrency
-      deadline
       startDate
       status
       isActive
@@ -227,6 +211,18 @@ export const TOGGLE_JOB_ACTIVE_MUTATION = gql`
 export const DELETE_JOB_MUTATION = gql`
   mutation DeleteJob($id: String!) {
     deleteJob(id: $id) {
+      success
+      message
+    }
+  }
+`;
+
+/**
+ * Mutation to duplicate a job as draft
+ */
+export const DUPLICATE_JOB_MUTATION = gql`
+  mutation DuplicateJob($id: String!) {
+    duplicateJob(id: $id) {
       success
       message
     }

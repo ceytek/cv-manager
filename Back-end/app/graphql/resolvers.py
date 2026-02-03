@@ -33,6 +33,7 @@ from app.graphql.types import (
     UploadedFileType,
     FailedFileType,
     CandidateType,
+    TalentPoolTagSimpleType,
     ApplicationType,
     AnalyzeJobCandidatesInput,
     GenerateJobWithAIInput,
@@ -91,8 +92,35 @@ from app.graphql.types import (
     # Full session types for public access
     InterviewSessionFullType,
     LikertSessionFullType,
+    # Benefits types
+    BenefitType,
+    BenefitInput,
+    BenefitResponseType,
+    # Offer types
+    OfferTemplateType,
+    OfferTemplateInput,
+    OfferTemplateResponseType,
+    OfferType,
+    OfferInput,
+    OfferResponseType,
+    PublicOfferType,
+    OfferResponseInput,
     InterviewJobType,
     InterviewCandidateType,
+    # Shortlist types
+    ShortlistShareType,
+    ShortlistShareInput,
+    ShortlistShareResponseType,
+    ShortlistToggleResponseType,
+    ShortlistToggleInput,
+    BulkShortlistResponseType,
+    BulkShortlistInput,
+    PublicShortlistType,
+    # Longlist types
+    LonglistToggleResponseType,
+    LonglistToggleInput,
+    BulkLonglistResponseType,
+    BulkLonglistInput,
     LikertJobType,
     LikertCandidateType,
     # Session types with answers for HR view
@@ -594,6 +622,7 @@ class Query:
                     name=d.name,
                     is_active=d.is_active,
                     color=d.color,
+                    icon=d.icon,
                     created_at=d.created_at,
                     updated_at=d.updated_at,
                     job_count=job_counts.get(d.id, 0),
@@ -711,7 +740,8 @@ class Query:
                     id=dept.id,
                     name=dept.name,
                     is_active=dept.is_active,
-                            color=dept.color,
+                    color=dept.color,
+                    icon=dept.icon,
                     created_at=dept.created_at.isoformat() if dept.created_at else None,
                     updated_at=dept.updated_at.isoformat() if dept.updated_at else None,
                 )
@@ -975,6 +1005,7 @@ class Query:
                             name=dep_map[j.department_id].name,
                             is_active=dep_map[j.department_id].is_active,
                             color=dep_map[j.department_id].color,
+                            icon=dep_map[j.department_id].icon,
                             created_at=dep_map[j.department_id].created_at.isoformat(),
                             updated_at=dep_map[j.department_id].updated_at.isoformat() if dep_map[j.department_id].updated_at else None,
                         ) if j.department_id in dep_map else None
@@ -1167,6 +1198,7 @@ class Query:
                             name=dept.name,
                             is_active=dept.is_active,
                             color=dept.color,
+                            icon=dept.icon,
                             created_at=dept.created_at.isoformat(),
                             updated_at=dept.updated_at.isoformat() if dept.updated_at else None
                         )
@@ -1217,11 +1249,26 @@ class Query:
                         )
 
                     # Check talent pool status for this candidate
-                    from app.modules.talent_pool.models import TalentPoolEntry
+                    from app.modules.talent_pool.models import TalentPoolEntry, TalentPoolCandidateTag, TalentPoolTag
                     talent_pool_entry = db.query(TalentPoolEntry).filter(
                         TalentPoolEntry.candidate_id == candidate.id,
                         TalentPoolEntry.company_id == company_id
                     ).first()
+                    
+                    # Get talent pool tags if in talent pool
+                    talent_pool_tags_list = []
+                    if talent_pool_entry:
+                        candidate_tags = db.query(TalentPoolCandidateTag).filter(
+                            TalentPoolCandidateTag.entry_id == talent_pool_entry.id
+                        ).all()
+                        for ct in candidate_tags:
+                            tag = db.query(TalentPoolTag).filter(TalentPoolTag.id == ct.tag_id).first()
+                            if tag:
+                                talent_pool_tags_list.append(TalentPoolTagSimpleType(
+                                    id=str(tag.id),
+                                    name=tag.name,
+                                    color=tag.color
+                                ))
                     
                     candidate_type = CandidateType(
                         id=candidate.id,
@@ -1244,7 +1291,8 @@ class Query:
                         updated_at=candidate.updated_at.isoformat() if candidate.updated_at else None,
                         department=dept_type,
                         in_talent_pool=talent_pool_entry is not None,
-                        talent_pool_entry_id=str(talent_pool_entry.id) if talent_pool_entry else None
+                        talent_pool_entry_id=str(talent_pool_entry.id) if talent_pool_entry else None,
+                        talent_pool_tags=talent_pool_tags_list
                     )
 
                 # Check for interview and likert sessions
@@ -1315,6 +1363,14 @@ class Query:
                     rejection_note=app.rejection_note,
                     rejected_at=app.rejected_at.isoformat() if app.rejected_at else None,
                     rejection_template_id=app.rejection_template_id,
+                    is_in_longlist=app.is_in_longlist or False,
+                    longlist_at=app.longlist_at.isoformat() if app.longlist_at else None,
+                    longlist_by=app.longlist_by,
+                    longlist_note=app.longlist_note,
+                    is_shortlisted=app.is_shortlisted or False,
+                    shortlisted_at=app.shortlisted_at.isoformat() if app.shortlisted_at else None,
+                    shortlisted_by=app.shortlisted_by,
+                    shortlist_note=app.shortlist_note,
                     job=job_type,
                     candidate=candidate_type
                 ))
@@ -2322,6 +2378,118 @@ class Query:
         from app.modules.company_address.resolvers import get_company_address
         return get_company_address(info, id)
 
+    # ============================================
+    # Benefits Queries (Yan Haklar)
+    # ============================================
+    
+    @strawberry.field
+    def benefits(
+        self, 
+        info: Info, 
+        category: Optional[str] = None,
+        is_active: Optional[bool] = None
+    ) -> List[BenefitType]:
+        """Get all benefits for the company"""
+        from app.modules.benefits.resolvers import get_benefits
+        from app.modules.benefits.types import BenefitType
+        return get_benefits(info, category, is_active)
+
+    @strawberry.field
+    def benefit(self, info: Info, id: str) -> Optional[BenefitType]:
+        """Get a single benefit by ID"""
+        from app.modules.benefits.resolvers import get_benefit
+        from app.modules.benefits.types import BenefitType
+        return get_benefit(info, id)
+
+    # ============================================
+    # Offer Template Queries (Teklif Şablonları)
+    # ============================================
+    
+    @strawberry.field
+    def offer_templates(
+        self, 
+        info: Info, 
+        is_active: Optional[bool] = None
+    ) -> List['OfferTemplateType']:
+        """Get all offer templates for the company"""
+        from app.modules.offer.resolvers import get_offer_templates
+        from app.modules.offer.types import OfferTemplateType
+        return get_offer_templates(info, is_active)
+
+    @strawberry.field
+    def offer_template(self, info: Info, id: str) -> Optional['OfferTemplateType']:
+        """Get a single offer template by ID"""
+        from app.modules.offer.resolvers import get_offer_template
+        from app.modules.offer.types import OfferTemplateType
+        return get_offer_template(info, id)
+
+    # ============================================
+    # Offer Queries (Teklifler)
+    # ============================================
+    
+    @strawberry.field
+    def offers(
+        self, 
+        info: Info, 
+        status: Optional[str] = None
+    ) -> List['OfferType']:
+        """Get all offers for the company"""
+        from app.modules.offer.resolvers import get_offers
+        from app.modules.offer.types import OfferType
+        return get_offers(info, status)
+
+    @strawberry.field
+    def offer(self, info: Info, id: str) -> Optional['OfferType']:
+        """Get a single offer by ID"""
+        from app.modules.offer.resolvers import get_offer
+        from app.modules.offer.types import OfferType
+        return get_offer(info, id)
+
+    @strawberry.field
+    def offer_by_application(
+        self, 
+        info: Info, 
+        application_id: str = strawberry.argument(name="applicationId")
+    ) -> Optional['OfferType']:
+        """Get offer for a specific application"""
+        from app.modules.offer.resolvers import get_offer_by_application
+        from app.modules.offer.types import OfferType
+        return get_offer_by_application(info, application_id)
+
+    @strawberry.field
+    def offer_by_token(self, token: str) -> Optional['PublicOfferType']:
+        """Get offer by token (public - for candidate portal)"""
+        from app.modules.offer.resolvers import get_offer_by_token
+        from app.modules.offer.types import PublicOfferType
+        return get_offer_by_token(token)
+
+    # ==========================================
+    # Shortlist Queries
+    # ==========================================
+    
+    @strawberry.field
+    def shortlist_shares(
+        self, 
+        info: Info, 
+        job_id: Optional[str] = None,
+        list_type: Optional[str] = strawberry.UNSET
+    ) -> List[ShortlistShareType]:
+        """Get all shortlist/longlist shares for the company"""
+        from app.modules.shortlist.resolvers import get_shortlist_shares
+        return get_shortlist_shares(info, job_id, list_type if list_type is not strawberry.UNSET else None)
+    
+    @strawberry.field
+    def shortlist_share(self, info: Info, id: str) -> Optional[ShortlistShareType]:
+        """Get a single shortlist share by ID"""
+        from app.modules.shortlist.resolvers import get_shortlist_share
+        return get_shortlist_share(info, id)
+    
+    @strawberry.field
+    def public_shortlist(self, token: str) -> Optional[PublicShortlistType]:
+        """Get public shortlist by token (no auth required)"""
+        from app.modules.shortlist.resolvers import get_public_shortlist
+        return get_public_shortlist(token)
+
 
 @strawberry.type
 class Subscription:
@@ -2363,6 +2531,7 @@ class Subscription:
                             name=dept.name,
                             is_active=dept.is_active,
                             color=dept.color,
+                            icon=dept.icon,
                             created_at=dept.created_at.isoformat(),
                             updated_at=dept.updated_at.isoformat() if dept.updated_at else None
                         )
@@ -2447,6 +2616,14 @@ class Subscription:
                     rejection_note=app.rejection_note,
                     rejected_at=app.rejected_at.isoformat() if app.rejected_at else None,
                     rejection_template_id=app.rejection_template_id,
+                    is_in_longlist=app.is_in_longlist or False,
+                    longlist_at=app.longlist_at.isoformat() if app.longlist_at else None,
+                    longlist_by=app.longlist_by,
+                    longlist_note=app.longlist_note,
+                    is_shortlisted=app.is_shortlisted or False,
+                    shortlisted_at=app.shortlisted_at.isoformat() if app.shortlisted_at else None,
+                    shortlisted_by=app.shortlisted_by,
+                    shortlist_note=app.shortlist_note,
                     job=job_type,
                     candidate=candidate_type,
                 )
@@ -2745,13 +2922,14 @@ class Mutation(CompanyMutation):
                 raise Exception("Company context required")
             
             from app.schemas.department import DepartmentCreate
-            dept_data = DepartmentCreate(name=input.name, is_active=input.is_active, color=input.color)
+            dept_data = DepartmentCreate(name=input.name, is_active=input.is_active, color=input.color, icon=input.icon)
             created = DepartmentService.create(db, dept_data, company_id=company_id)
             result = DepartmentType(
                 id=created.id,
                 name=created.name,
                 is_active=created.is_active,
                 color=created.color,
+                icon=created.icon,
                 created_at=created.created_at,
                 updated_at=created.updated_at,
             )
@@ -2790,13 +2968,14 @@ class Mutation(CompanyMutation):
             current = get_current_user_from_token(token, db)
             ensure_admin(current, db)
             from app.schemas.department import DepartmentUpdate
-            dept_data = DepartmentUpdate(name=input.name, is_active=input.is_active, color=input.color)
+            dept_data = DepartmentUpdate(name=input.name, is_active=input.is_active, color=input.color, icon=input.icon)
             updated = DepartmentService.update(db, id, dept_data)
             result = DepartmentType(
                 id=updated.id,
                 name=updated.name,
                 is_active=updated.is_active,
                 color=updated.color,
+                icon=updated.icon,
                 created_at=updated.created_at,
                 updated_at=updated.updated_at,
             )
@@ -3283,6 +3462,116 @@ class Mutation(CompanyMutation):
                 pass
             
             return MessageType(success=True, message="İlan başarıyla silindi")
+        except Exception as e:
+            db.rollback()
+            return MessageType(success=False, message=str(e))
+        finally:
+            db.close()
+
+    @strawberry.mutation
+    def duplicate_job(self, id: str, info: Info) -> MessageType:
+        """Duplicate a job as draft (admin only)"""
+        request = info.context["request"]
+        auth_header = request.headers.get("authorization")
+        if not auth_header:
+            raise Exception("Not authenticated")
+        try:
+            scheme, token = auth_header.split()
+            if scheme.lower() != "bearer":
+                raise Exception("Invalid authentication scheme")
+        except ValueError:
+            raise Exception("Invalid authorization header")
+
+        db = get_db_session()
+        try:
+            current = get_current_user_from_token(token, db)
+            ensure_admin(current, db)
+            
+            # Extract company_id from token
+            from app.api.dependencies import get_company_id_from_token
+            company_id = get_company_id_from_token(token)
+            if not company_id:
+                raise Exception("Company context required")
+            
+            # Find the job to duplicate
+            from app.models.job import Job
+            import re
+            
+            original_job = db.query(Job).filter(Job.id == id).first()
+            if not original_job:
+                return MessageType(success=False, message="İlan bulunamadı")
+            
+            # Determine the new title
+            original_title = original_job.title
+            
+            # Check for existing copies with "Kopya" prefix in drafts
+            # Pattern: "Kopya <title>" or "Kopya N <title>"
+            existing_copies = db.query(Job).filter(
+                Job.company_id == company_id,
+                Job.status == 'draft',
+                Job.title.like(f"Kopya%{original_title}")
+            ).all()
+            
+            if not existing_copies:
+                new_title = f"Kopya {original_title}"
+            else:
+                # Find the highest copy number
+                max_num = 0
+                for copy in existing_copies:
+                    # Check if it's "Kopya <title>" (first copy, no number)
+                    if copy.title == f"Kopya {original_title}":
+                        max_num = max(max_num, 1)
+                    else:
+                        # Try to extract number from "Kopya N <title>"
+                        match = re.match(rf"^Kopya (\d+) {re.escape(original_title)}$", copy.title)
+                        if match:
+                            max_num = max(max_num, int(match.group(1)))
+                
+                new_title = f"Kopya {max_num + 1} {original_title}"
+            
+            # Create a new job with copied fields
+            import uuid
+            new_job = Job(
+                id=str(uuid.uuid4()),
+                company_id=company_id,
+                title=new_title,
+                department_id=original_job.department_id,
+                intro_text=original_job.intro_text,
+                outro_text=original_job.outro_text,
+                description=original_job.description,
+                description_plain=original_job.description_plain,
+                requirements=original_job.requirements,
+                requirements_plain=original_job.requirements_plain,
+                keywords=original_job.keywords or [],
+                location=original_job.location,
+                remote_policy=original_job.remote_policy,
+                employment_type=original_job.employment_type,
+                experience_level=original_job.experience_level,
+                required_education=original_job.required_education,
+                preferred_majors=original_job.preferred_majors,
+                required_languages=original_job.required_languages or {},
+                salary_min=original_job.salary_min,
+                salary_max=original_job.salary_max,
+                salary_currency=original_job.salary_currency,
+                deadline=original_job.deadline,
+                start_date=original_job.start_date,
+                status='draft',  # Always create as draft
+                is_active=False,  # Not active until published
+                is_disabled_friendly=original_job.is_disabled_friendly,
+                # Copy template settings
+                interview_enabled=original_job.interview_enabled,
+                interview_template_id=original_job.interview_template_id,
+                interview_deadline_hours=original_job.interview_deadline_hours,
+                agreement_template_id=original_job.agreement_template_id,
+                likert_enabled=original_job.likert_enabled,
+                likert_template_id=original_job.likert_template_id,
+                likert_deadline_hours=original_job.likert_deadline_hours,
+            )
+            
+            db.add(new_job)
+            db.commit()
+            
+            return MessageType(success=True, message=f"İlanın bir kopyası taslaklara kaydedildi: {new_title}")
         except Exception as e:
             db.rollback()
             return MessageType(success=False, message=str(e))
@@ -4782,6 +5071,164 @@ class Mutation(CompanyMutation):
                 success=False,
                 error=str(e)
             )
+
+    # ============================================
+    # Benefits Mutations (Yan Haklar)
+    # ============================================
+    
+    @strawberry.mutation
+    def create_benefit(self, info: Info, input: BenefitInput) -> BenefitResponseType:
+        """Create a new benefit"""
+        from app.modules.benefits.resolvers import create_benefit
+        from app.modules.benefits.types import BenefitInput, BenefitResponseType
+        return create_benefit(info, input)
+
+    @strawberry.mutation
+    def update_benefit(self, info: Info, id: str, input: BenefitInput) -> BenefitResponseType:
+        """Update an existing benefit"""
+        from app.modules.benefits.resolvers import update_benefit
+        from app.modules.benefits.types import BenefitInput, BenefitResponseType
+        return update_benefit(info, id, input)
+
+    @strawberry.mutation
+    def delete_benefit(self, info: Info, id: str) -> BenefitResponseType:
+        """Delete a benefit"""
+        from app.modules.benefits.resolvers import delete_benefit
+        from app.modules.benefits.types import BenefitResponseType
+        return delete_benefit(info, id)
+
+    # ============================================
+    # Offer Template Mutations (Teklif Şablonları)
+    # ============================================
+    
+    @strawberry.mutation
+    def create_offer_template(self, info: Info, input: 'OfferTemplateInput') -> 'OfferTemplateResponseType':
+        """Create a new offer template"""
+        from app.modules.offer.resolvers import create_offer_template
+        from app.modules.offer.types import OfferTemplateInput, OfferTemplateResponseType
+        return create_offer_template(info, input)
+
+    @strawberry.mutation
+    def update_offer_template(self, info: Info, id: str, input: 'OfferTemplateInput') -> 'OfferTemplateResponseType':
+        """Update an existing offer template"""
+        from app.modules.offer.resolvers import update_offer_template
+        from app.modules.offer.types import OfferTemplateInput, OfferTemplateResponseType
+        return update_offer_template(info, id, input)
+
+    @strawberry.mutation
+    def delete_offer_template(self, info: Info, id: str) -> 'OfferTemplateResponseType':
+        """Delete an offer template"""
+        from app.modules.offer.resolvers import delete_offer_template
+        from app.modules.offer.types import OfferTemplateResponseType
+        return delete_offer_template(info, id)
+
+    @strawberry.mutation
+    def toggle_offer_template(self, info: Info, id: str) -> 'OfferTemplateResponseType':
+        """Toggle offer template active status"""
+        from app.modules.offer.resolvers import toggle_offer_template
+        from app.modules.offer.types import OfferTemplateResponseType
+        return toggle_offer_template(info, id)
+
+    # ============================================
+    # Offer Mutations (Teklifler)
+    # ============================================
+    
+    @strawberry.mutation
+    def create_offer(self, info: Info, input: 'OfferInput') -> 'OfferResponseType':
+        """Create a new offer"""
+        from app.modules.offer.resolvers import create_offer
+        from app.modules.offer.types import OfferInput, OfferResponseType
+        return create_offer(info, input)
+
+    @strawberry.mutation
+    def update_offer(self, info: Info, id: str, input: 'OfferInput') -> 'OfferResponseType':
+        """Update an existing offer"""
+        from app.modules.offer.resolvers import update_offer
+        from app.modules.offer.types import OfferInput, OfferResponseType
+        return update_offer(info, id, input)
+
+    @strawberry.mutation
+    def delete_offer(self, info: Info, id: str) -> 'OfferResponseType':
+        """Delete an offer"""
+        from app.modules.offer.resolvers import delete_offer
+        from app.modules.offer.types import OfferResponseType
+        return delete_offer(info, id)
+
+    @strawberry.mutation
+    def send_offer(self, info: Info, id: str) -> 'OfferResponseType':
+        """Send an offer to the candidate"""
+        from app.modules.offer.resolvers import send_offer
+        from app.modules.offer.types import OfferResponseType
+        return send_offer(info, id)
+
+    @strawberry.mutation
+    def withdraw_offer(self, info: Info, id: str) -> 'OfferResponseType':
+        """Withdraw an offer"""
+        from app.modules.offer.resolvers import withdraw_offer
+        from app.modules.offer.types import OfferResponseType
+        return withdraw_offer(info, id)
+
+    @strawberry.mutation
+    def update_offer_status(
+        self, 
+        info: Info, 
+        offer_id: str = strawberry.argument(name="offerId"),
+        status: str = strawberry.argument(name="status"),
+        note: Optional[str] = None
+    ) -> 'OfferResponseType':
+        """HR updates offer status (accept/reject)"""
+        from app.modules.offer.resolvers import update_offer_status
+        from app.modules.offer.types import OfferResponseType
+        return update_offer_status(info, offer_id, status, note)
+
+    @strawberry.mutation
+    def respond_to_offer(self, input: 'OfferResponseInput') -> 'OfferResponseType':
+        """Candidate response to an offer (public)"""
+        from app.modules.offer.resolvers import respond_to_offer
+        from app.modules.offer.types import OfferResponseInput, OfferResponseType
+        return respond_to_offer(input)
+
+    # ==========================================
+    # Shortlist Mutations
+    # ==========================================
+    
+    # Longlist Mutations
+    @strawberry.mutation
+    def toggle_longlist(self, info: Info, input: LonglistToggleInput) -> LonglistToggleResponseType:
+        """Toggle longlist status for a single application (add/remove from longlist)"""
+        from app.modules.shortlist.resolvers import toggle_longlist
+        return toggle_longlist(info, input)
+    
+    @strawberry.mutation
+    def bulk_toggle_longlist(self, info: Info, input: BulkLonglistInput) -> BulkLonglistResponseType:
+        """Bulk add/remove applications from longlist"""
+        from app.modules.shortlist.resolvers import bulk_toggle_longlist
+        return bulk_toggle_longlist(info, input)
+    
+    # Shortlist Mutations
+    @strawberry.mutation
+    def toggle_shortlist(self, info: Info, input: ShortlistToggleInput) -> ShortlistToggleResponseType:
+        """Toggle shortlist status for a single application"""
+        from app.modules.shortlist.resolvers import toggle_shortlist
+        return toggle_shortlist(info, input)
+    
+    @strawberry.mutation
+    def bulk_toggle_shortlist(self, info: Info, input: BulkShortlistInput) -> BulkShortlistResponseType:
+        """Bulk add/remove applications from shortlist"""
+        from app.modules.shortlist.resolvers import bulk_toggle_shortlist
+        return bulk_toggle_shortlist(info, input)
+    
+    @strawberry.mutation
+    def create_shortlist_share(self, info: Info, input: ShortlistShareInput) -> ShortlistShareResponseType:
+        """Create a shortlist share link"""
+        from app.modules.shortlist.resolvers import create_shortlist_share
+        return create_shortlist_share(info, input)
+    
+    @strawberry.mutation
+    def delete_shortlist_share(self, info: Info, id: str) -> ShortlistShareResponseType:
+        """Delete (deactivate) a shortlist share"""
+        from app.modules.shortlist.resolvers import delete_shortlist_share
+        return delete_shortlist_share(info, id)
 
 
 # Create schema

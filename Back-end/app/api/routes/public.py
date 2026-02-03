@@ -13,6 +13,9 @@ from app.core.database import get_db
 from app.services.job import JobService
 from app.services.application_service import ApplicationService
 from app.api.dependencies import rate_limit_public
+from app.models.company import Company
+from app.modules.job_intro.models import JobIntroTemplate
+from app.modules.job_outro.models import JobOutroTemplate
 
 logger = logging.getLogger(__name__)
 
@@ -75,12 +78,47 @@ async def get_public_jobs(
                 or any(search_lower in k.lower() for k in (j.keywords or []))
             ]
         
-        # Return public-safe data (no internal analysis counts, etc.)
-        return [
-            {
+        # Return public-safe data with intro/outro from templates if not set on job
+        result = []
+        for job in jobs:
+            intro_text = job.intro_text
+            outro_text = job.outro_text
+            company_info = None
+            
+            # Get company info and default templates if available
+            if job.company_id:
+                company = db.query(Company).filter(Company.id == job.company_id).first()
+                if company:
+                    company_info = {
+                        "name": company.name,
+                        "logo_url": company.logo_url,
+                        "about": company.about
+                    }
+                    
+                    # If job doesn't have intro_text, get the first active intro template
+                    if not intro_text:
+                        intro_template = db.query(JobIntroTemplate).filter(
+                            JobIntroTemplate.company_id == job.company_id,
+                            JobIntroTemplate.is_active == True
+                        ).first()
+                        if intro_template:
+                            intro_text = intro_template.content
+                    
+                    # If job doesn't have outro_text, get the first active outro template
+                    if not outro_text:
+                        outro_template = db.query(JobOutroTemplate).filter(
+                            JobOutroTemplate.company_id == job.company_id,
+                            JobOutroTemplate.is_active == True
+                        ).first()
+                        if outro_template:
+                            outro_text = outro_template.content
+            
+            result.append({
                 "id": job.id,
                 "title": job.title,
                 "department_id": job.department_id,
+                "intro_text": intro_text,
+                "outro_text": outro_text,
                 "description": job.description,
                 "description_plain": job.description_plain,
                 "requirements": job.requirements,
@@ -99,9 +137,10 @@ async def get_public_jobs(
                 "deadline": job.deadline.isoformat() if job.deadline else None,
                 "start_date": job.start_date,
                 "created_at": job.created_at.isoformat(),
-            }
-            for job in jobs
-        ]
+                "company": company_info
+            })
+        
+        return result
     
     except Exception as e:
         logger.error(f"Error fetching public jobs: {str(e)}")
@@ -120,7 +159,7 @@ async def get_public_job_detail(
     - job_id: Job UUID
     
     Returns:
-    - Detailed job information
+    - Detailed job information with company info and intro/outro texts
     """
     try:
         job = JobService.get_by_id(db=db, job_id=job_id)
@@ -132,12 +171,46 @@ async def get_public_job_detail(
         if job.status != "active" or not job.is_active:
             raise HTTPException(status_code=404, detail="Job not found")
         
+        # Get company information and default templates
+        company_info = None
+        intro_text = job.intro_text
+        outro_text = job.outro_text
+        
+        if job.company_id:
+            company = db.query(Company).filter(Company.id == job.company_id).first()
+            if company:
+                company_info = {
+                    "name": company.name,
+                    "logo_url": company.logo_url,
+                    "about": company.about
+                }
+                
+                # If job doesn't have intro_text, get the first active intro template for the company
+                if not intro_text:
+                    intro_template = db.query(JobIntroTemplate).filter(
+                        JobIntroTemplate.company_id == job.company_id,
+                        JobIntroTemplate.is_active == True
+                    ).first()
+                    if intro_template:
+                        intro_text = intro_template.content
+                
+                # If job doesn't have outro_text, get the first active outro template for the company
+                if not outro_text:
+                    outro_template = db.query(JobOutroTemplate).filter(
+                        JobOutroTemplate.company_id == job.company_id,
+                        JobOutroTemplate.is_active == True
+                    ).first()
+                    if outro_template:
+                        outro_text = outro_template.content
+        
         return {
             "success": True,
             "job": {
                 "id": job.id,
                 "title": job.title,
                 "department_id": job.department_id,
+                "intro_text": intro_text,  # Job introduction/preamble (or default template)
+                "outro_text": outro_text,  # Job conclusion/what we offer (or default template)
                 "description": job.description,
                 "description_plain": job.description_plain,
                 "requirements": job.requirements,
@@ -156,7 +229,8 @@ async def get_public_job_detail(
                 "deadline": job.deadline.isoformat() if job.deadline else None,
                 "start_date": job.start_date,
                 "created_at": job.created_at.isoformat(),
-            }
+            },
+            "company": company_info
         }
     
     except HTTPException:

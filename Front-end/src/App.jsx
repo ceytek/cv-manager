@@ -12,6 +12,8 @@ import PublicCareers from './pages/PublicCareers';
 import InterviewPage from './pages/interview/InterviewPage';
 import LikertPage from './pages/likert/LikertPage';
 import TestHeaderPage from './pages/TestHeaderPage';
+import PublicShortlistPage from './components/PublicShortlistPage';
+import PublicJobPage from './pages/PublicJobPage';
 import ErrorBoundary from './components/ErrorBoundary';
 import './i18n'; // i18n konfigürasyonunu yükle
 
@@ -45,6 +47,18 @@ function App() {
     
     if (path.startsWith('/likert/')) {
       setPublicPage('likert');
+      setLoading(false);
+      return;
+    }
+    
+    if (path.startsWith('/shortlist/')) {
+      setPublicPage('shortlist');
+      setLoading(false);
+      return;
+    }
+    
+    if (path.startsWith('/apply/')) {
+      setPublicPage('apply');
       setLoading(false);
       return;
     }
@@ -117,6 +131,22 @@ function App() {
         <LikertPage token={token} />
       </ApolloProvider>
     );
+  }
+  
+  // Public Short List Page - for Hiring Managers
+  if (publicPage === 'shortlist') {
+    const token = window.location.pathname.split('/shortlist/')[1];
+    return (
+      <ApolloProvider client={publicClient}>
+        <PublicShortlistPage token={token} />
+      </ApolloProvider>
+    );
+  }
+  
+  // Public Job Page - for Candidates and External Viewers
+  if (publicPage === 'apply') {
+    const jobId = window.location.pathname.split('/apply/')[1];
+    return <PublicJobPage jobId={jobId} />;
   }
   
   // Test Header Page - Geliştirme için

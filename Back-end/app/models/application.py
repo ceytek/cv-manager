@@ -2,7 +2,7 @@
 Application model for storing CV-to-Job analysis results.
 """
 
-from sqlalchemy import Column, String, Integer, Text, DateTime, Enum as SQLEnum, ForeignKey, CheckConstraint
+from sqlalchemy import Column, String, Integer, Text, DateTime, Enum as SQLEnum, ForeignKey, CheckConstraint, Boolean
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
@@ -15,18 +15,20 @@ from app.core.database import Base
 
 class ApplicationStatus(enum.Enum):
     """Status of a job application analysis."""
-    PENDING = "pending"
-    ANALYZED = "analyzed"
-    REVIEWED = "reviewed"
-    REJECTED = "rejected"
-    ACCEPTED = "accepted"
-    INTERVIEW_INVITED = "interview_invited"
-    INTERVIEW_COMPLETED = "interview_completed"
-    LIKERT_INVITED = "likert_invited"
-    LIKERT_COMPLETED = "likert_completed"
-    # 2. Görüşme status'ları
+    PENDING = "PENDING"
+    ANALYZED = "ANALYZED"
+    REVIEWED = "REVIEWED"
+    REJECTED = "REJECTED"
+    ACCEPTED = "ACCEPTED"
+    INTERVIEW_INVITED = "INTERVIEW_INVITED"
+    INTERVIEW_COMPLETED = "INTERVIEW_COMPLETED"
+    LIKERT_INVITED = "LIKERT_INVITED"
+    LIKERT_COMPLETED = "LIKERT_COMPLETED"
     SECOND_INTERVIEW_INVITED = "SECOND_INTERVIEW_INVITED"
     SECOND_INTERVIEW_COMPLETED = "SECOND_INTERVIEW_COMPLETED"
+    OFFER_SENT = "OFFER_SENT"
+    OFFER_ACCEPTED = "OFFER_ACCEPTED"
+    OFFER_REJECTED = "OFFER_REJECTED"
 
 
 class Application(Base):
@@ -102,6 +104,18 @@ class Application(Base):
     rejected_at = Column(DateTime, nullable=True, comment="When application was rejected")
     rejection_template_id = Column(String(36), nullable=True, comment="Template used for rejection email")
     
+    # Long List data (first stage filtering)
+    is_in_longlist = Column(Boolean, nullable=False, default=False, comment="Whether candidate is in long list")
+    longlist_at = Column(DateTime, nullable=True, comment="When candidate was added to long list")
+    longlist_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    longlist_note = Column(Text, nullable=True, comment="Note when adding to long list")
+    
+    # Shortlist data (Long List / Short List feature)
+    is_shortlisted = Column(Boolean, nullable=False, default=False, comment="Whether candidate is in short list")
+    shortlisted_at = Column(DateTime, nullable=True, comment="When candidate was added to short list")
+    shortlisted_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    shortlist_note = Column(Text, nullable=True, comment="Note when adding to short list")
+    
     # Batch tracking
     batch_number = Column(String(20), nullable=True, index=True)
     
@@ -113,6 +127,8 @@ class Application(Base):
     job = relationship("Job", back_populates="applications")
     candidate = relationship("Candidate", back_populates="applications")
     reviewer = relationship("User", foreign_keys=[reviewed_by])
+    longlister = relationship("User", foreign_keys=[longlist_by])
+    shortlister = relationship("User", foreign_keys=[shortlisted_by])
     interview_session = relationship("InterviewSession", back_populates="application", uselist=False)
     likert_session = relationship("LikertSession", back_populates="application", uselist=False)
     second_interview = relationship("SecondInterview", back_populates="application", uselist=False)

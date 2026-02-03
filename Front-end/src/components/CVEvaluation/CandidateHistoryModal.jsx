@@ -2,11 +2,13 @@
  * Candidate History Modal
  * Shows timeline of all candidate activities from application_history table
  */
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useQuery } from '@apollo/client/react';
-import { X, FileText, BarChart2, Video, ListChecks, CheckCircle2, Clock, Send, Download, XCircle, FileSearch, Upload, Play, UserCheck, UserX, MessageSquare, Search, Loader2, Sparkles, Bot, Users } from 'lucide-react';
+import { useQuery, useLazyQuery } from '@apollo/client/react';
+import { X, FileText, BarChart2, Video, ListChecks, CheckCircle2, Clock, Send, Download, XCircle, FileSearch, Upload, Play, UserCheck, UserX, MessageSquare, Search, Loader2, Sparkles, Bot, Users, Eye, DollarSign, Gift, Calendar } from 'lucide-react';
 import { GET_APPLICATION_HISTORY } from '../../graphql/history';
+import { GET_OFFER_BY_APPLICATION } from '../../graphql/offer';
+import { ME_QUERY } from '../../graphql/auth';
 import { API_BASE_URL } from '../../config/api';
 
 // Icon mapping for action types
@@ -45,6 +47,8 @@ const CandidateHistoryModal = ({
   const isEnglish = i18n.language === 'en';
   const [showRejectionNoteModal, setShowRejectionNoteModal] = useState(false);
   const [selectedNote, setSelectedNote] = useState(null);
+  const [showOfferPreview, setShowOfferPreview] = useState(false);
+  const [offerData, setOfferData] = useState(null);
 
   // Fetch history from new API
   const { data: historyData, loading: historyLoading } = useQuery(GET_APPLICATION_HISTORY, {
@@ -52,6 +56,44 @@ const CandidateHistoryModal = ({
     skip: !applicationId || !isOpen,
     fetchPolicy: 'network-only',
   });
+
+  // Fetch company info for offer preview
+  const { data: meData } = useQuery(ME_QUERY, {
+    skip: !isOpen,
+  });
+
+  // Lazy query to fetch offer data
+  const [fetchOffer, { loading: offerLoading, data: offerQueryData, error: offerError }] = useLazyQuery(GET_OFFER_BY_APPLICATION, {
+    fetchPolicy: 'network-only',
+  });
+
+  // Effect to handle offer data when it arrives
+  React.useEffect(() => {
+    if (offerQueryData?.offerByApplication) {
+      console.log('Offer data received via effect:', offerQueryData.offerByApplication);
+      setOfferData(offerQueryData.offerByApplication);
+      setShowOfferPreview(true);
+    }
+    if (offerError) {
+      console.error('Error fetching offer:', offerError);
+    }
+  }, [offerQueryData, offerError]);
+
+  const handleViewOffer = useCallback(async () => {
+    console.log('Fetching offer for application:', applicationId);
+    try {
+      const result = await fetchOffer({ variables: { applicationId } });
+      console.log('Fetch result:', result);
+      if (result.data?.offerByApplication) {
+        setOfferData(result.data.offerByApplication);
+        setShowOfferPreview(true);
+      } else {
+        console.warn('No offer found in result');
+      }
+    } catch (err) {
+      console.error('Error in handleViewOffer:', err);
+    }
+  }, [applicationId, fetchOffer]);
 
   if (!isOpen) return null;
 
@@ -129,6 +171,12 @@ const CandidateHistoryModal = ({
             setShowRejectionNoteModal(true);
           },
         };
+      } else if (actionCode === 'offer_sent') {
+        action = {
+          label: isEnglish ? 'View Offer' : 'Teklifi Görüntüle',
+          onClick: handleViewOffer,
+          icon: Eye,
+        };
       }
 
       // Description based on action type
@@ -155,6 +203,9 @@ const CandidateHistoryModal = ({
           'rejected': isEnglish ? 'Application has been rejected.' : 'Başvuru reddedildi.',
           'hired': isEnglish ? 'Candidate has been hired!' : 'Aday işe alındı!',
           'note_added': isEnglish ? 'A note was added.' : 'Not eklendi.',
+          'offer_sent': isEnglish ? 'Job offer has been sent to the candidate.' : 'İş teklifi adaya gönderildi.',
+          'offer_accepted': isEnglish ? 'Candidate has accepted the offer!' : 'Aday teklifi kabul etti!',
+          'offer_rejected': isEnglish ? 'Candidate has rejected the offer.' : 'Aday teklifi reddetti.',
         };
         description = descriptions[actionCode] || '';
         
@@ -189,7 +240,7 @@ const CandidateHistoryModal = ({
         actionData: entry.actionData,
       };
     });
-  }, [historyEntries, isEnglish, onViewLikertResults, onViewInterviewResults]);
+  }, [historyEntries, isEnglish, onViewLikertResults, onViewInterviewResults, handleViewOffer]);
 
   // Color name to hex mapping
   function getColorHex(colorName) {
@@ -553,6 +604,276 @@ const CandidateHistoryModal = ({
                 {t('common.close', 'Kapat')}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Offer Preview Modal */}
+      {showOfferPreview && offerData && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1200,
+          padding: 20,
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: 12,
+            width: '210mm',
+            maxWidth: '95vw',
+            maxHeight: '95vh',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.4)',
+          }}>
+            {/* Header */}
+            <div style={{
+              background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+              padding: '16px 24px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexShrink: 0,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: 'white' }}>
+                <FileText size={22} />
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>
+                    {isEnglish ? 'Job Offer' : 'İş Teklifi'}
+                  </h3>
+                  <p style={{ margin: 0, fontSize: 13, opacity: 0.9 }}>{candidateName}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setShowOfferPreview(false); setOfferData(null); }}
+                style={{
+                  background: 'rgba(255,255,255,0.2)',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: 8,
+                  cursor: 'pointer',
+                  display: 'flex',
+                }}
+              >
+                <X size={20} color="white" />
+              </button>
+            </div>
+
+            {/* A4 Preview Content */}
+            <div style={{
+              flex: 1,
+              overflow: 'auto',
+              background: '#f5f5f5',
+              padding: 24,
+              display: 'flex',
+              justifyContent: 'center',
+            }}>
+              <div style={{
+                width: '210mm',
+                minHeight: '297mm',
+                background: 'white',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                padding: '20mm 25mm',
+                fontFamily: '"Times New Roman", Times, serif',
+                lineHeight: 1.6,
+              }}>
+                {/* Company Header */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  justifyContent: 'space-between',
+                  borderBottom: '2px solid #1F2937',
+                  paddingBottom: 20,
+                  marginBottom: 30,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                    {meData?.me?.companyLogo && (
+                      <img 
+                        src={meData.me.companyLogo} 
+                        alt="Company Logo" 
+                        style={{ height: 60, width: 'auto', objectFit: 'contain' }}
+                      />
+                    )}
+                    <div>
+                      <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: '#1F2937' }}>
+                        {meData?.me?.companyName || ''}
+                      </h1>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right', fontSize: 12, color: '#6B7280' }}>
+                    <div>{new Date(offerData.sentAt || offerData.createdAt).toLocaleDateString(isEnglish ? 'en-US' : 'tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+                  </div>
+                </div>
+
+                {/* Recipient */}
+                <div style={{ marginBottom: 30 }}>
+                  <p style={{ margin: 0, fontWeight: 600 }}>{isEnglish ? 'Dear' : 'Sayın'} {candidateName},</p>
+                </div>
+
+                {/* Intro Text */}
+                {offerData.introText && (
+                  <div 
+                    style={{ marginBottom: 30, fontSize: 14, textAlign: 'justify' }}
+                    dangerouslySetInnerHTML={{ __html: offerData.introText }}
+                  />
+                )}
+
+                {/* Salary Details */}
+                <div style={{
+                  background: '#F9FAFB',
+                  border: '1px solid #E5E7EB',
+                  borderRadius: 8,
+                  padding: 20,
+                  marginBottom: 30,
+                }}>
+                  <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <DollarSign size={18} />
+                    {isEnglish ? 'Compensation Details' : 'Ücret Detayları'}
+                  </h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                    <div>
+                      <div style={{ fontSize: 12, color: '#6B7280' }}>{isEnglish ? 'Gross Salary' : 'Brüt Maaş'}</div>
+                      <div style={{ fontSize: 18, fontWeight: 700, color: '#10B981' }}>
+                        {offerData.salaryGross?.toLocaleString(isEnglish ? 'en-US' : 'tr-TR')} {offerData.currency || 'TRY'}
+                      </div>
+                    </div>
+                    {offerData.salaryNet && (
+                      <div>
+                        <div style={{ fontSize: 12, color: '#6B7280' }}>{isEnglish ? 'Net Salary' : 'Net Maaş'}</div>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: '#059669' }}>
+                          {offerData.salaryNet?.toLocaleString(isEnglish ? 'en-US' : 'tr-TR')} {offerData.currency || 'TRY'}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  {offerData.startDate && (
+                    <div style={{ marginTop: 16 }}>
+                      <div style={{ fontSize: 12, color: '#6B7280', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <Calendar size={14} />
+                        {isEnglish ? 'Start Date' : 'Başlangıç Tarihi'}
+                      </div>
+                      <div style={{ fontSize: 14, fontWeight: 600 }}>
+                        {new Date(offerData.startDate).toLocaleDateString(isEnglish ? 'en-US' : 'tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Benefits */}
+                {offerData.benefits && offerData.benefits.length > 0 && (
+                  <div style={{
+                    background: '#F0FDF4',
+                    border: '1px solid #BBF7D0',
+                    borderRadius: 8,
+                    padding: 20,
+                    marginBottom: 30,
+                  }}>
+                    <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, color: '#166534' }}>
+                      <Gift size={18} />
+                      {isEnglish ? 'Benefits Package' : 'Yan Haklar'}
+                    </h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      {offerData.benefits.map((benefit, idx) => (
+                        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
+                          <span style={{ fontSize: 18 }}>{benefit.icon || '✓'}</span>
+                          <span>{benefit.name}</span>
+                          {benefit.value && (
+                            <span style={{ color: '#059669', fontWeight: 600 }}>
+                              ({benefit.value?.toLocaleString(isEnglish ? 'en-US' : 'tr-TR')} {offerData.currency || 'TRY'}/{benefit.valuePeriod === 'DAILY' ? (isEnglish ? 'day' : 'gün') : benefit.valuePeriod === 'YEARLY' ? (isEnglish ? 'year' : 'yıl') : (isEnglish ? 'mo' : 'ay')})
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Outro Text */}
+                {offerData.outroText && (
+                  <div 
+                    style={{ marginBottom: 30, fontSize: 14, textAlign: 'justify' }}
+                    dangerouslySetInnerHTML={{ __html: offerData.outroText }}
+                  />
+                )}
+
+                {/* Validity */}
+                <div style={{
+                  background: '#FEF3C7',
+                  border: '1px solid #FCD34D',
+                  borderRadius: 8,
+                  padding: 16,
+                  marginBottom: 30,
+                  fontSize: 13,
+                }}>
+                  <strong>⏰ {isEnglish ? 'Offer Valid Until:' : 'Teklifin Geçerlilik Tarihi:'}</strong>{' '}
+                  {new Date(offerData.validUntil).toLocaleDateString(isEnglish ? 'en-US' : 'tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                </div>
+
+                {/* Signature */}
+                <div style={{ marginTop: 50 }}>
+                  <p style={{ margin: 0, color: '#6B7280' }}>{isEnglish ? 'Best regards,' : 'Saygılarımızla,'}</p>
+                  <p style={{ margin: '8px 0 0', fontWeight: 700, fontSize: 16 }}>{meData?.me?.companyName || ''}</p>
+                  <p style={{ margin: '4px 0 0', color: '#6B7280', fontSize: 13 }}>{isEnglish ? 'Human Resources' : 'İnsan Kaynakları'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div style={{
+              padding: '16px 24px',
+              borderTop: '1px solid #E5E7EB',
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: 12,
+              background: 'white',
+              flexShrink: 0,
+            }}>
+              <button
+                onClick={() => { setShowOfferPreview(false); setOfferData(null); }}
+                style={{
+                  padding: '10px 20px',
+                  background: '#1F2937',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 8,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                {t('common.close', 'Kapat')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Loading Overlay for Offer */}
+      {offerLoading && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1300,
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: 12,
+            padding: 24,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+          }}>
+            <Loader2 size={24} style={{ color: '#10B981', animation: 'spin 1s linear infinite' }} />
+            <span>{isEnglish ? 'Loading offer...' : 'Teklif yükleniyor...'}</span>
           </div>
         </div>
       )}

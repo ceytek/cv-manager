@@ -4,6 +4,7 @@
  * Same flow as AI Interview Invite Modal
  */
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { X, ClipboardList, Copy, Check, Clock, AlertTriangle, Hash, Mail, Eye, Link2, Send } from 'lucide-react';
@@ -230,7 +231,7 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
       <div style={{ background: 'white', borderRadius: '16px', width: '95%', maxWidth: '750px', maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         {/* Header */}
@@ -249,7 +250,7 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
           {/* Loading */}
           {(jobLoading || checkingExisting || aiInterviewLoading || secondInterviewLoading) && (
             <div style={{ textAlign: 'center', padding: '32px', color: '#6B7280' }}>
-              Yükleniyor...
+              {t('common.loading')}
             </div>
           )}
 
@@ -264,13 +265,14 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
             }}>
               <AlertTriangle size={48} color="#DC2626" style={{ marginBottom: '16px' }} />
               <h3 style={{ margin: '0 0 12px', color: '#991B1B', fontSize: '18px' }}>
-                Likert Test Daveti Gönderilemez
+                {t('likertInvite.cannotSend')}
               </h3>
-              <p style={{ margin: '0 0 16px', color: '#DC2626', fontSize: '15px' }}>
-                Bu adayın aktif bitirilmemiş <strong>{blockingType}</strong> daveti vardır.
-              </p>
+              <p 
+                style={{ margin: '0 0 16px', color: '#DC2626', fontSize: '15px' }}
+                dangerouslySetInnerHTML={{ __html: t('likertInvite.hasActiveInvite', { type: blockingType }) }}
+              />
               <p style={{ margin: 0, color: '#7F1D1D', fontSize: '14px' }}>
-                Yeni davet göndermeden önce mevcut daveti tamamlayın veya iptal edin.
+                {t('likertInvite.completeOrCancelFirst')}
               </p>
             </div>
           )}
@@ -661,7 +663,8 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

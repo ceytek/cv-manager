@@ -70,6 +70,7 @@ class DepartmentType:
     name: str
     is_active: bool = strawberry.field(name="isActive")
     color: Optional[str] = None
+    icon: Optional[str] = None
     created_at: datetime = strawberry.field(name="createdAt")
     updated_at: datetime = strawberry.field(name="updatedAt")
     job_count: int = strawberry.field(name="jobCount", default=0)
@@ -149,6 +150,7 @@ class DepartmentInput:
     name: str
     is_active: bool = strawberry.field(name="isActive", default=True)
     color: Optional[str] = None
+    icon: Optional[str] = None
 
 
 @strawberry.input
@@ -157,6 +159,7 @@ class DepartmentUpdateInput:
     name: Optional[str] = None
     is_active: Optional[bool] = strawberry.field(name="isActive", default=None)
     color: Optional[str] = None
+    icon: Optional[str] = None
 
 
 # ============ Job Types ============
@@ -339,6 +342,14 @@ class CVUploadResponse:
 # ============================================
 
 @strawberry.type
+class TalentPoolTagSimpleType:
+    """Simple tag type for displaying candidate's talent pool tags"""
+    id: str
+    name: str
+    color: str
+
+
+@strawberry.type
 class CandidateType:
     """GraphQL type for Candidate model"""
     id: str
@@ -368,6 +379,7 @@ class CandidateType:
     # Talent pool status
     in_talent_pool: bool = strawberry.field(name="inTalentPool", default=False)
     talent_pool_entry_id: Optional[str] = strawberry.field(name="talentPoolEntryId", default=None)
+    talent_pool_tags: List[TalentPoolTagSimpleType] = strawberry.field(name="talentPoolTags", default_factory=list)
 
 
 @strawberry.type
@@ -402,6 +414,18 @@ class ApplicationType:
     rejection_note: Optional[str] = strawberry.field(name="rejectionNote", default=None)
     rejected_at: Optional[str] = strawberry.field(name="rejectedAt", default=None)
     rejection_template_id: Optional[str] = strawberry.field(name="rejectionTemplateId", default=None)
+    
+    # Long List fields
+    is_in_longlist: bool = strawberry.field(name="isInLonglist", default=False)
+    longlist_at: Optional[str] = strawberry.field(name="longlistAt", default=None)
+    longlist_by: Optional[int] = strawberry.field(name="longlistBy", default=None)
+    longlist_note: Optional[str] = strawberry.field(name="longlistNote", default=None)
+    
+    # Short List fields
+    is_shortlisted: bool = strawberry.field(name="isShortlisted", default=False)
+    shortlisted_at: Optional[str] = strawberry.field(name="shortlistedAt", default=None)
+    shortlisted_by: Optional[int] = strawberry.field(name="shortlistedBy", default=None)
+    shortlist_note: Optional[str] = strawberry.field(name="shortlistNote", default=None)
     
     # Nested data
     job: Optional['JobType'] = None
@@ -1272,4 +1296,50 @@ from app.modules.likert_template.types import (
     LikertEmailTemplateResponse,
     LikertEmailTemplateVariablesResponse,
     LikertEmailTemplateVariableType,
+)
+
+# ============================================
+# Benefits Module Types (Yan Haklar)
+# ============================================
+from app.modules.benefits.types import (
+    BenefitType,
+    BenefitInput,
+    BenefitResponseType,
+)
+
+# ============================================
+# Offer Module Types (Teklifler)
+# ============================================
+from app.modules.offer.types import (
+    OfferTemplateType,
+    OfferTemplateInput,
+    OfferTemplateResponseType,
+    OfferType,
+    OfferInput,
+    OfferResponseType,
+    OfferBenefitType,
+    OfferBenefitInput,
+    PublicOfferType,
+    OfferResponseInput,
+)
+
+# ============================================
+# Shortlist Module Types (Long List / Short List)
+# ============================================
+from app.modules.shortlist.types import (
+    # Longlist types
+    LonglistToggleResponseType,
+    LonglistToggleInput,
+    BulkLonglistResponseType,
+    BulkLonglistInput,
+    # Shortlist types
+    ShortlistShareType,
+    ShortlistShareInput,
+    ShortlistShareResponseType,
+    ShortlistToggleResponseType,
+    ShortlistToggleInput,
+    BulkShortlistResponseType,
+    BulkShortlistInput,
+    PublicShortlistType,
+    PublicShortlistCandidateType,
 )

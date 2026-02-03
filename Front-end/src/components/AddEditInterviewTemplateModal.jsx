@@ -3,6 +3,7 @@
  * With Manual and AI Question Generation tabs
  */
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { X, Plus, Trash2, Globe, Clock, Timer, Sparkles, Mic, Wand2, FileText, Loader2, RefreshCw } from 'lucide-react';
@@ -346,7 +347,7 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
       <div style={{ background: 'white', borderRadius: '16px', width: '90%', maxWidth: '750px', maxHeight: '90vh', overflow: 'auto' }}>
         {/* Header */}
@@ -409,7 +410,7 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
 
         {/* Body */}
         <div style={{ padding: '24px' }}>
-          {error && (
+          {error && activeTab === 'manual' && (
             <div style={{ padding: '12px', background: '#FEE2E2', color: '#DC2626', borderRadius: '8px', marginBottom: '16px', fontSize: '14px' }}>
               {error}
             </div>
@@ -556,6 +557,24 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
                 )}
               </button>
 
+              {/* Error Message - Below Generate Button */}
+              {error && activeTab === 'ai' && (
+                <div style={{ 
+                  padding: '12px 16px', 
+                  background: '#FEF2F2', 
+                  border: '1px solid #FECACA',
+                  color: '#DC2626', 
+                  borderRadius: '10px', 
+                  fontSize: '14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}>
+                  <span style={{ fontSize: '16px' }}>⚠️</span>
+                  {error}
+                </div>
+              )}
+
               {/* AI Generated Questions - Individual Editable Cards */}
               {aiQuestions.length > 0 && (
                 <div>
@@ -649,6 +668,7 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
                           <textarea
                             value={q.text}
                             onChange={(e) => updateAiQuestion(index, e.target.value)}
+                            rows={Math.max(2, Math.ceil(q.text.length / 60) + (q.text.match(/\n/g) || []).length)}
                             style={{
                               width: '100%',
                               padding: '10px 12px',
@@ -657,7 +677,6 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
                               fontSize: '14px',
                               lineHeight: '1.5',
                               resize: 'vertical',
-                              minHeight: '60px',
                               fontFamily: 'inherit',
                             }}
                             placeholder={isEnglish ? 'Edit question...' : 'Soruyu düzenleyin...'}
@@ -1006,7 +1025,8 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
           to { transform: rotate(360deg); }
         }
       `}</style>
-    </div>
+    </div>,
+    document.body
   );
 };
 

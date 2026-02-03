@@ -1,10 +1,10 @@
 /**
  * Job Form Component - Sağ Panel
  * Tüm alanlar: title, dept, description, requirements, keywords, location, 
- * remote_policy, employment_type, experience_level, education, majors, languages, 
- * salary, deadline, status
+ * remote_policy, employment_type, experience_level, education, majors, languages, status
  */
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { CREATE_JOB_MUTATION, UPDATE_JOB_MUTATION, JOBS_QUERY } from '../graphql/jobs';
 import { JOB_INTRO_TEMPLATES_QUERY } from '../graphql/jobIntroTemplates';
@@ -98,10 +98,6 @@ const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel, isModal =
     requiredEducation: '',
     preferredMajors: '',
     requiredLanguages: '{}',
-    salaryMin: '',
-    salaryMax: '',
-    salaryCurrency: 'TRY',
-    deadline: '',
     startDate: '',
     status: 'draft',
     isDisabledFriendly: false,
@@ -128,6 +124,9 @@ const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel, isModal =
   const [success, setSuccess] = useState('');
   const [showPreview, setShowPreview] = useState(false);
   const [previewData, setPreviewData] = useState(null);
+  const [errorModal, setErrorModal] = useState(null); // For modal-style error messages
+  const [successModal, setSuccessModal] = useState(null); // For modal-style success messages
+  const [savedJobInfo, setSavedJobInfo] = useState(null); // Store job info for navigation
 
   // Load job data if editing
   useEffect(() => {
@@ -151,10 +150,6 @@ const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel, isModal =
         requiredEducation: job.requiredEducation || '',
         preferredMajors: job.preferredMajors || '',
         requiredLanguages: JSON.stringify(langObj),
-        salaryMin: job.salaryMin || '',
-        salaryMax: job.salaryMax || '',
-        salaryCurrency: job.salaryCurrency || 'TRY',
-        deadline: job.deadline || '',
         startDate: job.startDate || '',
         status: job.status || 'draft',
         isDisabledFriendly: job.isDisabledFriendly || false,
@@ -204,10 +199,6 @@ const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel, isModal =
         requiredEducation: '',
         preferredMajors: aiData.preferred_majors || '',
         requiredLanguages: JSON.stringify(langObj),
-        salaryMin: '',
-        salaryMax: '',
-        salaryCurrency: 'TRY',
-        deadline: '',
         startDate: aiData.start_date || '',
         status: 'draft',
         isDisabledFriendly: aiData.isDisabledFriendly || false,
@@ -250,8 +241,7 @@ const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel, isModal =
     
     // Check if language already exists
     if (languages.some(l => l.name === newLanguage.name)) {
-      setError(t('jobForm.languageAlreadyAdded'));
-      setTimeout(() => setError(''), 2000);
+      setErrorModal(t('jobForm.languageAlreadyAdded'));
       return;
     }
     
@@ -274,32 +264,23 @@ const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel, isModal =
 
     // Validation
     if (!formData.title || formData.title.length < 3) {
-      setError(t('jobForm.errorTitleRequired'));
+      setErrorModal(t('jobForm.errorTitleRequired'));
       return;
     }
     if (!formData.departmentId) {
-      setError(t('jobForm.errorDepartmentRequired'));
+      setErrorModal(t('jobForm.errorDepartmentRequired'));
       return;
     }
     if (!formData.description || formData.description.length < 10) {
-      setError(t('jobForm.errorDescriptionRequired'));
+      setErrorModal(t('jobForm.errorDescriptionRequired'));
       return;
     }
     if (!formData.requirements || formData.requirements.length < 10) {
-      setError(t('jobForm.errorRequirementsRequired'));
+      setErrorModal(t('jobForm.errorRequirementsRequired'));
       return;
     }
     if (!formData.location) {
-      setError(t('jobForm.errorLocationRequired'));
-      return;
-    }
-
-    // Salary validation
-    const salaryMin = formData.salaryMin ? parseInt(formData.salaryMin) : null;
-    const salaryMax = formData.salaryMax ? parseInt(formData.salaryMax) : null;
-    
-    if (salaryMin && salaryMax && salaryMin > salaryMax) {
-      setError(t('jobForm.errorSalaryRange'));
+      setErrorModal(t('jobForm.errorLocationRequired'));
       return;
     }
 
@@ -333,10 +314,6 @@ const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel, isModal =
       requiredEducation: formData.requiredEducation || null,
       preferredMajors: formData.preferredMajors || null,
       requiredLanguages,
-      salaryMin: formData.salaryMin ? parseInt(formData.salaryMin) : null,
-      salaryMax: formData.salaryMax ? parseInt(formData.salaryMax) : null,
-      salaryCurrency: formData.salaryCurrency,
-      deadline: formData.deadline || null,
       startDate: formData.startDate || null,
       status: formData.status,
       isDisabledFriendly: formData.isDisabledFriendly,
@@ -353,25 +330,32 @@ const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel, isModal =
       const { outroTemplateName, ...inputData } = previewData;
       
       let result;
+      let jobData;
       if (isEditing) {
         result = await updateJob({ variables: { id: job.id, input: inputData } });
-        setSuccess(t('jobForm.successUpdated'));
+        jobData = result.data?.updateJob;
       } else {
         result = await createJob({ variables: { input: inputData } });
-        setSuccess(t('jobForm.successCreated'));
+        jobData = result.data?.createJob;
       }
 
+      // Store job info for navigation after modal close
+      if (jobData) {
+        setSavedJobInfo({ id: jobData.id, status: jobData.status });
+      }
+
+      // Close preview modal and show success modal
       setShowPreview(false);
-      setTimeout(() => {
-        if (onSuccess) onSuccess();
-      }, 1000);
+      setSuccessModal(isEditing ? t('jobForm.successUpdated') : t('jobForm.successCreated'));
     } catch (err) {
       console.error('Job save error:', err);
-      setError(err.message || t('jobForm.errorGeneral'));
+      // Show error in modal
+      setErrorModal(err.message || t('jobForm.errorGeneral'));
     }
   };
 
   return (
+    <>
     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
       {!isModal && (
         <h2 style={{ fontSize: 22, fontWeight: 600, marginBottom: 16 }}>
@@ -872,71 +856,17 @@ const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel, isModal =
         </div>
       </SectionPanel>
 
-      {/* SECTION 5: Maaş & Tarih */}
-      <SectionPanel title={t('jobForm.sectionSalaryDates')} icon="💰">
-        {/* Maaş Aralığı */}
+      {/* SECTION 5: İlan Durumu */}
+      <SectionPanel title={t('jobForm.sectionJobStatus')} icon="📋">
+        {/* İlan Durumu */}
         <div>
-          <label style={{ display: 'block', marginBottom: 6, fontSize: 14, fontWeight: 500 }}>
-            {t('jobForm.salaryRange')} 
-            <span style={{ color: '#9CA3AF', fontSize: 12, marginLeft: 8 }}>({t('common.optional')})</span>
-          </label>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <select 
-              value={formData.salaryCurrency} 
-              onChange={(e) => handleChange('salaryCurrency', e.target.value)} 
-              className="text-input"
-              style={{ width: 80 }}
-            >
-              <option value="TRY">₺ TRY</option>
-              <option value="USD">$ USD</option>
-              <option value="EUR">€ EUR</option>
-            </select>
-            <input 
-              type="number" 
-              value={formData.salaryMin} 
-              onChange={(e) => handleChange('salaryMin', e.target.value)} 
-              placeholder={t('jobForm.salaryMin')} 
-              className="text-input"
-              style={{
-                width: 100,
-                borderColor: formData.salaryMin && formData.salaryMax && parseInt(formData.salaryMin) > parseInt(formData.salaryMax) ? '#EF4444' : undefined
-              }}
-            />
-            <span style={{ color: '#9CA3AF', fontSize: 14 }}>—</span>
-            <input 
-              type="number" 
-              value={formData.salaryMax} 
-              onChange={(e) => handleChange('salaryMax', e.target.value)} 
-              placeholder={t('jobForm.salaryMax')} 
-              className="text-input"
-              style={{
-                width: 100,
-                borderColor: formData.salaryMin && formData.salaryMax && parseInt(formData.salaryMin) > parseInt(formData.salaryMax) ? '#EF4444' : undefined
-              }}
-            />
-          </div>
-          {formData.salaryMin && formData.salaryMax && parseInt(formData.salaryMin) > parseInt(formData.salaryMax) && (
-            <div style={{ marginTop: 6, fontSize: 13, color: '#EF4444' }}>
-              {t('jobForm.salaryError')}
-            </div>
-          )}
-        </div>
-
-        {/* Son Başvuru Tarihi & İlan Durumu */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-          <div>
-            <label style={{ display: 'block', marginBottom: 6, fontSize: 14, fontWeight: 500 }}>{t('jobForm.deadline')}</label>
-            <input type="date" value={formData.deadline} onChange={(e) => handleChange('deadline', e.target.value)} className="text-input" />
-          </div>
-          <div>
-            <label style={{ display: 'block', marginBottom: 6, fontSize: 14, fontWeight: 500 }}>{t('jobForm.status')}</label>
-            <select value={formData.status} onChange={(e) => handleChange('status', e.target.value)} className="text-input">
-              <option value="draft">{t('jobForm.statusDraft')}</option>
-              <option value="active">{t('jobForm.statusActive')}</option>
-              <option value="closed">{t('jobForm.statusClosed')}</option>
-              <option value="archived">{t('jobForm.statusArchived')}</option>
-            </select>
-          </div>
+          <label style={{ display: 'block', marginBottom: 6, fontSize: 14, fontWeight: 500 }}>{t('jobForm.status')}</label>
+          <select value={formData.status} onChange={(e) => handleChange('status', e.target.value)} className="text-input">
+            <option value="draft">{t('jobForm.statusDraft')}</option>
+            <option value="active">{t('jobForm.statusActive')}</option>
+            <option value="closed">{t('jobForm.statusClosed')}</option>
+            <option value="archived">{t('jobForm.statusArchived')}</option>
+          </select>
         </div>
         
         {/* Engelli Dostu İlan */}
@@ -1006,8 +936,10 @@ const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel, isModal =
           {t('jobForm.cancel')}
         </button>
       </div>
+    </form>
 
-      {/* Preview Modal */}
+    {/* Preview Modal - Using Portal to prevent DOM issues */}
+    {createPortal(
       <JobPreviewModal
         isOpen={showPreview}
         onClose={() => setShowPreview(false)}
@@ -1015,8 +947,136 @@ const JobForm = ({ job, aiData, departments = [], onSuccess, onCancel, isModal =
         departments={departments}
         onPublish={handlePublish}
         isLoading={createLoading || updateLoading}
-      />
-    </form>
+      />,
+      document.body
+    )}
+
+    {/* Error Modal - Using Portal */}
+    {errorModal && createPortal(
+      <div style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.5)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 2100
+      }}>
+        <div style={{
+          background: 'white',
+          borderRadius: 16,
+          padding: 24,
+          maxWidth: 420,
+          width: '90%',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+            <div style={{
+              width: 44,
+              height: 44,
+              borderRadius: 12,
+              background: '#FEE2E2',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <span style={{ fontSize: 22 }}>⚠️</span>
+            </div>
+            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#1F2937' }}>
+              {t('common.warning', 'Uyarı')}
+            </h3>
+          </div>
+          <p style={{ margin: '0 0 24px', fontSize: 14, color: '#4B5563', lineHeight: 1.6 }}>
+            {errorModal}
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <button
+              type="button"
+              onClick={() => setErrorModal(null)}
+              style={{
+                padding: '10px 24px',
+                background: '#6366F1',
+                color: 'white',
+                border: 'none',
+                borderRadius: 8,
+                fontSize: 14,
+                fontWeight: 500,
+                cursor: 'pointer'
+              }}
+            >
+              {t('common.ok', 'Tamam')}
+            </button>
+          </div>
+        </div>
+      </div>,
+      document.body
+    )}
+
+    {/* Success Modal - Using Portal */}
+    {successModal && createPortal(
+      <div style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.5)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 2100
+      }}>
+        <div style={{
+          background: 'white',
+          borderRadius: 16,
+          padding: 24,
+          maxWidth: 420,
+          width: '90%',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+            <div style={{
+              width: 44,
+              height: 44,
+              borderRadius: 12,
+              background: '#D1FAE5',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <span style={{ fontSize: 22 }}>✅</span>
+            </div>
+            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#1F2937' }}>
+              {t('common.success', 'Başarılı')}
+            </h3>
+          </div>
+          <p style={{ margin: '0 0 24px', fontSize: 14, color: '#4B5563', lineHeight: 1.6 }}>
+            {successModal}
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <button
+              type="button"
+              onClick={() => {
+                setSuccessModal(null);
+                if (onSuccess) onSuccess(savedJobInfo);
+                setSavedJobInfo(null);
+              }}
+              style={{
+                padding: '10px 24px',
+                background: '#10B981',
+                color: 'white',
+                border: 'none',
+                borderRadius: 8,
+                fontSize: 14,
+                fontWeight: 500,
+                cursor: 'pointer'
+              }}
+            >
+              {t('common.ok', 'Tamam')}
+            </button>
+          </div>
+        </div>
+      </div>,
+      document.body
+    )}
+  </>
   );
 };
 

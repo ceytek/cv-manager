@@ -14,10 +14,8 @@ export const GET_LIKERT_TEMPLATES = gql`
       scaleType
       language
       isActive
-      isAiGenerated
       timeLimit
       questionCount
-        isAiGenerated
       createdAt
       updatedAt
     }
@@ -34,10 +32,8 @@ export const GET_LIKERT_TEMPLATE = gql`
       scaleLabels
       language
       isActive
-      isAiGenerated
       timeLimit
       questionCount
-        isAiGenerated
       questions {
         id
         questionText
@@ -64,7 +60,6 @@ export const CREATE_LIKERT_TEMPLATE = gql`
         isActive
         timeLimit
         questionCount
-        isAiGenerated
       }
     }
   }
@@ -84,7 +79,6 @@ export const UPDATE_LIKERT_TEMPLATE = gql`
         isActive
         timeLimit
         questionCount
-        isAiGenerated
       }
     }
   }
@@ -134,7 +128,6 @@ export const GET_LIKERT_SESSION = gql`
         timeLimit
         isActive
         questionCount
-        isAiGenerated
         questions {
           id
           questionText
@@ -183,7 +176,6 @@ export const GET_LIKERT_SESSION_BY_APPLICATION = gql`
         scaleLabels
         language
         questionCount
-        isAiGenerated
         questions {
           id
           questionText
@@ -264,7 +256,6 @@ export const SUBMIT_LIKERT_SESSION = gql`
     }
   }
 `;
-
 
 // ========== AI QUESTION GENERATION ==========
 

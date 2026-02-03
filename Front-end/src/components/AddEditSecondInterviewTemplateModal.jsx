@@ -4,6 +4,7 @@
  * Two template types: Online and In-Person
  */
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { useTranslation } from 'react-i18next';
 import { X, GripVertical, User, Briefcase, Building2, Calendar, Clock, Video, MapPin, Link2, Map } from 'lucide-react';
@@ -237,7 +238,7 @@ const AddEditSecondInterviewTemplateModal = ({ template, defaultType, onClose })
     return preview;
   };
 
-  return (
+  return createPortal(
     <div style={{
       position: 'fixed',
       top: 0,
@@ -685,7 +686,8 @@ const AddEditSecondInterviewTemplateModal = ({ template, defaultType, onClose })
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

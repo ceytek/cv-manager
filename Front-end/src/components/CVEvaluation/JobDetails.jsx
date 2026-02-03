@@ -1,8 +1,12 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useQuery } from '@apollo/client/react';
-import { Video, FileText, Clock, BarChart2, Download, Eye, MapPin, Briefcase, Building2, List, LayoutGrid, Users, Star, Sparkles } from 'lucide-react';
+import { useQuery, useMutation, useLazyQuery } from '@apollo/client/react';
+import { Video, FileText, Clock, BarChart2, Download, Eye, MapPin, Briefcase, Building2, List, LayoutGrid, Users, Star, Sparkles, FileCheck, ChevronDown, Check, X, Share2, Link2, Copy } from 'lucide-react';
 import { APPLICATIONS_QUERY } from '../../graphql/applications';
+import { 
+  TOGGLE_SHORTLIST, BULK_TOGGLE_SHORTLIST, CREATE_SHORTLIST_SHARE, LIST_TYPES,
+  TOGGLE_LONGLIST, BULK_TOGGLE_LONGLIST 
+} from '../../graphql/shortlist';
 import CandidateDetailModal from './CandidateDetailModal';
 import LikertResultsModal from './LikertResultsModal';
 import InterviewResultsModal from './InterviewResultsModal';
@@ -14,6 +18,11 @@ import SendRejectionModal from '../SendRejectionModal';
 import LikertInviteModal from '../LikertInviteModal';
 import { API_BASE_URL } from '../../config/api';
 import { GET_SECOND_INTERVIEW_BY_APPLICATION } from '../../graphql/secondInterview';
+import { GET_OFFER_BY_APPLICATION, UPDATE_OFFER_STATUS } from '../../graphql/offer';
+import OfferPreviewModal from '../OfferPreviewModal';
+import ShortlistNoteModal from '../ShortlistNoteModal';
+import ShortlistShareModal from '../ShortlistShareModal';
+import LonglistShareModal from '../LonglistShareModal';
 import { getInitials } from '../../utils/nameUtils';
 
 // Reuse data coming from parent job
@@ -35,6 +44,44 @@ const JobDetails = ({ job, onBack, departments }) => {
   const [secondInterviewData, setSecondInterviewData] = useState(null);
   const [showSendRejection, setShowSendRejection] = useState(false);
   const [showLikertInvite, setShowLikertInvite] = useState(false);
+  
+  // Offer related states
+  const [offerDropdownOpen, setOfferDropdownOpen] = useState(null); // application id
+  const [showOfferPreview, setShowOfferPreview] = useState(false);
+  const [selectedOfferData, setSelectedOfferData] = useState(null);
+  const offerDropdownRef = useRef(null);
+
+  // Shortlist (Long List / Short List) states
+  const [listType, setListType] = useState(LIST_TYPES.ALL); // 'all', 'longlist', 'shortlist'
+  const [selectedApplicationIds, setSelectedApplicationIds] = useState([]); // for bulk selection
+  const [showShortlistNote, setShowShortlistNote] = useState(false);
+  const [shortlistNoteTarget, setShortlistNoteTarget] = useState(null); // application for note
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [showLonglistShareModal, setShowLonglistShareModal] = useState(false);
+
+  // Offer queries and mutations
+  const [fetchOffer] = useLazyQuery(GET_OFFER_BY_APPLICATION, { fetchPolicy: 'network-only' });
+  const [updateOfferStatus] = useMutation(UPDATE_OFFER_STATUS);
+  
+  // Longlist mutations
+  const [toggleLonglist] = useMutation(TOGGLE_LONGLIST);
+  const [bulkToggleLonglist] = useMutation(BULK_TOGGLE_LONGLIST);
+  
+  // Shortlist mutations
+  const [toggleShortlist] = useMutation(TOGGLE_SHORTLIST);
+  const [bulkToggleShortlist] = useMutation(BULK_TOGGLE_SHORTLIST);
+  const [createShortlistShare] = useMutation(CREATE_SHORTLIST_SHARE);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (offerDropdownRef.current && !offerDropdownRef.current.contains(event.target)) {
+        setOfferDropdownOpen(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const { data, loading, error, refetch } = useQuery(APPLICATIONS_QUERY, {
     variables: { jobId: job?.id },
@@ -42,10 +89,65 @@ const JobDetails = ({ job, onBack, departments }) => {
     fetchPolicy: 'cache-and-network',
   });
 
-  const applications = data?.applications || [];
+  const allApplications = data?.applications || [];
   const departmentName = job?.department?.name || '-';
+  
+  // Helper to check if app is hired (offer accepted)
+  const isHired = (app) => {
+    return app.status?.toUpperCase() === 'OFFER_ACCEPTED';
+  };
+
+  // Helper to check if app has pending offer status (sent or rejected, NOT accepted)
+  const hasPendingOfferStatus = (app) => {
+    const status = app.status?.toUpperCase();
+    return status === 'OFFER_SENT' || status === 'OFFER_REJECTED';
+  };
+
+  // Helper to check any offer status (for filtering from other tabs)
+  const hasAnyOfferStatus = (app) => {
+    const status = app.status?.toUpperCase();
+    return status === 'OFFER_SENT' || status === 'OFFER_ACCEPTED' || status === 'OFFER_REJECTED';
+  };
+
+  // Filter applications based on list type
+  // A candidate can only be in ONE tab at a time
+  // Priority: Hired > Offer > Short List > Long List > Pool
+  // - İşe Alınanlar: OFFER_ACCEPTED (highest priority)
+  // - Teklif Verilenler: OFFER_SENT or OFFER_REJECTED
+  // - Short List: in shortlist AND no offer
+  // - Long List: in longlist AND not in shortlist AND no offer
+  // - Tümü (Pool): not in longlist AND not in shortlist AND no offer
+  const applications = useMemo(() => {
+    if (listType === LIST_TYPES.HIRED) {
+      return allApplications.filter(app => isHired(app));
+    }
+    if (listType === LIST_TYPES.OFFER) {
+      return allApplications.filter(app => hasPendingOfferStatus(app));
+    }
+    if (listType === LIST_TYPES.SHORT_LIST) {
+      return allApplications.filter(app => app.isShortlisted && !hasAnyOfferStatus(app));
+    } else if (listType === LIST_TYPES.LONG_LIST) {
+      return allApplications.filter(app => app.isInLonglist && !app.isShortlisted && !hasAnyOfferStatus(app));
+    }
+    // Tümü (Pool): not in longlist AND not in shortlist AND no offer
+    return allApplications.filter(app => !app.isInLonglist && !app.isShortlisted && !hasAnyOfferStatus(app));
+  }, [allApplications, listType]);
+  
+  // Count for tabs - each candidate only counted in ONE tab
+  const hiredCount = allApplications.filter(app => isHired(app)).length;
+  const offerCount = allApplications.filter(app => hasPendingOfferStatus(app)).length;
+  const shortlistCount = allApplications.filter(app => app.isShortlisted && !hasAnyOfferStatus(app)).length;
+  const longlistCount = allApplications.filter(app => app.isInLonglist && !app.isShortlisted && !hasAnyOfferStatus(app)).length;
+  const poolCount = allApplications.filter(app => !app.isInLonglist && !app.isShortlisted && !hasAnyOfferStatus(app)).length;
+  
   const totalPages = Math.max(1, Math.ceil(applications.length / pageSize));
   const pageItems = useMemo(() => applications.slice((page - 1) * pageSize, page * pageSize), [applications, page, pageSize]);
+  
+  // Reset page when list type changes
+  useEffect(() => {
+    setPage(1);
+    setSelectedApplicationIds([]);
+  }, [listType]);
 
   const badge = (label, bg, color) => (
     <span style={{ background: bg, color, padding: '4px 10px', borderRadius: 12, fontSize: 12, fontWeight: 600 }}>{label}</span>
@@ -108,7 +210,18 @@ const JobDetails = ({ job, onBack, departments }) => {
       return { text: t('jobDetails.sessionStatus.secondInterviewCancelled', 'Mülakat İptal'), color: '#6B7280', bg: '#F3F4F6' };
     }
     
-    // PRIORITY 3: Check rejection (but only if no active invitation)
+    // PRIORITY 3: Check offer sent status
+    if (app.status?.toUpperCase() === 'OFFER_SENT') {
+      return { text: t('jobDetails.sessionStatus.offerSent', 'Teklif Gönderildi'), color: '#10B981', bg: '#D1FAE5' };
+    }
+    if (app.status?.toUpperCase() === 'OFFER_ACCEPTED') {
+      return { text: t('jobDetails.sessionStatus.offerAccepted', 'Teklif Kabul Edildi'), color: '#059669', bg: '#D1FAE5' };
+    }
+    if (app.status?.toUpperCase() === 'OFFER_REJECTED') {
+      return { text: t('jobDetails.sessionStatus.offerRejected', 'Teklif Reddedildi'), color: '#DC2626', bg: '#FEE2E2' };
+    }
+    
+    // PRIORITY 4: Check rejection (but only if no active invitation)
     if (app.status?.toUpperCase() === 'REJECTED' || app.rejectedAt) {
       return { text: t('jobDetails.sessionStatus.rejected', 'Reddedildi'), color: '#DC2626', bg: '#FEE2E2' };
     }
@@ -131,6 +244,191 @@ const JobDetails = ({ job, onBack, departments }) => {
     // Default: CV analyzed
     return { text: t('jobDetails.sessionStatus.cvAnalyzed'), color: '#6B7280', bg: '#F3F4F6' };
   };
+
+  // Check if application has offer status
+  const isOfferStatus = (app) => {
+    const status = app.status?.toUpperCase();
+    return status === 'OFFER_SENT' || status === 'OFFER_ACCEPTED' || status === 'OFFER_REJECTED';
+  };
+
+  // Handle viewing offer
+  const handleViewOffer = async (applicationId) => {
+    try {
+      const result = await fetchOffer({ variables: { applicationId } });
+      if (result.data?.offerByApplication) {
+        setSelectedOfferData(result.data.offerByApplication);
+        setShowOfferPreview(true);
+      }
+    } catch (error) {
+      console.error('Error fetching offer:', error);
+    }
+    setOfferDropdownOpen(null);
+  };
+
+  // Handle updating offer status (accept/reject)
+  const handleUpdateOfferStatus = async (applicationId, newStatus) => {
+    try {
+      // First get the offer ID
+      const result = await fetchOffer({ variables: { applicationId } });
+      if (result.data?.offerByApplication?.id) {
+        const offerId = result.data.offerByApplication.id;
+        const updateResult = await updateOfferStatus({
+          variables: { offerId, status: newStatus }
+        });
+        if (updateResult.data?.updateOfferStatus?.success) {
+          refetch(); // Refresh the applications list
+          
+          // Switch to HIRED tab when offer is accepted
+          if (newStatus === 'accepted') {
+            setListType(LIST_TYPES.HIRED);
+          }
+          
+          alert(newStatus === 'accepted' 
+            ? t('offer.acceptedSuccess', 'Teklif kabul edildi olarak işaretlendi')
+            : t('offer.rejectedSuccess', 'Teklif reddedildi olarak işaretlendi')
+          );
+        } else {
+          alert(updateResult.data?.updateOfferStatus?.message || 'Error updating offer status');
+        }
+      }
+    } catch (error) {
+      console.error('Error updating offer status:', error);
+      alert('Error updating offer status');
+    }
+    setOfferDropdownOpen(null);
+  };
+
+  // ==========================================
+  // Longlist Handlers
+  // ==========================================
+  
+  // Toggle longlist for single application (from Pool to Long List or remove)
+  const handleToggleLonglist = async (applicationId, note = null) => {
+    try {
+      const result = await toggleLonglist({
+        variables: { input: { applicationId, note } }
+      });
+      if (result.data?.toggleLonglist?.success) {
+        refetch();
+      } else {
+        alert(result.data?.toggleLonglist?.message || 'Error toggling longlist');
+      }
+    } catch (error) {
+      console.error('Error toggling longlist:', error);
+    }
+  };
+  
+  // Bulk toggle longlist
+  const handleBulkToggleLonglist = async (addToLonglist, note = null) => {
+    if (selectedApplicationIds.length === 0) return;
+    
+    try {
+      const result = await bulkToggleLonglist({
+        variables: { 
+          input: { 
+            applicationIds: selectedApplicationIds, 
+            addToLonglist,
+            note 
+          } 
+        }
+      });
+      if (result.data?.bulkToggleLonglist?.success) {
+        refetch();
+        setSelectedApplicationIds([]);
+        alert(result.data.bulkToggleLonglist.message);
+      } else {
+        alert(result.data?.bulkToggleLonglist?.message || 'Error updating longlist');
+      }
+    } catch (error) {
+      console.error('Error bulk toggling longlist:', error);
+    }
+  };
+
+  // ==========================================
+  // Shortlist Handlers
+  // ==========================================
+  
+  // Toggle shortlist for single application (from Long List to Short List or remove to Pool)
+  const handleToggleShortlist = async (applicationId, note = null) => {
+    try {
+      const result = await toggleShortlist({
+        variables: { input: { applicationId, note } }
+      });
+      if (result.data?.toggleShortlist?.success) {
+        refetch();
+      } else {
+        alert(result.data?.toggleShortlist?.message || 'Error toggling shortlist');
+      }
+    } catch (error) {
+      console.error('Error toggling shortlist:', error);
+    }
+  };
+  
+  // Open note modal before adding to shortlist
+  const handleAddToShortlistWithNote = (applicationId) => {
+    setShortlistNoteTarget(applicationId);
+    setShowShortlistNote(true);
+  };
+  
+  // Confirm adding to shortlist with note
+  const handleConfirmShortlistNote = async (note) => {
+    if (shortlistNoteTarget) {
+      await handleToggleShortlist(shortlistNoteTarget, note);
+    }
+    setShowShortlistNote(false);
+    setShortlistNoteTarget(null);
+  };
+  
+  // Bulk toggle shortlist
+  const handleBulkToggleShortlist = async (addToShortlist, note = null) => {
+    if (selectedApplicationIds.length === 0) return;
+    
+    try {
+      const result = await bulkToggleShortlist({
+        variables: { 
+          input: { 
+            applicationIds: selectedApplicationIds, 
+            addToShortlist,
+            note 
+          } 
+        }
+      });
+      if (result.data?.bulkToggleShortlist?.success) {
+        refetch();
+        setSelectedApplicationIds([]);
+        alert(result.data.bulkToggleShortlist.message);
+      } else {
+        alert(result.data?.bulkToggleShortlist?.message || 'Error updating shortlist');
+      }
+    } catch (error) {
+      console.error('Error bulk toggling shortlist:', error);
+    }
+  };
+  
+  // Toggle selection for single application
+  const handleToggleSelection = (applicationId) => {
+    setSelectedApplicationIds(prev => 
+      prev.includes(applicationId)
+        ? prev.filter(id => id !== applicationId)
+        : [...prev, applicationId]
+    );
+  };
+  
+  // Select/deselect all on current page
+  const handleToggleSelectAll = () => {
+    const pageAppIds = pageItems.map(app => app.id);
+    const allSelected = pageAppIds.every(id => selectedApplicationIds.includes(id));
+    
+    if (allSelected) {
+      setSelectedApplicationIds(prev => prev.filter(id => !pageAppIds.includes(id)));
+    } else {
+      setSelectedApplicationIds(prev => [...new Set([...prev, ...pageAppIds])]);
+    }
+  };
+  
+  // Check if all on page are selected
+  const isAllPageSelected = pageItems.length > 0 && pageItems.every(app => selectedApplicationIds.includes(app.id));
+  const isSomePageSelected = pageItems.some(app => selectedApplicationIds.includes(app.id));
 
   return (
     <div style={{ padding: 24 }}>
@@ -178,67 +476,368 @@ const JobDetails = ({ job, onBack, departments }) => {
 
       {/* Applications list */}
       <div style={{ background: 'white', border: '1px solid #E5E7EB', borderRadius: 12, overflow: 'visible' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid #E5E7EB' }}>
-          <div style={{ fontSize: 16, fontWeight: 600, color: '#111827' }}>{t('jobDetails.cvAnalyses', { count: applications.length })}</div>
+        {/* Header with Title, Tabs, and Controls */}
+        <div style={{ padding: '16px 24px', borderBottom: '1px solid #E5E7EB' }}>
+          {/* Top row: Title and Share button */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ fontSize: 16, fontWeight: 600, color: '#111827' }}>
+              {t('jobDetails.cvAnalyses', { count: allApplications.length })}
+            </div>
+            
+            {/* Share buttons container */}
+            <div style={{ display: 'flex', gap: 8 }}>
+              {/* Share Long List button - only show if there are longlist candidates */}
+              {longlistCount > 0 && (
+                <button
+                  onClick={() => setShowLonglistShareModal(true)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '8px 14px',
+                    background: 'linear-gradient(135deg, #3B82F6, #1D4ED8)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 8,
+                    cursor: 'pointer',
+                    fontSize: 13,
+                    fontWeight: 500,
+                    boxShadow: '0 2px 4px rgba(59, 130, 246, 0.3)',
+                  }}
+                >
+                  <Share2 size={15} />
+                  {t('longlist.share', 'Long List Paylaş')}
+                </button>
+              )}
+              
+              {/* Share Short List button - only show if there are shortlisted candidates */}
+              {shortlistCount > 0 && (
+                <button
+                  onClick={() => setShowShareModal(true)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '8px 14px',
+                    background: 'linear-gradient(135deg, #F59E0B, #D97706)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 8,
+                    cursor: 'pointer',
+                    fontSize: 13,
+                    fontWeight: 500,
+                    boxShadow: '0 2px 4px rgba(245, 158, 11, 0.3)',
+                  }}
+                >
+                  <Share2 size={15} />
+                  {t('shortlist.share', 'Short List Paylaş')}
+                </button>
+              )}
+            </div>
+          </div>
           
-          {/* View Mode Toggle */}
-          <div style={{ display: 'flex', gap: 4, background: '#F3F4F6', borderRadius: 8, padding: 4 }}>
-            <button
-              onClick={() => { setViewMode('list'); setPage(1); }}
-              style={{
-                padding: '6px 12px',
-                background: viewMode === 'list' ? 'white' : 'transparent',
-                border: 'none',
-                borderRadius: 6,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                fontSize: 13,
-                fontWeight: 500,
-                color: viewMode === 'list' ? '#111827' : '#6B7280',
-                boxShadow: viewMode === 'list' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
-                transition: 'all 0.15s',
-              }}
-            >
-              <List size={16} />
-              {t('jobDetails.listView', 'Liste')}
-            </button>
-            <button
-              onClick={() => { setViewMode('grid'); setPage(1); }}
-              style={{
-                padding: '6px 12px',
-                background: viewMode === 'grid' ? 'white' : 'transparent',
-                border: 'none',
-                borderRadius: 6,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                fontSize: 13,
-                fontWeight: 500,
-                color: viewMode === 'grid' ? '#111827' : '#6B7280',
-                boxShadow: viewMode === 'grid' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
-                transition: 'all 0.15s',
-              }}
-            >
-              <LayoutGrid size={16} />
-              {t('jobDetails.gridView', 'Kart')}
-            </button>
+          {/* Bottom row: Tabs and View Mode */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            {/* List Type Tabs */}
+            <div style={{ display: 'flex', gap: 4, background: '#F3F4F6', borderRadius: 10, padding: 4 }}>
+              <button
+                onClick={() => setListType(LIST_TYPES.ALL)}
+                style={{
+                  padding: '8px 16px',
+                  background: listType === LIST_TYPES.ALL ? 'white' : 'transparent',
+                  border: 'none',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: listType === LIST_TYPES.ALL ? '#111827' : '#6B7280',
+                  boxShadow: listType === LIST_TYPES.ALL ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {t('shortlist.pool', 'Tümü')} ({poolCount})
+              </button>
+              <button
+                onClick={() => setListType(LIST_TYPES.LONG_LIST)}
+                style={{
+                  padding: '8px 16px',
+                  background: listType === LIST_TYPES.LONG_LIST ? 'linear-gradient(135deg, #DBEAFE, #BFDBFE)' : 'transparent',
+                  border: listType === LIST_TYPES.LONG_LIST ? '1px solid #3B82F6' : 'none',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  fontWeight: listType === LIST_TYPES.LONG_LIST ? 600 : 500,
+                  color: listType === LIST_TYPES.LONG_LIST ? '#1D4ED8' : '#6B7280',
+                  boxShadow: listType === LIST_TYPES.LONG_LIST ? '0 1px 3px rgba(59, 130, 246, 0.2)' : 'none',
+                  transition: 'all 0.15s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                <List size={14} color={listType === LIST_TYPES.LONG_LIST ? '#3B82F6' : '#6B7280'} />
+                Long List ({longlistCount})
+              </button>
+              <button
+                onClick={() => setListType(LIST_TYPES.SHORT_LIST)}
+                style={{
+                  padding: '8px 16px',
+                  background: listType === LIST_TYPES.SHORT_LIST ? 'linear-gradient(135deg, #FEF3C7, #FDE68A)' : 'transparent',
+                  border: listType === LIST_TYPES.SHORT_LIST ? '1px solid #F59E0B' : 'none',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: listType === LIST_TYPES.SHORT_LIST ? '#B45309' : '#6B7280',
+                  boxShadow: listType === LIST_TYPES.SHORT_LIST ? '0 1px 3px rgba(245, 158, 11, 0.2)' : 'none',
+                  transition: 'all 0.15s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                <Star size={14} fill={listType === LIST_TYPES.SHORT_LIST ? '#F59E0B' : 'none'} />
+                Short List ({shortlistCount})
+              </button>
+              <button
+                onClick={() => setListType(LIST_TYPES.OFFER)}
+                style={{
+                  padding: '8px 16px',
+                  background: listType === LIST_TYPES.OFFER ? 'linear-gradient(135deg, #D1FAE5, #A7F3D0)' : 'transparent',
+                  border: listType === LIST_TYPES.OFFER ? '1px solid #10B981' : 'none',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  fontWeight: listType === LIST_TYPES.OFFER ? 600 : 500,
+                  color: listType === LIST_TYPES.OFFER ? '#065F46' : '#6B7280',
+                  boxShadow: listType === LIST_TYPES.OFFER ? '0 1px 3px rgba(16, 185, 129, 0.2)' : 'none',
+                  transition: 'all 0.15s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                <Check size={14} color={listType === LIST_TYPES.OFFER ? '#10B981' : '#6B7280'} />
+                {t('offer.tab', 'Teklif Verilenler')} ({offerCount})
+              </button>
+              <button
+                onClick={() => setListType(LIST_TYPES.HIRED)}
+                style={{
+                  padding: '8px 16px',
+                  background: listType === LIST_TYPES.HIRED ? 'linear-gradient(135deg, #DBEAFE, #BFDBFE)' : 'transparent',
+                  border: listType === LIST_TYPES.HIRED ? '1px solid #3B82F6' : 'none',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  fontWeight: listType === LIST_TYPES.HIRED ? 600 : 500,
+                  color: listType === LIST_TYPES.HIRED ? '#1D4ED8' : '#6B7280',
+                  boxShadow: listType === LIST_TYPES.HIRED ? '0 1px 3px rgba(59, 130, 246, 0.2)' : 'none',
+                  transition: 'all 0.15s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                <Users size={14} color={listType === LIST_TYPES.HIRED ? '#3B82F6' : '#6B7280'} />
+                {t('hired.tab', 'İşe Alınanlar')} ({hiredCount})
+              </button>
+            </div>
+            
+            {/* View Mode Toggle */}
+            <div style={{ display: 'flex', gap: 4, background: '#F3F4F6', borderRadius: 8, padding: 4 }}>
+              <button
+                onClick={() => { setViewMode('list'); setPage(1); }}
+                style={{
+                  padding: '6px 12px',
+                  background: viewMode === 'list' ? 'white' : 'transparent',
+                  border: 'none',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: viewMode === 'list' ? '#111827' : '#6B7280',
+                  boxShadow: viewMode === 'list' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                  transition: 'all 0.15s',
+                }}
+              >
+                <List size={16} />
+                {t('jobDetails.listView', 'Liste')}
+              </button>
+              <button
+                onClick={() => { setViewMode('grid'); setPage(1); }}
+                style={{
+                  padding: '6px 12px',
+                  background: viewMode === 'grid' ? 'white' : 'transparent',
+                  border: 'none',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: viewMode === 'grid' ? '#111827' : '#6B7280',
+                  boxShadow: viewMode === 'grid' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                  transition: 'all 0.15s',
+                }}
+              >
+                <LayoutGrid size={16} />
+                {t('jobDetails.gridView', 'Kart')}
+              </button>
+            </div>
           </div>
         </div>
+        
+        {/* Bulk Selection Toolbar - Only show when items are selected */}
+        {selectedApplicationIds.length > 0 && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '12px 24px',
+            background: 'linear-gradient(135deg, #EFF6FF, #DBEAFE)',
+            borderBottom: '1px solid #93C5FD',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ fontSize: 14, fontWeight: 500, color: '#1D4ED8' }}>
+                {selectedApplicationIds.length} {t('shortlist.selected', 'aday seçildi')}
+              </span>
+              <button
+                onClick={() => setSelectedApplicationIds([])}
+                style={{
+                  padding: '4px 8px',
+                  background: 'transparent',
+                  border: '1px solid #93C5FD',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  color: '#1D4ED8',
+                }}
+              >
+                {t('shortlist.clearSelection', 'Seçimi Temizle')}
+              </button>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {/* Tümü tab'ında: Sadece "Long List'e Ekle" */}
+              {listType === LIST_TYPES.ALL && (
+                <button
+                  onClick={() => handleBulkToggleLonglist(true)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '8px 14px',
+                    background: 'linear-gradient(135deg, #3B82F6, #1D4ED8)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                    fontSize: 13,
+                    fontWeight: 500,
+                  }}
+                >
+                  <List size={14} />
+                  {t('longlist.addToLonglist', 'Long List\'e Ekle')}
+                </button>
+              )}
+              
+              {/* Long List tab'ında: "Short List'e Ekle" + "Long List'ten Çıkar" */}
+              {listType === LIST_TYPES.LONG_LIST && (
+                <>
+                  <button
+                    onClick={() => handleBulkToggleShortlist(true)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      padding: '8px 14px',
+                      background: 'linear-gradient(135deg, #F59E0B, #D97706)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 6,
+                      cursor: 'pointer',
+                      fontSize: 13,
+                      fontWeight: 500,
+                    }}
+                  >
+                    <Star size={14} />
+                    {t('shortlist.addToShortlist', 'Short List\'e Ekle')}
+                  </button>
+                  <button
+                    onClick={() => handleBulkToggleLonglist(false)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      padding: '8px 14px',
+                      background: '#6B7280',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 6,
+                      cursor: 'pointer',
+                      fontSize: 13,
+                      fontWeight: 500,
+                    }}
+                  >
+                    <X size={14} />
+                    {t('longlist.removeFromLonglist', 'Long List\'ten Çıkar')}
+                  </button>
+                </>
+              )}
+              
+              {/* Short List tab'ında: Sadece "Short List'ten Çıkar" */}
+              {listType === LIST_TYPES.SHORT_LIST && (
+                <button
+                  onClick={() => handleBulkToggleShortlist(false)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '8px 14px',
+                    background: '#DC2626',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                    fontSize: 13,
+                    fontWeight: 500,
+                  }}
+                >
+                  <X size={14} />
+                  {t('shortlist.removeFromShortlist', 'Short List\'ten Çıkar')}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
         
         {/* Table Header - Only for List View */}
         {viewMode === 'list' && (
           <div style={{ 
             display: 'grid', 
-            gridTemplateColumns: '2.5fr 1fr 1.4fr 0.5fr 1.3fr 120px', 
+            gridTemplateColumns: '40px 30px 2.2fr 1fr 1.4fr 0.5fr 1.3fr 120px', 
             padding: '14px 24px', 
             borderBottom: '1px solid #E5E7EB',
             fontSize: 12, 
             fontWeight: 500, 
             color: '#6B7280',
+            alignItems: 'center',
           }}>
+            {/* Checkbox header */}
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <input
+                type="checkbox"
+                checked={isAllPageSelected}
+                onChange={handleToggleSelectAll}
+                style={{ width: 16, height: 16, cursor: 'pointer', accentColor: '#3B82F6' }}
+                title={isAllPageSelected ? t('shortlist.deselectAll', 'Tümünü Kaldır') : t('shortlist.selectAll', 'Tümünü Seç')}
+              />
+            </div>
+            {/* Star header */}
+            <div></div>
             <div>{t('jobDetails.candidate')}</div>
             <div>{t('jobDetails.analysisDate')}</div>
             <div>{t('jobDetails.compatibilityScore')}</div>
@@ -325,7 +924,11 @@ const JobDetails = ({ job, onBack, departments }) => {
                     {candidateName}
                     {app.candidate?.inTalentPool && (
                       <span 
-                        title={t('jobDetails.inTalentPool', 'Yetenek Havuzunda')}
+                        title={
+                          app.candidate?.talentPoolTags?.length > 0
+                            ? `${t('jobDetails.inTalentPool', 'Yetenek Havuzunda')}: ${app.candidate.talentPoolTags.map(tag => tag.name).join(', ')}`
+                            : t('jobDetails.inTalentPool', 'Yetenek Havuzunda')
+                        }
                         style={{
                           display: 'inline-flex',
                           alignItems: 'center',
@@ -335,6 +938,7 @@ const JobDetails = ({ job, onBack, departments }) => {
                           borderRadius: 6,
                           background: '#FEF3C7',
                           border: '2px solid #F59E0B',
+                          cursor: 'help',
                         }}
                       >
                         <Star size={12} fill="#D97706" color="#D97706" />
@@ -472,6 +1076,7 @@ const JobDetails = ({ job, onBack, departments }) => {
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelectedCandidate({
+                          ...app, // Include all fields from app including status
                           id: app.id,
                           applicationId: app.id,
                           candidateId: app.candidateId,
@@ -511,21 +1116,131 @@ const JobDetails = ({ job, onBack, departments }) => {
             const initials = getInitials(candidateName);
             const avatarColors = ['#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#EF4444'];
             const avatarColor = avatarColors[index % avatarColors.length];
+            const isSelected = selectedApplicationIds.includes(app.id);
+            const isShortlisted = app.isShortlisted;
+            const isInLonglist = app.isInLonglist;
+            
+            // Row background based on list status
+            const getRowBackground = () => {
+              if (isShortlisted) return 'linear-gradient(90deg, #FFFBEB 0%, white 100%)';
+              if (isInLonglist) return 'linear-gradient(90deg, #EFF6FF 0%, white 100%)';
+              return 'white';
+            };
+            const getRowBorderLeft = () => {
+              if (isShortlisted) return '3px solid #F59E0B';
+              if (isInLonglist) return '3px solid #3B82F6';
+              return '3px solid transparent';
+            };
             
             return (
               <div 
                 key={app.id} 
                 style={{ 
                   display: 'grid', 
-                  gridTemplateColumns: '2.5fr 1fr 1.4fr 0.5fr 1.3fr 120px', 
+                  gridTemplateColumns: '40px 30px 2.2fr 1fr 1.4fr 0.5fr 1.3fr 120px', 
                   padding: '16px 24px', 
                   borderBottom: '1px solid #F3F4F6', 
                   alignItems: 'center',
                   transition: 'background 0.15s',
+                  background: getRowBackground(),
+                  borderLeft: getRowBorderLeft(),
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.background = '#FAFAFA'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                onMouseEnter={(e) => {
+                  if (!isShortlisted && !isInLonglist) e.currentTarget.style.background = '#FAFAFA';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = getRowBackground();
+                }}
               >
+                {/* Checkbox for selection */}
+                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => handleToggleSelection(app.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    style={{ width: 16, height: 16, cursor: 'pointer', accentColor: '#3B82F6' }}
+                  />
+                </div>
+                
+                {/* Action button based on current tab */}
+                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                  {/* Tümü tab: Long List'e ekle butonu */}
+                  {listType === LIST_TYPES.ALL && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggleLonglist(app.id);
+                      }}
+                      style={{
+                        padding: 4,
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'transform 0.15s',
+                      }}
+                      title={t('longlist.addToLonglist', 'Long List\'e Ekle')}
+                      onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.2)'}
+                      onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                    >
+                      <List size={18} color="#3B82F6" />
+                    </button>
+                  )}
+                  
+                  {/* Long List tab: Short List'e ekle butonu (yıldız) */}
+                  {listType === LIST_TYPES.LONG_LIST && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAddToShortlistWithNote(app.id);
+                      }}
+                      style={{
+                        padding: 4,
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'transform 0.15s',
+                      }}
+                      title={t('shortlist.addToShortlist', 'Short List\'e Ekle')}
+                      onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.2)'}
+                      onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                    >
+                      <Star size={18} color="#D1D5DB" fill="none" />
+                    </button>
+                  )}
+                  
+                  {/* Short List tab: Shortlist'te olduğunu gösteren dolu yıldız */}
+                  {listType === LIST_TYPES.SHORT_LIST && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggleShortlist(app.id);
+                      }}
+                      style={{
+                        padding: 4,
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'transform 0.15s',
+                      }}
+                      title={app.shortlistNote || t('shortlist.inShortlist', 'Short List\'te - Çıkarmak için tıklayın')}
+                      onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.2)'}
+                      onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                    >
+                      <Star size={18} color="#F59E0B" fill="#F59E0B" />
+                    </button>
+                  )}
+                </div>
+                
                 {/* Candidate with Avatar */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <div style={{
@@ -548,7 +1263,11 @@ const JobDetails = ({ job, onBack, departments }) => {
                       {candidateName}
                       {app.candidate?.inTalentPool && (
                         <span 
-                          title={t('jobDetails.inTalentPool', 'Yetenek Havuzunda')}
+                          title={
+                            app.candidate?.talentPoolTags?.length > 0
+                              ? `${t('jobDetails.inTalentPool', 'Yetenek Havuzunda')}: ${app.candidate.talentPoolTags.map(tag => tag.name).join(', ')}`
+                              : t('jobDetails.inTalentPool', 'Yetenek Havuzunda')
+                          }
                           style={{
                             display: 'inline-flex',
                             alignItems: 'center',
@@ -558,6 +1277,7 @@ const JobDetails = ({ job, onBack, departments }) => {
                             borderRadius: 6,
                             background: '#FEF3C7',
                             border: '2px solid #F59E0B',
+                            cursor: 'help',
                           }}
                         >
                           <Star size={12} fill="#D97706" color="#D97706" />
@@ -677,32 +1397,178 @@ const JobDetails = ({ job, onBack, departments }) => {
                   )}
                 </div>
                 
-                {/* Status Badge with Dot */}
-                <div>
+                {/* Status Badge with Dot + Offer Actions */}
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 8 }}>
                   {(() => {
                     const status = getLatestSessionStatus(app);
+                    const hasOffer = isOfferStatus(app);
                     return (
-                      <span style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        padding: '6px 12px',
-                        background: 'white',
-                        border: `1px solid ${status.color}20`,
-                        color: status.color,
-                        borderRadius: 20,
-                        fontSize: 12,
-                        fontWeight: 500,
-                        whiteSpace: 'nowrap',
-                      }}>
+                      <>
                         <span style={{
-                          width: 6,
-                          height: 6,
-                          borderRadius: '50%',
-                          background: status.color,
-                        }} />
-                        {status.text}
-                      </span>
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          padding: '6px 12px',
+                          background: 'white',
+                          border: `1px solid ${status.color}20`,
+                          color: status.color,
+                          borderRadius: 20,
+                          fontSize: 12,
+                          fontWeight: 500,
+                          whiteSpace: 'nowrap',
+                        }}>
+                          <span style={{
+                            width: 6,
+                            height: 6,
+                            borderRadius: '50%',
+                            background: status.color,
+                          }} />
+                          {status.text}
+                        </span>
+                        
+                        {/* Offer Actions Button */}
+                        {hasOffer && (
+                          <div ref={offerDropdownOpen === app.id ? offerDropdownRef : null} style={{ position: 'relative' }}>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOfferDropdownOpen(offerDropdownOpen === app.id ? null : app.id);
+                              }}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 4,
+                                padding: '6px 10px',
+                                background: status.color + '15',
+                                border: `1px solid ${status.color}30`,
+                                borderRadius: 8,
+                                cursor: 'pointer',
+                                color: status.color,
+                                fontSize: 12,
+                                fontWeight: 500,
+                                transition: 'all 0.2s',
+                              }}
+                              title={t('offer.actions', 'Teklif İşlemleri')}
+                            >
+                              <FileCheck size={14} />
+                              <ChevronDown size={12} style={{ 
+                                transform: offerDropdownOpen === app.id ? 'rotate(180deg)' : 'rotate(0deg)',
+                                transition: 'transform 0.2s'
+                              }} />
+                            </button>
+                            
+                            {/* Dropdown Menu */}
+                            {offerDropdownOpen === app.id && (
+                              <div style={{
+                                position: 'absolute',
+                                top: '100%',
+                                right: 0,
+                                marginTop: 4,
+                                background: 'white',
+                                border: '1px solid #E5E7EB',
+                                borderRadius: 8,
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                                zIndex: 1000,
+                                minWidth: 180,
+                                overflow: 'hidden',
+                              }}>
+                                {/* View Offer */}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleViewOffer(app.id);
+                                  }}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 8,
+                                    width: '100%',
+                                    padding: '10px 14px',
+                                    background: 'transparent',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    fontSize: 13,
+                                    color: '#374151',
+                                    textAlign: 'left',
+                                    transition: 'background 0.15s',
+                                  }}
+                                  onMouseEnter={(e) => e.currentTarget.style.background = '#F3F4F6'}
+                                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                >
+                                  <Eye size={15} color="#6B7280" />
+                                  {t('offer.viewOffer', 'Teklifi Görüntüle')}
+                                </button>
+                                
+                                {/* Only show accept/reject if status is OFFER_SENT */}
+                                {app.status?.toUpperCase() === 'OFFER_SENT' && (
+                                  <>
+                                    <div style={{ height: 1, background: '#E5E7EB' }} />
+                                    
+                                    {/* Accept Offer */}
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (window.confirm(t('offer.confirmAccept', 'Teklifi kabul edildi olarak işaretlemek istediğinize emin misiniz?'))) {
+                                          handleUpdateOfferStatus(app.id, 'accepted');
+                                        }
+                                      }}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 8,
+                                        width: '100%',
+                                        padding: '10px 14px',
+                                        background: 'transparent',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        fontSize: 13,
+                                        color: '#059669',
+                                        textAlign: 'left',
+                                        transition: 'background 0.15s',
+                                      }}
+                                      onMouseEnter={(e) => e.currentTarget.style.background = '#D1FAE5'}
+                                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                    >
+                                      <Check size={15} color="#059669" />
+                                      {t('offer.markAccepted', 'Kabul Edildi')}
+                                    </button>
+                                    
+                                    {/* Reject Offer */}
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (window.confirm(t('offer.confirmReject', 'Teklifi reddedildi olarak işaretlemek istediğinize emin misiniz?'))) {
+                                          handleUpdateOfferStatus(app.id, 'rejected');
+                                        }
+                                      }}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 8,
+                                        width: '100%',
+                                        padding: '10px 14px',
+                                        background: 'transparent',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        fontSize: 13,
+                                        color: '#DC2626',
+                                        textAlign: 'left',
+                                        transition: 'background 0.15s',
+                                      }}
+                                      onMouseEnter={(e) => e.currentTarget.style.background = '#FEE2E2'}
+                                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                    >
+                                      <X size={15} color="#DC2626" />
+                                      {t('offer.markRejected', 'Reddedildi')}
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </>
                     );
                   })()}
                 </div>
@@ -743,6 +1609,7 @@ const JobDetails = ({ job, onBack, departments }) => {
                   <button
                     onClick={() => {
                       setSelectedCandidate({
+                        ...app, // Include all fields from app including status
                         id: app.id,
                         applicationId: app.id,
                         candidateId: app.candidateId,
@@ -849,7 +1716,17 @@ const JobDetails = ({ job, onBack, departments }) => {
           jobId={job?.id}
           jobTitle={job?.title}
           application={selectedCandidate}
-          onRefetch={refetch}
+          onRefetch={(action) => {
+            // Switch to Offer tab when an offer is sent - do this FIRST before any other operations
+            if (action === 'offer_sent') {
+              setListType(LIST_TYPES.OFFER);
+              setSelectedCandidate(null); // Close the modal
+              // Delay refetch to ensure state updates are processed first
+              setTimeout(() => refetch(), 100);
+            } else {
+              refetch();
+            }
+          }}
         />
       )}
       
@@ -913,14 +1790,21 @@ const JobDetails = ({ job, onBack, departments }) => {
             title: job?.title,
             departmentId: job?.department?.id,
             location: job?.location,
-            remoteType: job?.remoteType,
+            remotePolicy: job?.remotePolicy || job?.remoteType,
             employmentType: job?.employmentType,
             experienceLevel: job?.experienceLevel,
             salaryMin: job?.salaryMin,
             salaryMax: job?.salaryMax,
             salaryCurrency: job?.salaryCurrency || 'TRY',
             description: job?.description,
+            requirements: job?.requirements,
             keywords: job?.keywords || [],
+            requiredLanguages: job?.requiredLanguages,
+            preferredMajors: job?.preferredMajors,
+            introText: job?.introText,
+            outroText: job?.outroText,
+            deadline: job?.deadline,
+            isDisabledFriendly: job?.isDisabledFriendly,
           }}
           departments={departments || []}
           viewOnly={true}
@@ -930,6 +1814,7 @@ const JobDetails = ({ job, onBack, departments }) => {
       {/* Second Interview Invite Modal */}
       {showSecondInterviewInvite && selectedApp && (
         <SecondInterviewInviteModal
+          key={`second-interview-${selectedApp?.id || 'new'}`}
           isOpen={showSecondInterviewInvite}
           onClose={() => {
             setShowSecondInterviewInvite(false);
@@ -994,6 +1879,7 @@ const JobDetails = ({ job, onBack, departments }) => {
       {/* Likert Invite Modal */}
       {showLikertInvite && selectedApp && (
         <LikertInviteModal
+          key={`likert-${selectedApp?.id || 'new'}`}
           isOpen={showLikertInvite}
           onClose={() => {
             setShowLikertInvite(false);
@@ -1005,6 +1891,57 @@ const JobDetails = ({ job, onBack, departments }) => {
           onSuccess={() => {
             refetch();
           }}
+        />
+      )}
+
+      {/* Offer Preview Modal */}
+      {showOfferPreview && selectedOfferData && (
+        <OfferPreviewModal
+          isOpen={showOfferPreview}
+          onClose={() => {
+            setShowOfferPreview(false);
+            setSelectedOfferData(null);
+          }}
+          offerData={selectedOfferData}
+          candidateName={selectedOfferData.candidateName}
+          jobTitle={selectedOfferData.jobTitle || job?.title}
+        />
+      )}
+
+      {/* Shortlist Note Modal */}
+      {showShortlistNote && (
+        <ShortlistNoteModal
+          isOpen={showShortlistNote}
+          onClose={() => {
+            setShowShortlistNote(false);
+            setShortlistNoteTarget(null);
+          }}
+          onConfirm={handleConfirmShortlistNote}
+          candidateName={
+            allApplications.find(app => app.id === shortlistNoteTarget)?.candidate?.name
+          }
+        />
+      )}
+
+      {/* Shortlist Share Modal */}
+      {showShareModal && (
+        <ShortlistShareModal
+          isOpen={showShareModal}
+          onClose={() => setShowShareModal(false)}
+          jobId={job?.id}
+          jobTitle={job?.title}
+          shortlistCount={shortlistCount}
+        />
+      )}
+
+      {/* Longlist Share Modal */}
+      {showLonglistShareModal && (
+        <LonglistShareModal
+          isOpen={showLonglistShareModal}
+          onClose={() => setShowLonglistShareModal(false)}
+          jobId={job?.id}
+          jobTitle={job?.title}
+          longlistCount={longlistCount}
         />
       )}
     </div>

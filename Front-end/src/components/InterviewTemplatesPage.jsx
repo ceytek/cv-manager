@@ -313,6 +313,7 @@ const InterviewTemplatesPage = () => {
       {/* Add/Edit Modal */}
       {showModal && (
         <AddEditInterviewTemplateModal
+          key={`modal-${editingTemplate?.id || 'new'}`}
           isOpen={showModal}
           onClose={() => { setShowModal(false); setEditingTemplate(null); }}
           onSuccess={() => { refetch(); setShowModal(false); setEditingTemplate(null); }}
