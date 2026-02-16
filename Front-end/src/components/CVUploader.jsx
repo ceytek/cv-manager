@@ -3,11 +3,11 @@
  * Modular, reusable component for CV uploads
  * Supports batch uploading to prevent timeout errors
  */
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDropzone } from 'react-dropzone';
 import { UPLOAD_CVS_MUTATION } from '../graphql/cvs';
-import { Upload, FileText, X, CheckCircle, AlertCircle } from 'lucide-react';
+import { Upload, FileText, X, CheckCircle, AlertCircle, FolderOpen } from 'lucide-react';
 import CVUploadProgressModal from './CVUploadProgressModal';
 import { GRAPHQL_URL } from '../config/api';
 
@@ -49,8 +49,50 @@ const CVUploader = ({ onUploadComplete, departments }) => {
     setCurrentPage(1);
   };
 
+  // Folder input ref
+  const folderInputRef = useRef(null);
+  const [folderStats, setFolderStats] = useState(null); // { total, accepted, skipped, skippedNames }
+
+  // Supported file extensions
+  const SUPPORTED_EXTENSIONS = ['.pdf', '.doc', '.docx'];
+  const isSupportedFile = (file) => {
+    const name = file.name.toLowerCase();
+    return SUPPORTED_EXTENSIONS.some(ext => name.endsWith(ext));
+  };
+
+  // Handle folder selection
+  const handleFolderSelect = (e) => {
+    const allFiles = Array.from(e.target.files || []);
+    if (allFiles.length === 0) return;
+
+    const accepted = allFiles.filter(isSupportedFile);
+    const skipped = allFiles.filter(f => !isSupportedFile(f));
+
+    setFolderStats({
+      total: allFiles.length,
+      accepted: accepted.length,
+      skipped: skipped.length,
+      skippedNames: skipped.slice(0, 5).map(f => f.name),
+    });
+
+    if (accepted.length > 0) {
+      // Append to existing selected files (avoid duplicates by name)
+      setSelectedFiles(prev => {
+        const existingNames = new Set(prev.map(f => f.name));
+        const newFiles = accepted.filter(f => !existingNames.has(f.name));
+        return [...prev, ...newFiles];
+      });
+      setCurrentPage(1);
+      setUploadResult(null);
+    }
+
+    // Reset input so same folder can be re-selected
+    e.target.value = '';
+  };
+
   // Dropzone configuration
   const onDrop = useCallback((acceptedFiles) => {
+    setFolderStats(null);
     handleFilesChange(acceptedFiles);
     setUploadResult(null);
   }, []);
@@ -392,13 +434,13 @@ const CVUploader = ({ onUploadComplete, departments }) => {
         </p>
       </div>
 
-      {/* Dropzone */}
+      {/* Dropzone + Folder Selection */}
       <div
         {...getRootProps()}
         style={{
           border: '2px dashed #D1D5DB',
           borderRadius: 12,
-          padding: 40,
+          padding: '32px 40px',
           textAlign: 'center',
           cursor: 'pointer',
           background: isDragActive ? '#EFF6FF' : '#F9FAFB',
@@ -406,15 +448,15 @@ const CVUploader = ({ onUploadComplete, departments }) => {
         }}
       >
         <input {...getInputProps()} />
-        <Upload size={48} color="#3B82F6" style={{ margin: '0 auto 16px' }} />
-        <h3 style={{ fontSize: 18, fontWeight: 600, color: '#1F2937', marginBottom: 8 }}>
+        <Upload size={44} color="#3B82F6" style={{ margin: '0 auto 12px' }} />
+        <h3 style={{ fontSize: 18, fontWeight: 600, color: '#1F2937', marginBottom: 6 }}>
           {t('cvUploader.bulkUploadTitle')}
         </h3>
         {isDragActive ? (
           <p style={{ color: '#3B82F6', fontSize: 14 }}>{t('cvUploader.dropFilesHere')}</p>
         ) : (
           <div>
-            <p style={{ color: '#6B7280', fontSize: 14, marginBottom: 8 }}>
+            <p style={{ color: '#6B7280', fontSize: 14, marginBottom: 4 }}>
               {t('cvUploader.dragDropText')}
             </p>
             <p style={{ color: '#9CA3AF', fontSize: 12 }}>
@@ -423,6 +465,92 @@ const CVUploader = ({ onUploadComplete, departments }) => {
           </div>
         )}
       </div>
+
+      {/* Folder Select Button */}
+      <input
+        ref={folderInputRef}
+        type="file"
+        webkitdirectory=""
+        directory=""
+        multiple
+        style={{ display: 'none' }}
+        onChange={handleFolderSelect}
+      />
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          folderInputRef.current?.click();
+        }}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 10,
+          width: '100%',
+          padding: '14px 20px',
+          border: '2px dashed #A78BFA',
+          borderRadius: 12,
+          background: '#F5F3FF',
+          cursor: 'pointer',
+          transition: 'all 0.2s',
+          fontSize: 15,
+          fontWeight: 600,
+          color: '#6D28D9',
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = '#EDE9FE'; e.currentTarget.style.borderColor = '#7C3AED'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = '#F5F3FF'; e.currentTarget.style.borderColor = '#A78BFA'; }}
+      >
+        <FolderOpen size={20} />
+        {t('cvUploader.selectFolder', 'Klasörden Seç')}
+        <span style={{ fontSize: 12, fontWeight: 400, color: '#8B5CF6' }}>
+          ({t('cvUploader.folderNote', 'Klasördeki tüm CV\'ler otomatik eklenir')})
+        </span>
+      </button>
+
+      {/* Folder Stats Info */}
+      {folderStats && (
+        <div style={{
+          padding: '12px 16px',
+          borderRadius: 10,
+          background: folderStats.skipped > 0 ? '#FFFBEB' : '#F0FDF4',
+          border: `1px solid ${folderStats.skipped > 0 ? '#FDE68A' : '#BBF7D0'}`,
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 10,
+          fontSize: 13,
+        }}>
+          <span style={{ fontSize: 18, lineHeight: 1 }}>{folderStats.skipped > 0 ? '📁' : '✅'}</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 600, color: '#374151', marginBottom: 2 }}>
+              {t('cvUploader.folderScanResult', {
+                accepted: folderStats.accepted,
+                total: folderStats.total,
+                defaultValue: '{{accepted}} / {{total}} dosya eklendi'
+              })}
+            </div>
+            {folderStats.skipped > 0 && (
+              <div style={{ color: '#92400E', fontSize: 12 }}>
+                {t('cvUploader.folderSkipped', {
+                  count: folderStats.skipped,
+                  defaultValue: '{{count}} dosya desteklenmeyen formatta (atlandı)'
+                })}
+                {folderStats.skippedNames.length > 0 && (
+                  <span style={{ color: '#B45309', marginLeft: 4 }}>
+                    — {folderStats.skippedNames.join(', ')}{folderStats.skipped > 5 ? '...' : ''}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+          <button
+            onClick={() => setFolderStats(null)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: '#9CA3AF' }}
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       {/* Selected Files */}
       {selectedFiles.length > 0 && (

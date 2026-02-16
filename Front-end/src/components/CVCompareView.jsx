@@ -1,7 +1,213 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@apollo/client/react';
 import { COMPARE_CANDIDATES_QUERY } from '../graphql/compare';
 import { useTranslation } from 'react-i18next';
+
+/* ───────── AI Loading Animation ───────── */
+const aiLoadingKeyframes = `
+@keyframes cvCompare-pulse {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+@keyframes cvCompare-float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+@keyframes cvCompare-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes cvCompare-orbit {
+  0% { transform: rotate(0deg) translateX(60px) rotate(0deg); }
+  100% { transform: rotate(360deg) translateX(60px) rotate(-360deg); }
+}
+@keyframes cvCompare-fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes cvCompare-progressBar {
+  0% { width: 0%; }
+  20% { width: 25%; }
+  50% { width: 55%; }
+  70% { width: 70%; }
+  90% { width: 85%; }
+  100% { width: 95%; }
+}
+`;
+
+const LoadingScreen = ({ candidateName1, candidateName2 }) => {
+  const { t } = useTranslation();
+  const [tipIndex, setTipIndex] = useState(0);
+
+  const tips = [
+    t('cvCompare.loadingTip1', 'CV bilgileri analiz ediliyor...'),
+    t('cvCompare.loadingTip2', 'Yetkinlikler karşılaştırılıyor...'),
+    t('cvCompare.loadingTip3', 'Deneyimler değerlendiriliyor...'),
+    t('cvCompare.loadingTip4', 'AI raporu oluşturuluyor...'),
+  ];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTipIndex(prev => (prev + 1) % tips.length);
+    }, 2800);
+    return () => clearInterval(interval);
+  }, [tips.length]);
+
+  const name1 = candidateName1 ? candidateName1.split(' ')[0] : '?';
+  const name2 = candidateName2 ? candidateName2.split(' ')[0] : '?';
+
+  return (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '60px 24px',
+      minHeight: 420,
+      background: 'linear-gradient(135deg, #F8FAFC 0%, #EEF2FF 50%, #F0F9FF 100%)',
+      borderRadius: 20,
+    }}>
+      <style>{aiLoadingKeyframes}</style>
+
+      {/* AI Brain Icon with orbiting dots */}
+      <div style={{ position: 'relative', width: 140, height: 140, marginBottom: 32 }}>
+        {/* Center brain/sparkle icon */}
+        <div style={{
+          position: 'absolute',
+          top: '50%', left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: 64, height: 64,
+          borderRadius: '50%',
+          background: 'linear-gradient(135deg, #6366F1, #8B5CF6, #A78BFA)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 0 40px rgba(99, 102, 241, 0.3), 0 0 80px rgba(139, 92, 246, 0.15)',
+          animation: 'cvCompare-float 2.5s ease-in-out infinite',
+        }}>
+          <span style={{ fontSize: 30 }}>🧠</span>
+        </div>
+
+        {/* Orbiting dots */}
+        {[0, 1, 2, 3].map(i => (
+          <div key={i} style={{
+            position: 'absolute',
+            top: '50%', left: '50%',
+            width: 10, height: 10,
+            marginTop: -5, marginLeft: -5,
+            borderRadius: '50%',
+            background: ['#6366F1', '#8B5CF6', '#3B82F6', '#A78BFA'][i],
+            animation: `cvCompare-orbit ${3 + i * 0.4}s linear infinite`,
+            animationDelay: `${i * -0.75}s`,
+            opacity: 0.8,
+          }} />
+        ))}
+      </div>
+
+      {/* Main title */}
+      <h3 style={{
+        margin: 0,
+        fontSize: 20,
+        fontWeight: 700,
+        color: '#1E293B',
+        textAlign: 'center',
+        marginBottom: 8,
+        animation: 'cvCompare-fadeIn 0.5s ease-out',
+      }}>
+        {t('cvCompare.aiEvaluating', '✨ Yapay Zeka Adayları Değerlendiriyor')}
+      </h3>
+
+      {/* VS Names */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 16,
+        marginBottom: 28,
+        animation: 'cvCompare-fadeIn 0.7s ease-out',
+      }}>
+        <div style={{
+          padding: '8px 18px',
+          borderRadius: 12,
+          background: 'linear-gradient(135deg, #6366F1, #818CF8)',
+          color: 'white',
+          fontWeight: 700,
+          fontSize: 15,
+          boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)',
+        }}>
+          {name1}
+        </div>
+        <span style={{
+          fontSize: 18,
+          fontWeight: 800,
+          color: '#94A3B8',
+          fontStyle: 'italic',
+        }}>vs</span>
+        <div style={{
+          padding: '8px 18px',
+          borderRadius: 12,
+          background: 'linear-gradient(135deg, #3B82F6, #60A5FA)',
+          color: 'white',
+          fontWeight: 700,
+          fontSize: 15,
+          boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
+        }}>
+          {name2}
+        </div>
+      </div>
+
+      {/* Progress bar */}
+      <div style={{
+        width: 280,
+        height: 6,
+        borderRadius: 99,
+        background: '#E2E8F0',
+        overflow: 'hidden',
+        marginBottom: 20,
+      }}>
+        <div style={{
+          height: '100%',
+          borderRadius: 99,
+          background: 'linear-gradient(90deg, #6366F1, #8B5CF6, #3B82F6)',
+          backgroundSize: '200% 100%',
+          animation: 'cvCompare-progressBar 12s ease-out forwards, cvCompare-shimmer 1.5s linear infinite',
+        }} />
+      </div>
+
+      {/* Rotating tips */}
+      <div style={{
+        height: 24,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}>
+        <span
+          key={tipIndex}
+          style={{
+            fontSize: 14,
+            color: '#64748B',
+            fontWeight: 500,
+            animation: 'cvCompare-fadeIn 0.4s ease-out',
+          }}
+        >
+          {tips[tipIndex]}
+        </span>
+      </div>
+
+      {/* Pulsing dots */}
+      <div style={{ display: 'flex', gap: 6, marginTop: 16 }}>
+        {[0, 1, 2].map(i => (
+          <div key={i} style={{
+            width: 8, height: 8,
+            borderRadius: '50%',
+            background: '#6366F1',
+            animation: 'cvCompare-pulse 1.4s ease-in-out infinite',
+            animationDelay: `${i * 0.2}s`,
+          }} />
+        ))}
+      </div>
+    </div>
+  );
+};
 
 const Pill = ({ text, color = '#2563EB' }) => (
   <span style={{
@@ -113,7 +319,7 @@ const CandidateCard = ({ candidate }) => {
   );
 };
 
-const CVCompareView = ({ candidateId1, candidateId2, jobId, onBack }) => {
+const CVCompareView = ({ candidateId1, candidateId2, candidateName1, candidateName2, jobId, onBack }) => {
   const { t, i18n } = useTranslation();
   const { data, loading, error } = useQuery(COMPARE_CANDIDATES_QUERY, {
     variables: { 
@@ -127,7 +333,26 @@ const CVCompareView = ({ candidateId1, candidateId2, jobId, onBack }) => {
 
   const res = data?.compareCandidates;
 
-  if (loading) return <div style={{ padding: 24 }}>{t('cvCompare.loading')}</div>;
+  if (loading) return (
+    <div style={{ padding: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+        <button onClick={onBack} style={{
+          padding: '10px 20px',
+          border: 'none',
+          borderRadius: 8,
+          background: '#1F2937',
+          color: 'white',
+          cursor: 'pointer',
+          fontWeight: 600,
+          fontSize: 14,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+        }}>✕ {t('common.close', 'Kapat')}</button>
+      </div>
+      <LoadingScreen candidateName1={candidateName1} candidateName2={candidateName2} />
+    </div>
+  );
   if (error) return <div style={{ padding: 24, color: '#DC2626' }}>{t('cvCompare.error', { message: error.message })}</div>;
 
   // Debug: Log the response
@@ -149,17 +374,22 @@ const CVCompareView = ({ candidateId1, candidateId2, jobId, onBack }) => {
   } : null;
 
   return (
-    <div style={{ padding: 24, background: '#F9FAFB', minHeight: '100vh' }}>
+    <div style={{ padding: 24, background: '#F9FAFB', borderRadius: 20 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <h2 style={{ margin: 0, fontSize: 24, fontWeight: 700 }}>{t('cvCompare.title', { jobTitle: 'Yazılım Geliştirme Uzmanı' })}</h2>
+        <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700 }}>{t('cvCompare.title', { jobTitle: t('cvCompare.comparison', 'Aday Karşılaştırması') })}</h2>
         <button onClick={onBack} style={{
-          padding: '10px 16px',
-          border: '1px solid #D1D5DB',
+          padding: '10px 20px',
+          border: 'none',
           borderRadius: 8,
-          background: 'white',
+          background: '#1F2937',
+          color: 'white',
           cursor: 'pointer',
-          fontWeight: 600
-        }}>{t('cvCompare.backButton')}</button>
+          fontWeight: 600,
+          fontSize: 14,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+        }}>✕ {t('common.close', 'Kapat')}</button>
       </div>
 
       <div style={{ display: 'flex', gap: 24 }}>

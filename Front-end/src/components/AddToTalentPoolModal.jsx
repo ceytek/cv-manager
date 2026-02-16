@@ -46,6 +46,14 @@ const AddToTalentPoolModal = ({
   const isBulk = candidates.length > 1;
   const isAdding = addingSingle || addingBulk;
 
+  // Helper to get translated tag name for system tags
+  const getTagName = (tag) => {
+    if (tag.isSystem) {
+      return t(`talentPool.systemTagNames.${tag.name}`, tag.name);
+    }
+    return tag.name;
+  };
+
   // Reset form when modal opens/closes
   useEffect(() => {
     if (isOpen) {
@@ -336,7 +344,7 @@ const AddToTalentPoolModal = ({
                         fontWeight: 500,
                         color: isSelected ? tag.color : '#4B5563',
                       }}>
-                        {tag.name}
+                        {getTagName(tag)}
                       </span>
                       {isSelected && (
                         <Check size={14} color={tag.color} />

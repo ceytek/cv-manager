@@ -8,6 +8,7 @@ from app.modules.rejection.models import RejectionTemplate
 from app.modules.rejection.types import (
     RejectionTemplateType,
     RejectionTemplateInput,
+    RejectionTemplateUpdateInput,
     RejectionTemplateResponse,
 )
 
@@ -22,5 +23,6 @@ __all__ = [
     # Types
     "RejectionTemplateType",
     "RejectionTemplateInput",
+    "RejectionTemplateUpdateInput",
     "RejectionTemplateResponse",
 ]

@@ -310,16 +310,14 @@ const InterviewTemplatesPage = () => {
         </div>
       )}
 
-      {/* Add/Edit Modal */}
-      {showModal && (
-        <AddEditInterviewTemplateModal
-          key={`modal-${editingTemplate?.id || 'new'}`}
-          isOpen={showModal}
-          onClose={() => { setShowModal(false); setEditingTemplate(null); }}
-          onSuccess={() => { refetch(); setShowModal(false); setEditingTemplate(null); }}
-          template={editingTemplate}
-        />
-      )}
+      {/* Add/Edit Modal - Always rendered, modal handles its own visibility via isOpen */}
+      <AddEditInterviewTemplateModal
+        key={editingTemplate?.id || 'new'}
+        isOpen={showModal}
+        onClose={() => { setShowModal(false); setEditingTemplate(null); }}
+        onSuccess={() => { refetch(); setShowModal(false); setEditingTemplate(null); }}
+        template={editingTemplate}
+      />
 
       {/* Delete Confirmation */}
       {deleteConfirm && (

@@ -29,6 +29,7 @@ class TalentPoolCandidateType:
     email: Optional[str] = None
     phone: Optional[str] = None
     cv_photo_path: Optional[str] = strawberry.field(name="cvPhotoPath", default=None)
+    cv_file_path: Optional[str] = strawberry.field(name="cvFilePath", default=None)
     location: Optional[str] = None
     experience_months: Optional[int] = strawberry.field(name="experienceMonths", default=None)
     cv_file_name: Optional[str] = strawberry.field(name="cvFileName", default=None)

@@ -11,6 +11,7 @@ import {
   GET_SECOND_INTERVIEW_TEMPLATES,
   GET_SECOND_INTERVIEW_TEMPLATE_VARIABLES,
   DELETE_SECOND_INTERVIEW_TEMPLATE,
+  UPDATE_SECOND_INTERVIEW_TEMPLATE,
   SECOND_INTERVIEW_TEMPLATE_TYPES 
 } from '../graphql/secondInterviewTemplate';
 import AddEditSecondInterviewTemplateModal from './AddEditSecondInterviewTemplateModal';
@@ -42,6 +43,26 @@ const SecondInterviewTemplatesPage = () => {
       setDeleteConfirm(null);
     }
   });
+
+  const [updateTemplate] = useMutation(UPDATE_SECOND_INTERVIEW_TEMPLATE, {
+    onCompleted: () => {
+      refetch();
+    },
+    onError: (error) => {
+      alert((isEnglish ? 'Error: ' : 'Hata: ') + error.message);
+    }
+  });
+
+  const handleToggleActive = (template) => {
+    updateTemplate({
+      variables: {
+        id: template.id,
+        input: {
+          isActive: !template.isActive
+        }
+      }
+    });
+  };
 
   const handleEdit = (template) => {
     setEditingTemplate(template);
@@ -298,15 +319,24 @@ const SecondInterviewTemplatesPage = () => {
                 </p>
               </div>
 
-              {/* Status */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '6px 12px',
-                background: template.isActive ? '#D1FAE5' : '#FEE2E2',
-                borderRadius: 20,
-              }}>
+              {/* Status - Toggle Button */}
+              <button
+                onClick={() => handleToggleActive(template)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '6px 12px',
+                  background: template.isActive ? '#D1FAE5' : '#FEE2E2',
+                  borderRadius: 20,
+                  border: 'none',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+                title={template.isActive 
+                  ? t('secondInterviewTemplates.clickToDeactivate', 'Pasif yapmak için tıklayın')
+                  : t('secondInterviewTemplates.clickToActivate', 'Aktif yapmak için tıklayın')}
+              >
                 {template.isActive ? (
                   <ToggleRight size={16} color="#059669" />
                 ) : (
@@ -321,7 +351,7 @@ const SecondInterviewTemplatesPage = () => {
                     ? t('common.active', 'Aktif') 
                     : t('common.inactive', 'Pasif')}
                 </span>
-              </div>
+              </button>
 
               {/* Actions */}
               <div style={{ display: 'flex', gap: 8 }}>

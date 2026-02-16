@@ -21,13 +21,24 @@ class RejectionTemplateType:
 
 @strawberry.input
 class RejectionTemplateInput:
-    """Input for creating/updating rejection templates"""
+    """Input for creating rejection templates"""
     name: str
     subject: str
     body: str
     language: Optional[str] = "TR"
     is_active: Optional[bool] = strawberry.field(name="isActive", default=True)
     is_default: Optional[bool] = strawberry.field(name="isDefault", default=False)
+
+
+@strawberry.input
+class RejectionTemplateUpdateInput:
+    """Input for updating rejection templates - all fields optional"""
+    name: Optional[str] = None
+    subject: Optional[str] = None
+    body: Optional[str] = None
+    language: Optional[str] = None
+    is_active: Optional[bool] = strawberry.field(name="isActive", default=None)
+    is_default: Optional[bool] = strawberry.field(name="isDefault", default=None)
 
 
 @strawberry.type
@@ -41,6 +52,7 @@ class RejectionTemplateResponse:
 __all__ = [
     "RejectionTemplateType",
     "RejectionTemplateInput",
+    "RejectionTemplateUpdateInput",
     "RejectionTemplateResponse",
 ]
 

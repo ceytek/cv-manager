@@ -537,25 +537,51 @@ const CVPage = ({ departments, initialView = 'list' }) => {
           </div>
         </div>
 
-        {/* List or Compare */}
-        {comparePair ? (
-          <div style={{ background: 'white', borderRadius: 12, padding: 0, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-            <CVCompareView
-              candidateId1={comparePair.a}
-              candidateId2={comparePair.b}
-              onBack={() => setComparePair(null)}
-            />
+        {/* Candidate List - always visible */}
+        <CandidateList
+          departmentFilter={deptId || null}
+          statusFilter={null}
+          languageFilter={lang}
+          searchTerm={search}
+          talentPoolFilter={talentPoolFilter}
+          onCompare={(a, b, nameA, nameB) => setComparePair({ a, b, nameA, nameB })}
+          viewMode={candidateViewMode}
+        />
+
+        {/* Compare Modal Overlay */}
+        {comparePair && (
+          <div
+            style={{
+              position: 'fixed',
+              top: 0, left: 0, right: 0, bottom: 0,
+              background: 'rgba(15, 23, 42, 0.6)',
+              backdropFilter: 'blur(4px)',
+              zIndex: 1000,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 20,
+            }}
+            onClick={(e) => { if (e.target === e.currentTarget) setComparePair(null); }}
+          >
+            <div style={{
+              background: 'white',
+              borderRadius: 20,
+              width: '100%',
+              maxWidth: 1200,
+              maxHeight: '90vh',
+              overflow: 'auto',
+              boxShadow: '0 25px 60px rgba(0,0,0,0.3)',
+            }}>
+              <CVCompareView
+                candidateId1={comparePair.a}
+                candidateId2={comparePair.b}
+                candidateName1={comparePair.nameA}
+                candidateName2={comparePair.nameB}
+                onBack={() => setComparePair(null)}
+              />
+            </div>
           </div>
-        ) : (
-          <CandidateList
-            departmentFilter={deptId || null}
-            statusFilter={null}
-            languageFilter={lang}
-            searchTerm={search}
-            talentPoolFilter={talentPoolFilter}
-            onCompare={(a, b) => setComparePair({ a, b })}
-            viewMode={candidateViewMode}
-          />
         )}
       </div>
     );

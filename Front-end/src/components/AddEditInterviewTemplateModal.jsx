@@ -45,6 +45,7 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
   const [aiQuestionType, setAiQuestionType] = useState('mixed'); // behavioral, situational, technical, conceptual, mixed
   const [aiDifficulty, setAiDifficulty] = useState('intermediate'); // entry, intermediate, advanced
   const [regeneratingIndex, setRegeneratingIndex] = useState(null); // Index of question being regenerated
+  const [originalIsAiGenerated, setOriginalIsAiGenerated] = useState(false); // Preserve AI flag when editing
 
   // Question type options
   const questionTypeOptions = [
@@ -114,6 +115,7 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
       setDurationPerQuestion(t.durationPerQuestion || 300);
       setAiAnalysisEnabled(t.aiAnalysisEnabled ?? true);
       setVoiceResponseEnabled(t.voiceResponseEnabled ?? true);
+      setOriginalIsAiGenerated(t.isAiGenerated || false); // Preserve AI flag
       setQuestions(t.questions?.map(q => ({
         id: q.id,
         text: q.questionText,
@@ -139,6 +141,7 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
     setAiQuestions([]);
     setAiQuestionCount(5);
     setActiveTab('manual');
+    setOriginalIsAiGenerated(false);
   };
 
   // Manual tab functions
@@ -172,6 +175,12 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
   const updateQuestionTimeLimit = (index, timeLimit) => {
     const updated = [...questions];
     updated[index].timeLimit = parseInt(timeLimit);
+    setQuestions(updated);
+  };
+
+  const updateQuestionText = (index, newText) => {
+    const updated = [...questions];
+    updated[index].text = newText;
     setQuestions(updated);
   };
 
@@ -322,7 +331,8 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
         totalDuration: useGlobalTimer ? parseInt(totalDuration) : null,
         aiAnalysisEnabled,
         voiceResponseEnabled,
-        isAiGenerated: activeTab === 'ai',
+        // Preserve AI flag when editing, otherwise set based on active tab
+        isAiGenerated: isEdit ? originalIsAiGenerated : (activeTab === 'ai'),
         questions: finalQuestions.map((q, i) => ({
           questionText: q.text,
           questionOrder: i + 1,
@@ -557,33 +567,31 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
                 )}
               </button>
 
-              {/* Error Message - Below Generate Button */}
-              {error && activeTab === 'ai' && (
-                <div style={{ 
-                  padding: '12px 16px', 
-                  background: '#FEF2F2', 
-                  border: '1px solid #FECACA',
-                  color: '#DC2626', 
-                  borderRadius: '10px', 
-                  fontSize: '14px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                }}>
-                  <span style={{ fontSize: '16px' }}>⚠️</span>
-                  {error}
-                </div>
-              )}
+              {/* Error Message - Below Generate Button - Always rendered to prevent DOM issues */}
+              <div style={{ 
+                display: error && activeTab === 'ai' ? 'flex' : 'none',
+                padding: '12px 16px', 
+                marginTop: '16px',
+                background: '#FEF2F2', 
+                border: '1px solid #FECACA',
+                color: '#DC2626', 
+                borderRadius: '10px', 
+                fontSize: '14px',
+                alignItems: 'center',
+                gap: '8px',
+              }}>
+                <span style={{ fontSize: '16px' }}>⚠️</span>
+                {error}
+              </div>
 
-              {/* AI Generated Questions - Individual Editable Cards */}
-              {aiQuestions.length > 0 && (
-                <div>
-                  <label style={{ display: 'block', marginBottom: '12px', fontWeight: '500', fontSize: '14px', color: '#5B21B6' }}>
-                    {isEnglish ? 'Generated Questions' : 'Oluşturulan Sorular'} ({aiQuestions.length})
-                    <span style={{ fontWeight: '400', marginLeft: '8px', fontSize: '12px', color: '#7C3AED' }}>
-                      ({isEnglish ? 'edit as needed' : 'düzenleyebilirsiniz'})
-                    </span>
-                  </label>
+              {/* AI Generated Questions - Individual Editable Cards - Always rendered container to prevent DOM issues */}
+              <div style={{ display: aiQuestions.length > 0 ? 'block' : 'none', marginTop: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '12px', fontWeight: '500', fontSize: '14px', color: '#5B21B6' }}>
+                  {isEnglish ? 'Generated Questions' : 'Oluşturulan Sorular'} ({aiQuestions.length})
+                  <span style={{ fontWeight: '400', marginLeft: '8px', fontSize: '12px', color: '#7C3AED' }}>
+                    ({isEnglish ? 'edit as needed' : 'düzenleyebilirsiniz'})
+                  </span>
+                </label>
                   
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     {aiQuestions.map((q, index) => (
@@ -752,8 +760,7 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
+              </div>
             </div>
           )}
 
@@ -952,27 +959,44 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
 
               <div style={{ marginBottom: '12px' }}>
                 {questions.map((q, index) => (
-                  <div key={q.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', background: '#F9FAFB', borderRadius: '8px', marginBottom: '8px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <div key={q.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '12px', background: '#F9FAFB', borderRadius: '8px', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', paddingTop: '8px' }}>
                       <button onClick={() => moveQuestion(index, -1)} disabled={index === 0} style={{ padding: '2px', background: 'transparent', border: 'none', cursor: index === 0 ? 'default' : 'pointer', opacity: index === 0 ? 0.3 : 1 }}>▲</button>
                       <button onClick={() => moveQuestion(index, 1)} disabled={index === questions.length - 1} style={{ padding: '2px', background: 'transparent', border: 'none', cursor: index === questions.length - 1 ? 'default' : 'pointer', opacity: index === questions.length - 1 ? 0.3 : 1 }}>▼</button>
                     </div>
-                    <span style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#3B82F6', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '600', flexShrink: 0 }}>
+                    <span style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#3B82F6', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '600', flexShrink: 0, marginTop: '8px' }}>
                       {index + 1}
                     </span>
-                    <span style={{ flex: 1, fontSize: '14px', color: '#374151' }}>{q.text}</span>
+                    <textarea
+                      value={q.text}
+                      onChange={(e) => updateQuestionText(index, e.target.value)}
+                      rows={Math.max(2, Math.ceil(q.text.length / 60) + (q.text.match(/\n/g) || []).length)}
+                      style={{
+                        flex: 1,
+                        padding: '10px 12px',
+                        border: '1px solid #E5E7EB',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        lineHeight: '1.5',
+                        resize: 'vertical',
+                        fontFamily: 'inherit',
+                        background: 'white',
+                      }}
+                      placeholder={isEnglish ? 'Edit question...' : 'Soruyu düzenleyin...'}
+                    />
                     
                     {!useGlobalTimer && (
                       <select
                         value={q.timeLimit}
                         onChange={(e) => updateQuestionTimeLimit(index, e.target.value)}
                         style={{
-                          padding: '4px 8px',
+                          padding: '8px 12px',
                           borderRadius: '6px',
                           border: '1px solid #D1D5DB',
                           fontSize: '12px',
                           background: 'white',
                           cursor: 'pointer',
+                          marginTop: '4px',
                         }}
                       >
                         {questionDurationOptions.map(opt => (
@@ -981,7 +1005,7 @@ const AddEditInterviewTemplateModal = ({ isOpen, onClose, onSuccess, template })
                       </select>
                     )}
                     
-                    <button onClick={() => removeQuestion(index)} style={{ padding: '6px', background: '#FEE2E2', border: 'none', borderRadius: '6px', cursor: 'pointer', color: '#DC2626' }}>
+                    <button onClick={() => removeQuestion(index)} style={{ padding: '8px', background: '#FEE2E2', border: 'none', borderRadius: '6px', cursor: 'pointer', color: '#DC2626', marginTop: '4px' }}>
                       <Trash2 size={14} />
                     </button>
                   </div>

@@ -4,7 +4,7 @@
  * 3-column layout: Job Selection | Candidate Selection | Summary & Analysis
  * Supports batch processing to prevent timeout errors
  */
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useApolloClient } from '@apollo/client/react';
 import { Search, CheckCircle2, ArrowLeft, ArrowUpDown, FolderOpen, Sparkles } from 'lucide-react';
@@ -21,10 +21,18 @@ import { GRAPHQL_URL } from '../../config/api';
 // Reduced to 3 for safer AI processing time (matches CV upload)
 const BATCH_SIZE = 3;
 
-const CVEvaluationAnalysis = ({ onBack }) => {
+const CVEvaluationAnalysis = ({ onBack, onNavigateToJob }) => {
   const { t, i18n } = useTranslation();
   // State management
   const [selectedJob, setSelectedJob] = useState(null);
+  const selectedJobRef = useRef(null); // Ref to track current selected job for callbacks
+  
+  // Keep ref in sync with state for use in callbacks
+  const handleSelectJob = (job) => {
+    setSelectedJob(job);
+    selectedJobRef.current = job;
+  };
+  
   const [selectedCandidates, setSelectedCandidates] = useState([]);
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const [jobDepartmentFilter, setJobDepartmentFilter] = useState('');
@@ -286,11 +294,20 @@ const CVEvaluationAnalysis = ({ onBack }) => {
           include: [APPLICATIONS_QUERY]
         });
         
-        // Close modal and show results after delay
+        // Close modal and navigate to job details page after delay
         setTimeout(() => {
           setShowProgressModal(false);
           setIsAnalyzing(false);
-          setShowResults(true);
+          // Navigate to job details page instead of showing results internally
+          // Use ref to get current value (avoids stale closure issue)
+          const currentJob = selectedJobRef.current;
+          if (onNavigateToJob && currentJob) {
+            // Pass newly analyzed candidate IDs for highlighting
+            const analyzedIds = selectedCandidates.map(c => c.id);
+            onNavigateToJob(currentJob, analyzedIds);
+          } else {
+            setShowResults(true);
+          }
         }, 2000);
       } else if (successCount > 0) {
         // Partial success
@@ -311,7 +328,16 @@ const CVEvaluationAnalysis = ({ onBack }) => {
         setTimeout(() => {
           setShowProgressModal(false);
           setIsAnalyzing(false);
-          setShowResults(true);
+          // Navigate to job details page even on partial success
+          // Use ref to get current value (avoids stale closure issue)
+          const currentJob = selectedJobRef.current;
+          if (onNavigateToJob && currentJob) {
+            // Pass newly analyzed candidate IDs for highlighting
+            const analyzedIds = selectedCandidates.map(c => c.id);
+            onNavigateToJob(currentJob, analyzedIds);
+          } else {
+            setShowResults(true);
+          }
         }, 3000);
       } else {
         // All failed
@@ -396,7 +422,7 @@ const CVEvaluationAnalysis = ({ onBack }) => {
         <JobSelectionPanel
           jobs={filteredJobs}
           selectedJob={selectedJob}
-          onSelectJob={setSelectedJob}
+          onSelectJob={handleSelectJob}
           searchTerm={jobSearchTerm}
           onSearchChange={setJobSearchTerm}
           loading={jobsLoading}

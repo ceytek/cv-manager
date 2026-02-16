@@ -15,6 +15,7 @@ const CVEvaluationPage = ({ initialView = 'jobs', initialJob = null }) => {
   const effectiveInitialView = initialView === 'welcome' ? 'jobs' : initialView;
   const [currentView, setCurrentView] = useState(effectiveInitialView); // 'analysis' | 'jobs' | 'job-details'
   const [selectedJob, setSelectedJob] = useState(initialJob);
+  const [newlyAnalyzedCandidateIds, setNewlyAnalyzedCandidateIds] = useState([]);
   
   // Fetch departments for job detail modal
   const { data: departmentsData } = useQuery(DEPARTMENTS_QUERY, {
@@ -40,10 +41,29 @@ const CVEvaluationPage = ({ initialView = 'jobs', initialJob = null }) => {
 
   // Show analysis page
   if (currentView === 'analysis') {
-    return <CVEvaluationAnalysis onBack={() => setCurrentView('jobs')} />;
+    return (
+      <CVEvaluationAnalysis 
+        onBack={() => setCurrentView('jobs')} 
+        onNavigateToJob={(job, analyzedCandidateIds = []) => {
+          setSelectedJob(job);
+          setNewlyAnalyzedCandidateIds(analyzedCandidateIds);
+          setCurrentView('job-details');
+        }}
+      />
+    );
   }
   if (currentView === 'job-details') {
-    return <JobDetails job={selectedJob} onBack={() => setCurrentView('jobs')} departments={departments} />;
+    return (
+      <JobDetails 
+        job={selectedJob} 
+        onBack={() => {
+          setNewlyAnalyzedCandidateIds([]); // Clear highlights when going back
+          setCurrentView('jobs');
+        }} 
+        departments={departments}
+        newlyAnalyzedCandidateIds={newlyAnalyzedCandidateIds}
+      />
+    );
   }
 
   // Default: Show jobs list (job listings overview)

@@ -19,6 +19,14 @@ const EditTalentPoolEntryModal = ({ isOpen, onClose, onSuccess, entryId, candida
   const [selectedTags, setSelectedTags] = useState([]);
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
 
+  // Helper to get translated tag name for system tags
+  const getTagName = (tag) => {
+    if (tag.isSystem) {
+      return t(`talentPool.systemTagNames.${tag.name}`, tag.name);
+    }
+    return tag.name;
+  };
+
   // Fetch entry details
   const { data: entryData, loading: entryLoading } = useQuery(GET_TALENT_POOL_ENTRY, {
     variables: { id: entryId },
@@ -70,11 +78,16 @@ const EditTalentPoolEntryModal = ({ isOpen, onClose, onSuccess, entryId, candida
   }, [isOpen]);
 
   const handleSave = () => {
+    // If no tags selected, show confirmation to remove from pool
+    if (selectedTags.length === 0) {
+      setShowRemoveConfirm(true);
+      return;
+    }
     updateEntry({
       variables: {
         id: entryId,
         input: {
-          notes,
+          notes: notes.trim() || '',
           tagIds: selectedTags,
         },
       },
@@ -88,11 +101,17 @@ const EditTalentPoolEntryModal = ({ isOpen, onClose, onSuccess, entryId, candida
   };
 
   const toggleTag = (tagId) => {
-    setSelectedTags(prev => 
-      prev.includes(tagId) 
-        ? prev.filter(id => id !== tagId)
-        : [...prev, tagId]
-    );
+    const newTags = selectedTags.includes(tagId)
+      ? selectedTags.filter(id => id !== tagId)
+      : [...selectedTags, tagId];
+
+    // If removing the last tag, show confirmation
+    if (selectedTags.includes(tagId) && newTags.length === 0) {
+      setShowRemoveConfirm(true);
+      return;
+    }
+
+    setSelectedTags(newTags);
   };
 
   if (!isOpen) return null;
@@ -274,7 +293,7 @@ const EditTalentPoolEntryModal = ({ isOpen, onClose, onSuccess, entryId, candida
                             borderRadius: '50%',
                             background: tag.color,
                           }} />
-                          {tag.name}
+                          {getTagName(tag)}
                         </button>
                       ))}
                     </div>
@@ -487,7 +506,10 @@ const EditTalentPoolEntryModal = ({ isOpen, onClose, onSuccess, entryId, candida
                 </h3>
               </div>
               <p style={{ margin: '0 0 20px', fontSize: 14, color: '#6B7280', lineHeight: 1.6 }}>
-                {t('talentPool.removeConfirmMessage', { name: candidateName || entry?.candidate?.name })}
+                {selectedTags.length === 0
+                  ? t('talentPool.removeAllTagsWarning', 'You are about to remove all tags from this person. They will be removed from the talent pool. Are you sure?')
+                  : t('talentPool.removeConfirmMessage', { name: candidateName || entry?.candidate?.name })
+                }
               </p>
               <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
                 <button

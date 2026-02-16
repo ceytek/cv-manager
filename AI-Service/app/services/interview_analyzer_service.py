@@ -262,4 +262,3 @@ def get_interview_analyzer_service() -> InterviewAnalyzerService:
     if _interview_analyzer_service is None:
         _interview_analyzer_service = InterviewAnalyzerService()
     return _interview_analyzer_service
-

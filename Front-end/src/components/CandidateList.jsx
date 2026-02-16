@@ -3,9 +3,10 @@
  * Displays list of uploaded candidates with their CV information
  */
 import React from 'react';
+import ReactDOM from 'react-dom';
 import { useQuery, useMutation, useLazyQuery } from '@apollo/client/react';
 import { CANDIDATES_QUERY, CANDIDATE_HAS_ANALYSIS_QUERY, DELETE_CANDIDATE_MUTATION } from '../graphql/cvs';
-import { User, Mail, Phone, Calendar, FileText, Contact, Linkedin, Github, X, ExternalLink, Copy, Check, Download, Trash2, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown, Sparkles, Star } from 'lucide-react';
+import { User, Mail, Phone, Calendar, FileText, Contact, Linkedin, Github, X, ExternalLink, Copy, Check, Download, Trash2, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown, Sparkles, Star, Eye } from 'lucide-react';
 import AddToTalentPoolModal from './AddToTalentPoolModal';
 import EditTalentPoolEntryModal from './EditTalentPoolEntryModal';
 import { useTranslation } from 'react-i18next';
@@ -341,6 +342,10 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
   // Talent Pool modal state
   const [talentPoolModal, setTalentPoolModal] = React.useState({ open: false, candidates: [] });
   
+  // CV Preview state
+  const [cvPreviewUrl, setCvPreviewUrl] = React.useState(null);
+  const [cvPreviewName, setCvPreviewName] = React.useState('');
+
   // Edit Talent Pool Entry modal state
   const [editTalentPoolModal, setEditTalentPoolModal] = React.useState({ 
     open: false, 
@@ -662,8 +667,89 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
 
   // Card View (Kaggle Style)
   if (viewMode === 'cards') {
+    const isCardSelected = (id) => selected.includes(id);
     return (
       <div>
+        {/* Top Compare Bar - visible when candidates are selected */}
+        {selected.length > 0 && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '10px 16px',
+            marginBottom: 16,
+            background: '#EFF6FF',
+            border: '1px solid #BFDBFE',
+            borderRadius: 12,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{
+                width: 28, height: 28, borderRadius: '50%', background: '#2563EB',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: 'white', fontSize: 13, fontWeight: 700,
+              }}>
+                {selected.length}
+              </div>
+              <span style={{ fontSize: 13, color: '#1E40AF', fontWeight: 500 }}>
+                {selected.length}/2 {t('candidateList.selected', 'seçildi')}
+              </span>
+              {selected.length < 2 && (
+                <span style={{ fontSize: 12, color: '#6B7280' }}>
+                  — {t('candidateList.selectOneMore', 'Karşılaştırmak için 1 aday daha seçin')}
+                </span>
+              )}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button
+                onClick={() => {
+                  const selectedCandidates = candidates.filter(c => selected.includes(c.id));
+                  setTalentPoolModal({ open: true, candidates: selectedCandidates });
+                }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '7px 14px', borderRadius: 8, border: 'none',
+                  background: '#6366F1', color: 'white', fontWeight: 600,
+                  fontSize: 13, cursor: 'pointer',
+                }}
+              >
+                <Sparkles size={14} />
+                {t('talentPool.addToPool')} ({selected.length})
+              </button>
+              <button
+                onClick={() => {
+                  if (!onCompare || !canCompare) return;
+                  const nameA = candidates.find(c => c.id === selected[0])?.name || '';
+                  const nameB = candidates.find(c => c.id === selected[1])?.name || '';
+                  onCompare(selected[0], selected[1], nameA, nameB);
+                }}
+                disabled={!canCompare}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '7px 14px', borderRadius: 8, border: 'none',
+                  background: canCompare ? '#2563EB' : '#93C5FD',
+                  color: 'white', fontWeight: 700, fontSize: 13,
+                  cursor: canCompare ? 'pointer' : 'not-allowed',
+                  transition: 'all 0.2s',
+                }}
+              >
+                {t('candidateList.compare')}
+              </button>
+              <button
+                onClick={() => setSelected([])}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  width: 28, height: 28, borderRadius: 6, border: 'none',
+                  background: 'transparent', color: '#6B7280',
+                  cursor: 'pointer', fontSize: 16,
+                }}
+                title={t('common.clear', 'Temizle')}
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Cards Grid */}
         <div style={{
           display: 'grid',
@@ -674,8 +760,8 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
             <div
               key={candidate.id}
               onClick={(e) => {
-                // Don't open card if clicking on action buttons
-                if (e.target.closest('button') || e.target.closest('a')) return;
+                // Don't open card if clicking on action buttons or checkbox
+                if (e.target.closest('button') || e.target.closest('a') || e.target.closest('input[type="checkbox"]') || e.target.closest('.compare-checkbox-area')) return;
                 
                 const rect = e.currentTarget.getBoundingClientRect();
                 setContactCard({
@@ -690,20 +776,55 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
               style={{
                 background: 'white',
                 borderRadius: 12,
-                border: '1px solid #E5E7EB',
+                border: isCardSelected(candidate.id) ? '2px solid #2563EB' : '1px solid #E5E7EB',
                 overflow: 'hidden',
                 transition: 'all 0.2s',
                 cursor: 'pointer',
+                position: 'relative',
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
-                e.currentTarget.style.borderColor = '#D1D5DB';
+                if (!isCardSelected(candidate.id)) e.currentTarget.style.borderColor = '#D1D5DB';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.boxShadow = 'none';
-                e.currentTarget.style.borderColor = '#E5E7EB';
+                if (!isCardSelected(candidate.id)) e.currentTarget.style.borderColor = '#E5E7EB';
               }}
             >
+              {/* Compare Checkbox */}
+              <div
+                className="compare-checkbox-area"
+                onClick={(e) => { e.stopPropagation(); toggle(candidate.id); }}
+                style={{
+                  position: 'absolute',
+                  top: 10,
+                  right: 10,
+                  zIndex: 2,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  cursor: 'pointer',
+                  padding: '4px 8px',
+                  borderRadius: 6,
+                  background: isCardSelected(candidate.id) ? '#EFF6FF' : 'rgba(255,255,255,0.9)',
+                  border: isCardSelected(candidate.id) ? '1px solid #2563EB' : '1px solid #E5E7EB',
+                  transition: 'all 0.15s',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={isCardSelected(candidate.id)}
+                  onChange={() => toggle(candidate.id)}
+                  onClick={(e) => e.stopPropagation()}
+                  style={{ width: 14, height: 14, cursor: 'pointer', accentColor: '#2563EB' }}
+                />
+                {isCardSelected(candidate.id) && (
+                  <span style={{ fontSize: 11, color: '#2563EB', fontWeight: 600 }}>
+                    {selected.indexOf(candidate.id) + 1}
+                  </span>
+                )}
+              </div>
+
               {/* Card Header with Avatar */}
               <div style={{ 
                 padding: '20px 20px 16px',
@@ -907,6 +1028,41 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
                     <Trash2 size={16} />
                   </button>
                   
+                  {/* CV Preview Button */}
+                  {candidate.cvFilePath && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCvPreviewUrl(`${API_BASE_URL}${candidate.cvFilePath.replace('/app', '')}`);
+                        setCvPreviewName(candidate.name || 'CV');
+                      }}
+                      title={t('candidateList.previewCV', 'CV Görüntüle')}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: 36,
+                        height: 36,
+                        borderRadius: 8,
+                        background: '#FEF3C7',
+                        border: 'none',
+                        color: '#F59E0B',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = '#F59E0B';
+                        e.currentTarget.style.color = 'white';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = '#FEF3C7';
+                        e.currentTarget.style.color = '#F59E0B';
+                      }}
+                    >
+                      <Eye size={16} />
+                    </button>
+                  )}
+
                   {/* Download Button */}
                   <a
                     href={`${API_BASE_URL}${candidate.cvFilePath?.replace('/app', '') || ''}`}
@@ -942,11 +1098,12 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
           ))}
         </div>
 
-        {/* Compare Footer */}
+        {/* Compare Footer - card view */}
         {sortedCandidates.length > 0 && (
           <div style={{ 
             display: 'flex', 
-            justifyContent: 'center', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
             marginTop: 32,
             padding: '16px 0',
             borderTop: '1px solid #E5E7EB',
@@ -954,6 +1111,63 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
             <span style={{ color: '#9CA3AF', fontSize: 14 }}>
               {t('candidateList.totalCandidates', { count: sortedCandidates.length })}
             </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              {selected.length > 0 && (
+                <>
+                  <span style={{ fontSize: 13, color: '#6B7280' }}>
+                    {selected.length}/2 {t('candidateList.selected', 'seçildi')}
+                  </span>
+                  {/* Bulk Add to Talent Pool */}
+                  <button
+                    onClick={() => {
+                      const selectedCandidates = candidates.filter(c => selected.includes(c.id));
+                      setTalentPoolModal({ open: true, candidates: selectedCandidates });
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      padding: '8px 14px',
+                      borderRadius: 8,
+                      border: 'none',
+                      background: '#6366F1',
+                      color: 'white',
+                      fontWeight: 600,
+                      fontSize: 13,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Sparkles size={14} />
+                    {t('talentPool.addToPool')} ({selected.length})
+                  </button>
+                </>
+              )}
+              <button
+                onClick={() => {
+                  if (!onCompare || !canCompare) return;
+                  const nameA = candidates.find(c => c.id === selected[0])?.name || '';
+                  const nameB = candidates.find(c => c.id === selected[1])?.name || '';
+                  onCompare(selected[0], selected[1], nameA, nameB);
+                }}
+                disabled={!canCompare}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '8px 14px',
+                  borderRadius: 8,
+                  border: 'none',
+                  background: canCompare ? '#2563EB' : '#E5E7EB',
+                  color: canCompare ? 'white' : '#9CA3AF',
+                  fontWeight: 700,
+                  fontSize: 13,
+                  cursor: canCompare ? 'pointer' : 'not-allowed',
+                  transition: 'all 0.2s',
+                }}
+              >
+                {t('candidateList.compare')}
+              </button>
+            </div>
           </div>
         )}
         
@@ -1138,6 +1352,99 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
         entryId={editTalentPoolModal.entryId}
         candidateName={editTalentPoolModal.candidateName}
       />
+
+      {/* CV Preview Modal - Card View (portal) */}
+      {cvPreviewUrl && ReactDOM.createPortal(
+        <div
+          style={{
+            position: 'fixed',
+            top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: 20,
+          }}
+          onClick={() => { setCvPreviewUrl(null); setCvPreviewName(''); }}
+        >
+          <div
+            style={{
+              background: 'white',
+              borderRadius: 16,
+              width: '100%',
+              maxWidth: 900,
+              height: '90vh',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.4)',
+              overflow: 'hidden',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{
+              padding: '16px 24px',
+              background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexShrink: 0,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: 'white' }}>
+                <FileText size={22} />
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{t('candidateList.previewCV', 'CV Görüntüle')}</h3>
+                  <p style={{ margin: 0, fontSize: 13, opacity: 0.9 }}>{cvPreviewName}</p>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <a
+                  href={cvPreviewUrl}
+                  download
+                  style={{
+                    padding: '6px 14px',
+                    background: 'rgba(255,255,255,0.2)',
+                    border: 'none',
+                    borderRadius: 6,
+                    color: 'white',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    textDecoration: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
+                >
+                  <Download size={14} />
+                  {t('candidateList.downloadCV')}
+                </a>
+                <button
+                  onClick={() => { setCvPreviewUrl(null); setCvPreviewName(''); }}
+                  style={{
+                    background: 'rgba(255,255,255,0.2)',
+                    border: 'none',
+                    borderRadius: 8,
+                    padding: 8,
+                    cursor: 'pointer',
+                    display: 'flex',
+                  }}
+                >
+                  <X size={20} color="white" />
+                </button>
+              </div>
+            </div>
+            <div style={{ flex: 1, background: '#F3F4F6' }}>
+              <iframe
+                src={cvPreviewUrl}
+                style={{ width: '100%', height: '100%', border: 'none' }}
+                title="CV Preview"
+              />
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
@@ -1415,6 +1722,41 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
               {/* Actions */}
               <td style={{ padding: 12 }}>
                 <div style={{ display: 'flex', gap: 6 }}>
+                  {/* CV Preview Button */}
+                  {candidate.cvFilePath && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCvPreviewUrl(`${API_BASE_URL}${candidate.cvFilePath.replace('/app', '')}`);
+                        setCvPreviewName(candidate.name || 'CV');
+                      }}
+                      title={t('candidateList.previewCV', 'CV Görüntüle')}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: 32,
+                        height: 32,
+                        borderRadius: 6,
+                        background: '#FEF3C7',
+                        border: 'none',
+                        color: '#F59E0B',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = '#F59E0B';
+                        e.currentTarget.style.color = 'white';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = '#FEF3C7';
+                        e.currentTarget.style.color = '#F59E0B';
+                      }}
+                    >
+                      <Eye size={14} />
+                    </button>
+                  )}
+
                   {/* Talent Pool Button */}
                   <button
                     onClick={(e) => {
@@ -1525,7 +1867,12 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
           </button>
         )}
         <button
-          onClick={() => onCompare && canCompare && onCompare(selected[0], selected[1])}
+          onClick={() => {
+            if (!onCompare || !canCompare) return;
+            const nameA = candidates.find(c => c.id === selected[0])?.name || '';
+            const nameB = candidates.find(c => c.id === selected[1])?.name || '';
+            onCompare(selected[0], selected[1], nameA, nameB);
+          }}
           disabled={!canCompare}
           style={{
             padding: '10px 16px',
@@ -1732,6 +2079,99 @@ const CandidateList = ({ departmentFilter, statusFilter, languageFilter, searchT
         entryId={editTalentPoolModal.entryId}
         candidateName={editTalentPoolModal.candidateName}
       />
+
+      {/* CV Preview Modal - rendered via portal to avoid layout stacking context issues */}
+      {cvPreviewUrl && ReactDOM.createPortal(
+        <div
+          style={{
+            position: 'fixed',
+            top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: 20,
+          }}
+          onClick={() => { setCvPreviewUrl(null); setCvPreviewName(''); }}
+        >
+          <div
+            style={{
+              background: 'white',
+              borderRadius: 16,
+              width: '100%',
+              maxWidth: 900,
+              height: '90vh',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.4)',
+              overflow: 'hidden',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{
+              padding: '16px 24px',
+              background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexShrink: 0,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: 'white' }}>
+                <FileText size={22} />
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{t('candidateList.previewCV', 'CV Görüntüle')}</h3>
+                  <p style={{ margin: 0, fontSize: 13, opacity: 0.9 }}>{cvPreviewName}</p>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <a
+                  href={cvPreviewUrl}
+                  download
+                  style={{
+                    padding: '6px 14px',
+                    background: 'rgba(255,255,255,0.2)',
+                    border: 'none',
+                    borderRadius: 6,
+                    color: 'white',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    textDecoration: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
+                >
+                  <Download size={14} />
+                  {t('candidateList.downloadCV')}
+                </a>
+                <button
+                  onClick={() => { setCvPreviewUrl(null); setCvPreviewName(''); }}
+                  style={{
+                    background: 'rgba(255,255,255,0.2)',
+                    border: 'none',
+                    borderRadius: 8,
+                    padding: 8,
+                    cursor: 'pointer',
+                    display: 'flex',
+                  }}
+                >
+                  <X size={20} color="white" />
+                </button>
+              </div>
+            </div>
+            <div style={{ flex: 1, background: '#F3F4F6' }}>
+              <iframe
+                src={cvPreviewUrl}
+                style={{ width: '100%', height: '100%', border: 'none' }}
+                title="CV Preview"
+              />
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };

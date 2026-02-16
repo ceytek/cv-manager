@@ -135,6 +135,7 @@ from app.graphql.types import (
     # Rejection template types
     RejectionTemplateType,
     RejectionTemplateInput,
+    RejectionTemplateUpdateInput,
     RejectionTemplateResponse,
     # Generic response
     GenericResponse,
@@ -500,7 +501,7 @@ class Query:
 
             if not sub:
                 return SubscriptionUsageType(
-                    plan_name="Paket Yok",
+                    plan_name=None,
                     cv_limit=0,
                     used_cv_count=0,
                     usage_percent=0.0,
@@ -514,7 +515,7 @@ class Query:
             plan = db.query(SubscriptionPlan).filter(SubscriptionPlan.id == sub.plan_id).first()
             if not plan:
                 return SubscriptionUsageType(
-                    plan_name="Plan Bulunamadı",
+                    plan_name=None,
                     cv_limit=0,
                     used_cv_count=0,
                     usage_percent=0.0,
@@ -3631,8 +3632,14 @@ class Mutation(CompanyMutation):
                 db.execute(text("DELETE FROM second_interviews WHERE application_id = ANY(:ids)"), {"ids": application_ids})
                 # Delete application history
                 db.execute(text("DELETE FROM application_history WHERE application_id = ANY(:ids)"), {"ids": application_ids})
+                # Delete offers
+                db.execute(text("DELETE FROM offers WHERE application_id = ANY(:ids)"), {"ids": application_ids})
                 # Delete applications
                 db.execute(text("DELETE FROM applications WHERE candidate_id = :cid"), {"cid": id})
+            
+            # Delete talent pool related records
+            db.execute(text("DELETE FROM talent_pool_candidate_tags WHERE entry_id IN (SELECT id FROM talent_pool_entries WHERE candidate_id = :cid)"), {"cid": id})
+            db.execute(text("DELETE FROM talent_pool_entries WHERE candidate_id = :cid"), {"cid": id})
             
             # Delete the candidate
             db.delete(candidate)
@@ -4383,7 +4390,7 @@ class Mutation(CompanyMutation):
         return await create_rejection_template(info, input)
 
     @strawberry.mutation
-    async def update_rejection_template(self, info: Info, id: str, input: "RejectionTemplateInput") -> "RejectionTemplateResponse":
+    async def update_rejection_template(self, info: Info, id: str, input: "RejectionTemplateUpdateInput") -> "RejectionTemplateResponse":
         """Update a rejection email template"""
         from app.modules.rejection.resolvers import update_rejection_template
         return await update_rejection_template(info, id, input)

@@ -336,7 +336,7 @@ const TalentPoolTagsPage = () => {
                   </div>
                   <div>
                     <div style={{ fontSize: '15px', fontWeight: '600', color: '#111827' }}>
-                      {tag.name}
+                      {getTagDisplayName(tag)}
                     </div>
                     <div style={{ fontSize: '12px', color: '#9CA3AF', display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
                       <Users size={12} />

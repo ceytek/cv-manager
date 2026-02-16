@@ -113,95 +113,83 @@ def _get_turkish_prompt(
     # Build additional notes section separately to avoid f-string backslash issue
     notes_section = ""
     if additional_notes:
-        notes_section = f"**EK NOTLAR (Kullanıcının Sağladığı İçerik):**\n{additional_notes}\n"
+        notes_section = f"EK NOTLAR:\n{additional_notes}\n"
     
-    return f"""Sen profesyonel bir İnsan Kaynakları uzmanısın. Verilen bilgilere dayanarak kapsamlı ve çekici bir iş ilanı oluştur.
+    # Build domain context from skills - skills define the REAL domain of the job
+    domain_context = ""
+    if skills_str and skills_str != "Belirtilmemiş":
+        domain_context = f"""
+ÖNEMLİ - ALAN BELİRLEYİCİ BİLGİ:
+Kullanıcı şu yetkinlikleri/becerileri belirtti: {skills_str}
+Bu beceriler ilanın GERÇEK ALANINI ve SEKTÖRÜNÜ belirler!
+İş tanımı, sorumluluklar, aranan nitelikler ve anahtar kelimeler 
+bu becerilerin belirttiği ALANA/SEKTÖRE ÖZGÜ olmalıdır.
 
-**POZISYON BİLGİLERİ:**
-- Pozisyon: {position}
-- Departman: {department or "Belirtilmemiş"}
-- Lokasyon: {location or "Belirtilmemiş"}
-- Çalışma Şekli: {employment_type}
-- Deneyim Seviyesi: {experience_level}
-- Gerekli Yetenekler: {skills_str}
-- Dil Gereksinimleri: {languages_str}
+Örnek: Pozisyon "Satış Temsilcisi", Beceri "Makine Satış Temsilcisi" ise
+→ İlan makine satışı alanına özgü olmalı (makine bilgisi, teknik satış, endüstriyel müşteriler vb.)
+→ Genel satış ilanı DEĞİL, makine sektörüne özel satış ilanı!
+"""
+    
+    return f""""{position}" pozisyonu için bir iş ilanı oluştur.
 
+İLAN BAŞLIĞI: {position}
+
+Departman: {department or "Belirtilmemiş"} (organizasyonel bilgi, içeriği belirlemez)
+Lokasyon: {location or "Belirtilmemiş"}
+Çalışma Şekli: {employment_type}
+Deneyim Seviyesi: {experience_level}
+Aranan Yetkinlikler/Beceriler: {skills_str}
+Dil Gereksinimleri: {languages_str}
+{domain_context}
 {notes_section}
-**GÖREV:**
-Yukarıdaki bilgilere dayanarak profesyonel bir iş ilanı oluştur. İlan şu bölümlerden oluşmalı:
 
-1. **İş Tanımı (description):**
-   - MUTLAKA karma format kullan: Giriş paragrafı + madde işaretli görevler + kapanış paragrafı
-   - İlk önce pozisyonu tanıtan 1-2 paragraf (<p> etiketi ile)
-   - Ardından görevler ve sorumluluklar için MUTLAKA madde işaretli liste (<ul><li> ile)
-   - Son olarak pozisyonun önemini vurgulayan kapanış paragrafı
-   - EK NOTLARDA madde işaretli içerik varsa, bu formatı KORU ve geliştir
-   - Düz metin paragrafları sıkıcı ve okunması zordur - KAÇIN!
-
-   ÖRNEK YAPI:
-   <p>Giriş paragrafı - pozisyon hakkında genel bilgi...</p>
-   <p><strong>Temel Sorumluluklar:</strong></p>
-   <ul>
-     <li>Görev 1</li>
-     <li>Görev 2</li>
-     <li>Görev 3</li>
-   </ul>
-   <p>Kapanış paragrafı...</p>
-
-2. **Aranan Nitelikler (requirements):**
-   - Zorunlu yetenek ve deneyimler
-   - Tercih edilen yetenek ve sertifikalar
-   - Kişisel özellikler ve soft skills
-   - HTML formatında (<ul><li> listesi)
-   - Minimum 8-10 madde
-   - Net ve ölçülebilir kriterler
-
-3. **Anahtar Kelimeler (keywords):**
-   - İlanla ilgili teknik terimler ve teknolojiler
-   - 10-15 adet anahtar kelime
-   - Array formatında
-
-4. **Tercih Edilen Bölümler (preferred_majors):**
-   - İlgili üniversite bölümleri
-   - Virgülle ayrılmış string
-
-5. **Gerekli Diller (required_languages):**
-   - Pozisyon için gerekli diller ve seviyeleri
-   - JSON format: {{"Türkçe": "Anadil", "İngilizce": "İş Seviyesi"}}
-   - Seviyeler: Anadil, İş Seviyesi, İleri, Orta, Temel
-   - UYARI: Eğer kullanıcı dil belirtmişse ({languages_str}), SADECE bu dilleri kullan. Kendi başına dil ekleme!
-   - Eğer kullanıcı dil belirtmemişse, pozisyona uygun dilleri öner.
-
-6. **Başlangıç Tarihi (start_date):**
-   - "immediate" (Hemen), "1month" (1 Ay İçinde), "3months" (3 Ay İçinde), veya "flexible" (Esnek)
-
-**ÖNEMLİ KURALLAR:**
-- **KRİTİK: Girdi verileri hangi dilde olursa olsun, TÜM çıktı metinleri MUTLAKA TÜRKÇE olmalı!**
-- Kullanıcı İngilizce veya başka bir dilde veri girse bile, iş ilanını TÜRKÇE yaz!
-- HTML formatında description ve requirements oluştur
-- description_plain ve requirements_plain için düz metin versiyonları da ekle
-- Gerçekçi ve sektör standartlarına uygun olmalı
-- Pozisyona özel ve detaylı olmalı
-- Kopyala-yapıştır gibiymiş gibi görünmemeli, özgün olmalı
-- **KRİTİK:** İş tanımında ASLA sadece düz paragraflar kullanma! Görevler ve sorumluluklar için MUTLAKA madde işaretli liste kullan!
-- **KRİTİK:** Ek notlarda madde işaretli içerik varsa, bu yapıyı koru ve profesyonelce geliştir!
-
-**ÇIKTI FORMATI:**
-Sadece JSON formatında yanıt ver, başka açıklama ekleme:
+Aşağıdaki JSON formatında yanıt ver:
 
 {{
   "title": "{position}",
-  "description": "<p>Giriş paragrafı...</p><p><strong>Temel Sorumluluklar:</strong></p><ul><li>Görev 1</li><li>Görev 2</li></ul><p>Kapanış...</p>",
-  "description_plain": "Düz metin versiyonu iş tanımı...",
-  "requirements": "<ul><li>İlk gereksinim</li><li>İkinci gereksinim</li>...</ul>",
-  "requirements_plain": "Düz metin versiyonu gereksinimler...",
-  "keywords": ["Python", "Django", "PostgreSQL", ...],
-  "preferred_majors": "Bilgisayar Mühendisliği, Yazılım Mühendisliği",
-  "required_languages": {{"Türkçe": "Anadil", "İngilizce": "İş Seviyesi"}},
-  "start_date": "immediate"
+  "description": "İŞ TANIMI (HTML)",
+  "description_plain": "İŞ TANIMI (düz metin)",
+  "requirements": "ARANAN NİTELİKLER (HTML)",
+  "requirements_plain": "ARANAN NİTELİKLER (düz metin)",
+  "keywords": ["anahtar kelimeler"],
+  "preferred_majors": "üniversite bölümleri",
+  "required_languages": {{"dil": "seviye"}},
+  "start_date": "immediate|1month|3months|flexible"
 }}
 
-Şimdi bu bilgilere dayanarak profesyonel bir iş ilanı oluştur."""
+TALİMATLAR:
+
+1. title: TAM OLARAK "{position}" yaz.
+
+2. description (İş Tanımı - HTML):
+   - Format: <p>giriş</p><p><strong>Temel Sorumluluklar:</strong></p><ul><li>görev</li></ul><p>kapanış</p>
+   - MUTLAKA madde işaretli liste kullan
+   - Eğer yetkinlikler ({skills_str}) bir SEKTÖR veya ALAN belirtiyorsa, 
+     TÜM görevler ve sorumluluklar o alana ÖZGÜ olmalı!
+   - Genel/jenerik görevler yazma, SEKTÖRE ÖZEL görevler yaz!
+
+3. requirements (Aranan Nitelikler - HTML):
+   - <ul><li> formatında minimum 8-10 madde
+   - Yetkinliklerin ({skills_str}) belirttiği alana ÖZGÜ teknik nitelikler dahil et
+   - Genel niteliklerin yanı sıra SEKTÖRE ÖZEL tecrübe ve bilgi iste
+
+4. keywords: 10-15 adet
+   - Yetkinliklerde ({skills_str}) geçen terimleri MUTLAKA dahil et
+   - Alana/sektöre özgü teknik terimler ekle
+
+5. required_languages:
+   - Kullanıcı dil belirttiyse ({languages_str}): SADECE bunları kullan
+   - Belirtmediyse: pozisyona uygun öner
+   - Seviyeler: Anadil, İş Seviyesi, İleri, Orta, Temel
+
+6. start_date: "immediate", "1month", "3months" veya "flexible"
+
+KURALLAR:
+- TÜM çıktı TÜRKÇE olmalı
+- title DAİMA "{position}" olmalı
+- Yetkinlikler ({skills_str}) ilanın ALANINI/SEKTÖRÜNÜ belirler — buna göre içerik üret!
+- Ek notlardaki madde işaretli yapıyı koru
+- Sadece JSON döndür"""
 
 
 def _get_english_prompt(
@@ -219,92 +207,80 @@ def _get_english_prompt(
     # Build additional notes section separately to avoid f-string backslash issue
     notes_section = ""
     if additional_notes:
-        notes_section = f"**ADDITIONAL NOTES (User-Provided Content):**\n{additional_notes}\n"
+        notes_section = f"ADDITIONAL NOTES:\n{additional_notes}\n"
     
-    return f"""You are a professional Human Resources specialist. Create a comprehensive and attractive job posting based on the given information.
+    # Build domain context from skills
+    domain_context = ""
+    if skills_str and skills_str != "Belirtilmemiş":
+        domain_context = f"""
+IMPORTANT - DOMAIN DEFINING INFORMATION:
+The user specified these competencies/skills: {skills_str}
+These skills define the REAL DOMAIN and INDUSTRY of the job!
+Job description, responsibilities, requirements, and keywords 
+MUST be SPECIFIC to the domain/industry indicated by these skills.
 
-**POSITION INFORMATION:**
-- Position: {position}
-- Department: {department or "Not specified"}
-- Location: {location or "Not specified"}
-- Employment Type: {employment_type}
-- Experience Level: {experience_level}
-- Required Skills: {skills_str}
-- Language Requirements: {languages_str}
+Example: Position "Sales Representative", Skill "Machine Sales Representative"
+→ The posting should be specific to machine/equipment sales (technical knowledge, industrial clients, etc.)
+→ NOT a generic sales posting, but an INDUSTRY-SPECIFIC sales posting!
+"""
+    
+    return f"""Create a job posting for: "{position}"
 
+JOB TITLE: {position}
+
+Department: {department or "Not specified"} (organizational info, does not affect content)
+Location: {location or "Not specified"}
+Employment Type: {employment_type}
+Experience Level: {experience_level}
+Required Competencies/Skills: {skills_str}
+Language Requirements: {languages_str}
+{domain_context}
 {notes_section}
-**TASK:**
-Based on the above information, create a professional job posting. The posting should consist of these sections:
 
-1. **Job Description (description):**
-   - MUST use mixed format: Introduction paragraph + bulleted tasks + closing paragraph
-   - Start with 1-2 paragraphs introducing the position (<p> tags)
-   - Then MUST include a bulleted list for duties and responsibilities (<ul><li>)
-   - End with a closing paragraph highlighting the importance of the role
-   - If ADDITIONAL NOTES contain bulleted content, PRESERVE this format and enhance it
-   - Plain text paragraphs only are boring and hard to read - AVOID!
-
-   EXAMPLE STRUCTURE:
-   <p>Introduction paragraph - general info about the position...</p>
-   <p><strong>Key Responsibilities:</strong></p>
-   <ul>
-     <li>Task 1</li>
-     <li>Task 2</li>
-     <li>Task 3</li>
-   </ul>
-   <p>Closing paragraph...</p>
-
-2. **Requirements (requirements):**
-   - Mandatory skills and experience
-   - Preferred skills and certifications
-   - Personal qualities and soft skills
-   - HTML format (<ul><li> list)
-   - Minimum 8-10 items
-   - Clear and measurable criteria
-
-3. **Keywords (keywords):**
-   - Technical terms and technologies related to the position
-   - 10-15 keywords
-   - Array format
-
-4. **Preferred Majors (preferred_majors):**
-   - Relevant university degrees/majors
-   - Comma-separated string
-
-5. **Required Languages (required_languages):**
-   - Languages required for the position and their proficiency levels
-   - JSON format: {{"Turkish": "Native", "English": "Business"}}
-   - Levels: Native, Business, Advanced, Intermediate, Basic
-   - WARNING: If user specified languages ({languages_str}), use ONLY those languages. Do NOT add languages on your own!
-   - If user did not specify languages, suggest appropriate languages for the position.
-
-6. **Start Date (start_date):**
-   - "immediate", "1month", "3months", or "flexible"
-
-**IMPORTANT RULES:**
-- **CRITICAL: Regardless of input language, ALL output texts MUST be in ENGLISH!**
-- Even if user provides data in Turkish or any other language, write the job posting in ENGLISH!
-- Create description and requirements in HTML format
-- Also include plain text versions (description_plain and requirements_plain)
-- Must be realistic and comply with industry standards
-- Should be position-specific and detailed
-- Should not look like copy-paste, must be original
-- **CRITICAL:** NEVER use only plain paragraphs in job description! MUST use bulleted lists for tasks and responsibilities!
-- **CRITICAL:** If additional notes contain bulleted content, preserve this structure and enhance it professionally!
-
-**OUTPUT FORMAT:**
-Respond only in JSON format, no additional explanation:
+Respond in JSON format:
 
 {{
   "title": "{position}",
-  "description": "<p>Introduction paragraph...</p><p><strong>Key Responsibilities:</strong></p><ul><li>Task 1</li><li>Task 2</li></ul><p>Closing...</p>",
-  "description_plain": "Plain text version of job description...",
-  "requirements": "<ul><li>First requirement</li><li>Second requirement</li>...</ul>",
-  "requirements_plain": "Plain text version of requirements...",
-  "keywords": ["Python", "Django", "PostgreSQL", ...],
-  "preferred_majors": "Computer Engineering, Software Engineering",
-  "required_languages": {{"Turkish": "Native", "English": "Business"}},
-  "start_date": "immediate"
+  "description": "JOB DESCRIPTION (HTML)",
+  "description_plain": "JOB DESCRIPTION (plain text)",
+  "requirements": "REQUIREMENTS (HTML)",
+  "requirements_plain": "REQUIREMENTS (plain text)",
+  "keywords": ["keywords"],
+  "preferred_majors": "university majors",
+  "required_languages": {{"language": "level"}},
+  "start_date": "immediate|1month|3months|flexible"
 }}
 
-Now create a professional job posting based on this information."""
+INSTRUCTIONS:
+
+1. title: Write EXACTLY "{position}".
+
+2. description (HTML):
+   - Format: <p>intro</p><p><strong>Key Responsibilities:</strong></p><ul><li>task</li></ul><p>closing</p>
+   - MUST use bulleted lists
+   - If competencies ({skills_str}) indicate a DOMAIN or INDUSTRY,
+     ALL tasks and responsibilities MUST be specific to that domain!
+   - Do NOT write generic tasks, write DOMAIN-SPECIFIC tasks!
+
+3. requirements (HTML):
+   - <ul><li> format, minimum 8-10 items
+   - Include technical requirements SPECIFIC to the domain indicated by ({skills_str})
+   - Include INDUSTRY-SPECIFIC experience alongside general qualifications
+
+4. keywords: 10-15 items
+   - MUST include terms from competencies ({skills_str})
+   - Add domain/industry-specific technical terms
+
+5. required_languages:
+   - If user specified ({languages_str}): use ONLY those
+   - If not: suggest appropriate ones
+   - Levels: Native, Business, Advanced, Intermediate, Basic
+
+6. start_date: "immediate", "1month", "3months", or "flexible"
+
+RULES:
+- ALL output MUST be in ENGLISH
+- title MUST be "{position}"
+- Competencies ({skills_str}) define the job's DOMAIN — generate content accordingly!
+- Preserve bulleted structure from additional notes
+- Return ONLY JSON"""

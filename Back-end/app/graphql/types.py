@@ -36,7 +36,7 @@ class DailyActivityStatsType:
 @strawberry.type
 class SubscriptionUsageType:
     """Per-company subscription usage for sidebar widget"""
-    plan_name: str = strawberry.field(name="planName")
+    plan_name: Optional[str] = strawberry.field(name="planName", default=None)
     cv_limit: int = strawberry.field(name="cvLimit")
     used_cv_count: int = strawberry.field(name="usedCvCount")
     usage_percent: float = strawberry.field(name="usagePercent")
@@ -1194,6 +1194,7 @@ from app.modules.job_outro.types import (
 from app.modules.rejection.types import (
     RejectionTemplateType,
     RejectionTemplateInput,
+    RejectionTemplateUpdateInput,
     RejectionTemplateResponse,
 )
 

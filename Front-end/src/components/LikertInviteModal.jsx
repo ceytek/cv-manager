@@ -74,7 +74,11 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
   const hasActiveSecondInterview = activeSecondInterview && activeSecondInterview.status?.toLowerCase() === 'invited';
   
   const isBlocked = hasActiveAIInterview || hasActiveSecondInterview;
-  const blockingType = hasActiveAIInterview ? 'AI Görüşmesi' : hasActiveSecondInterview ? 'Yüzyüze/Online Mülakat' : null;
+  const blockingType = hasActiveAIInterview 
+    ? (isEnglish ? 'AI Interview' : 'AI Görüşmesi') 
+    : hasActiveSecondInterview 
+      ? (isEnglish ? 'Face-to-Face/Online Interview' : 'Yüzyüze/Online Mülakat') 
+      : null;
   
   // Auto-populate if there's an existing active session
   useEffect(() => {
@@ -130,10 +134,10 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
     if (!text) return '';
     
     const replacements = {
-      '{candidate_name}': candidate?.name || 'Aday Adı',
-      '{position}': job?.title || 'Pozisyon',
-      '{company_name}': 'Şirket Adı',
-      '{test_link}': generatedLink || '[Link oluşturulacak]',
+      '{candidate_name}': candidate?.name || (isEnglish ? 'Candidate Name' : 'Aday Adı'),
+      '{position}': job?.title || (isEnglish ? 'Position' : 'Pozisyon'),
+      '{company_name}': isEnglish ? 'Company Name' : 'Şirket Adı',
+      '{test_link}': generatedLink || (isEnglish ? '[Link will be generated]' : '[Link oluşturulacak]'),
       '{expiry_date}': expiryDate.toLocaleDateString(isEnglish ? 'en-US' : 'tr-TR', { day: '2-digit', month: 'long', year: 'numeric' }) + ' - ' + expiryDate.toLocaleTimeString(isEnglish ? 'en-US' : 'tr-TR', { hour: '2-digit', minute: '2-digit' }),
     };
 
@@ -186,7 +190,7 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
         });
         onSuccess?.();
       } else {
-        setError(result.data?.createLikertSession?.message || 'Hata oluştu');
+        setError(result.data?.createLikertSession?.message || t('common.error'));
       }
     } catch (err) {
       setError(err.message);
@@ -212,8 +216,15 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      alert('Kopyalama başarısız. Lütfen linki manuel olarak seçip kopyalayın.');
+      alert(isEnglish ? 'Copy failed. Please select and copy the link manually.' : 'Kopyalama başarısız. Lütfen linki manuel olarak seçip kopyalayın.');
     }
+  };
+
+  const getStatusLabel = (status) => {
+    const labels = isEnglish 
+      ? { pending: 'Pending', in_progress: 'In Progress', completed: 'Completed', expired: 'Expired' }
+      : { pending: 'Bekliyor', in_progress: 'Devam Ediyor', completed: 'Tamamlandı', expired: 'Süresi Dolmuş' };
+    return labels[status?.toLowerCase()] || status;
   };
 
   // Reset state when modal closes
@@ -238,7 +249,7 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
         <div style={{ padding: '20px 24px', background: 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'white' }}>
             <ClipboardList size={24} />
-            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '600' }}>Likert Test Daveti</h2>
+            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '600' }}>{t('likertInvite.title')}</h2>
           </div>
           <button onClick={onClose} style={{ padding: '8px', background: 'rgba(255,255,255,0.2)', border: 'none', cursor: 'pointer', borderRadius: '8px' }}>
             <X size={20} color="white" />
@@ -288,8 +299,8 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
           {!jobLoading && !checkingExisting && !aiInterviewLoading && !secondInterviewLoading && !isBlocked && !likertEnabled && (
             <div style={{ textAlign: 'center', padding: '32px' }}>
               <AlertTriangle size={48} color="#F59E0B" style={{ marginBottom: '16px' }} />
-              <h3 style={{ margin: '0 0 8px', color: '#374151' }}>Likert Test Aktif Değil</h3>
-              <p style={{ color: '#6B7280' }}>Bu iş ilanı için önce Likert test ayarlarını yapılandırmanız gerekiyor.</p>
+              <h3 style={{ margin: '0 0 8px', color: '#374151' }}>{t('likertInvite.notEnabled')}</h3>
+              <p style={{ color: '#6B7280' }}>{t('likertInvite.configureFirst')}</p>
             </div>
           )}
 
@@ -309,10 +320,10 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
                     <AlertTriangle size={24} color="#D97706" style={{ flexShrink: 0 }} />
                     <div>
                       <h4 style={{ margin: '0 0 4px', fontSize: '15px', fontWeight: '600', color: '#92400E' }}>
-                        Bu adayın tamamlanmamış bir Likert testi var
+                        {t('likertInvite.existingSessionTitle')}
                       </h4>
                       <p style={{ margin: 0, fontSize: '14px', color: '#A16207' }}>
-                        {candidate?.name} için daha önce Likert test daveti gönderilmiş. Mevcut linki kullanabilirsiniz.
+                        {t('likertInvite.existingSessionDesc', { name: candidate?.name })}
                       </p>
                     </div>
                   </div>
@@ -328,27 +339,25 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
                     fontSize: '13px',
                   }}>
                     <div>
-                      <span style={{ color: '#92400E', fontWeight: '500' }}>Durum:</span>{' '}
+                      <span style={{ color: '#92400E', fontWeight: '500' }}>{t('likertInvite.status')}:</span>{' '}
                       <span style={{ color: '#78350F', fontWeight: '600' }}>
-                        {sessionDetails?.status === 'pending' ? 'Bekliyor' : 
-                         sessionDetails?.status === 'in_progress' ? 'Devam Ediyor' : 
-                         sessionDetails?.status}
+                        {getStatusLabel(sessionDetails?.status)}
                       </span>
                     </div>
                     <div>
-                      <span style={{ color: '#92400E', fontWeight: '500' }}>Son Geçerlilik:</span>{' '}
+                      <span style={{ color: '#92400E', fontWeight: '500' }}>{t('likertInvite.expiresAt')}:</span>{' '}
                       <span style={{ color: '#78350F', fontWeight: '600' }}>
-                        {sessionDetails?.expiresAt ? new Date(sessionDetails.expiresAt).toLocaleString('tr-TR', {
+                        {sessionDetails?.expiresAt ? new Date(sessionDetails.expiresAt).toLocaleString(isEnglish ? 'en-US' : 'tr-TR', {
                           day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
                         }) : '-'}
                       </span>
                     </div>
                     <div>
-                      <span style={{ color: '#92400E', fontWeight: '500' }}>Test Şablonu:</span>{' '}
+                      <span style={{ color: '#92400E', fontWeight: '500' }}>{t('likertInvite.testTemplate')}:</span>{' '}
                       <span style={{ color: '#78350F', fontWeight: '600' }}>{sessionDetails?.templateName || '-'}</span>
                     </div>
                     <div>
-                      <span style={{ color: '#92400E', fontWeight: '500' }}>Soru Sayısı:</span>{' '}
+                      <span style={{ color: '#92400E', fontWeight: '500' }}>{t('likertInvite.questionCount')}:</span>{' '}
                       <span style={{ color: '#78350F', fontWeight: '600' }}>{sessionDetails?.questionCount || 0}</span>
                     </div>
                   </div>
@@ -369,10 +378,10 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
                   <Check size={24} color="#1D4ED8" style={{ flexShrink: 0 }} />
                   <div>
                     <h4 style={{ margin: '0 0 4px', fontSize: '15px', fontWeight: '600', color: '#1E40AF' }}>
-                      Test Tamamlandı
+                      {t('likertInvite.testCompleted')}
                     </h4>
                     <p style={{ margin: 0, fontSize: '14px', color: '#1E40AF' }}>
-                      {candidate?.name} Likert testini zaten tamamlamış.
+                      {t('likertInvite.testCompletedDesc', { name: candidate?.name })}
                     </p>
                   </div>
                 </div>
@@ -392,10 +401,10 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
                   <Check size={24} color="#059669" style={{ flexShrink: 0 }} />
                   <div>
                     <h4 style={{ margin: '0 0 4px', fontSize: '15px', fontWeight: '600', color: '#065F46' }}>
-                      Davet Başarıyla Oluşturuldu!
+                      {t('likertInvite.inviteCreated')}
                     </h4>
                     <p style={{ margin: 0, fontSize: '14px', color: '#047857' }}>
-                      {candidate?.name} için Likert test linki hazır. Linki kopyalayıp adaya gönderebilirsiniz.
+                      {t('likertInvite.inviteCreatedDesc', { name: candidate?.name })}
                     </p>
                   </div>
                 </div>
@@ -406,7 +415,7 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
                 <div style={{ marginBottom: '20px' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: '600', color: '#6B7280', marginBottom: '8px', textTransform: 'uppercase' }}>
                     <Link2 size={14} />
-                    Likert Test Linki
+                    {t('likertInvite.testLink')}
                   </label>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <input
@@ -433,7 +442,7 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
                       }}
                     >
                       {copied ? <Check size={16} /> : <Copy size={16} />}
-                      {copied ? 'Kopyalandı!' : 'Kopyala'}
+                      {copied ? t('common.copied') : t('common.copy')}
                     </button>
                   </div>
                 </div>
@@ -445,7 +454,7 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
                 <div>
                   {/* Candidate Card */}
                   <div style={{ background: '#F9FAFB', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
-                    <h4 style={{ margin: '0 0 12px', fontSize: '13px', fontWeight: '600', color: '#6B7280', textTransform: 'uppercase' }}>Aday Bilgileri</h4>
+                    <h4 style={{ margin: '0 0 12px', fontSize: '13px', fontWeight: '600', color: '#6B7280', textTransform: 'uppercase' }}>{t('likertInvite.candidateInfo')}</h4>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <div style={{ 
                         width: '48px', 
@@ -462,8 +471,8 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
                         {candidate?.name?.charAt(0) || '?'}
                       </div>
                       <div>
-                        <div style={{ fontWeight: '600', color: '#111827', fontSize: '15px' }}>{candidate?.name || 'Bilinmiyor'}</div>
-                        <div style={{ fontSize: '13px', color: '#6B7280' }}>{candidate?.email || 'E-posta yok'}</div>
+                        <div style={{ fontWeight: '600', color: '#111827', fontSize: '15px' }}>{candidate?.name || t('common.unknown')}</div>
+                        <div style={{ fontSize: '13px', color: '#6B7280' }}>{candidate?.email || t('common.noEmail')}</div>
                       </div>
                     </div>
                   </div>
@@ -473,26 +482,26 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
                     <div style={{ padding: '16px', background: '#F3E8FF', borderRadius: '12px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#7C3AED', marginBottom: '4px' }}>
                         <Hash size={14} />
-                        Soru Sayısı
+                        {t('likertInvite.questionCount')}
                       </div>
                       <div style={{ fontSize: '24px', fontWeight: '700', color: '#5B21B6' }}>{questionCount}</div>
                     </div>
                     <div style={{ padding: '16px', background: '#F3E8FF', borderRadius: '12px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#7C3AED', marginBottom: '4px' }}>
                         <Clock size={14} />
-                        Geçerlilik
+                        {t('likertInvite.validity')}
                       </div>
-                      <div style={{ fontSize: '24px', fontWeight: '700', color: '#5B21B6' }}>{deadlineHours} saat</div>
+                      <div style={{ fontSize: '24px', fontWeight: '700', color: '#5B21B6' }}>{deadlineHours} {t('common.hours')}</div>
                     </div>
                   </div>
 
                   {/* Test Template Info */}
                   {likertTemplate && (
                     <div style={{ background: '#F9FAFB', borderRadius: '12px', padding: '16px' }}>
-                      <h4 style={{ margin: '0 0 8px', fontSize: '13px', fontWeight: '600', color: '#6B7280', textTransform: 'uppercase' }}>Likert Test Şablonu</h4>
+                      <h4 style={{ margin: '0 0 8px', fontSize: '13px', fontWeight: '600', color: '#6B7280', textTransform: 'uppercase' }}>{t('likertInvite.likertTemplate')}</h4>
                       <div style={{ fontSize: '16px', fontWeight: '600', color: '#5B21B6' }}>{likertTemplate.name}</div>
                       <div style={{ fontSize: '13px', color: '#6B7280', marginTop: '4px' }}>
-                        {scaleType} seçenekli ölçek
+                        {scaleType} {t('likertInvite.optionScale')}
                       </div>
                     </div>
                   )}
@@ -505,7 +514,7 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
                     <div style={{ marginBottom: '16px' }}>
                       <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: '600', color: '#6B7280', marginBottom: '8px', textTransform: 'uppercase' }}>
                         <Mail size={14} />
-                        E-POSTA ŞABLONU
+                        {t('likertInvite.emailTemplate')}
                       </label>
                       <select
                         value={selectedTemplateId}
@@ -534,7 +543,7 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
                     <div>
                       <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: '600', color: '#6B7280', marginBottom: '8px', textTransform: 'uppercase' }}>
                         <Eye size={14} />
-                        E-POSTA ÖNİZLEMESİ
+                        {t('likertInvite.emailPreview')}
                       </label>
                       <div style={{
                         background: '#F9FAFB',
@@ -549,7 +558,7 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
                           borderBottom: '1px solid #E5E7EB',
                           background: 'white',
                         }}>
-                          <div style={{ fontSize: '11px', color: '#9CA3AF', marginBottom: '2px' }}>Konu:</div>
+                          <div style={{ fontSize: '11px', color: '#9CA3AF', marginBottom: '2px' }}>{t('likertInvite.subject')}:</div>
                           <div style={{ fontSize: '13px', fontWeight: '600', color: '#111827' }}>
                             {getPreviewText(selectedTemplate.subject)}
                           </div>
@@ -581,10 +590,10 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
                       <AlertTriangle size={20} color="#D97706" style={{ flexShrink: 0, marginTop: '2px' }} />
                       <div>
                         <h4 style={{ margin: '0 0 4px', fontSize: '14px', fontWeight: '600', color: '#92400E' }}>
-                          E-posta Şablonu Yok
+                          {t('likertInvite.noEmailTemplate')}
                         </h4>
                         <p style={{ margin: 0, fontSize: '13px', color: '#A16207' }}>
-                          Interview Mesaj → Likert Test menüsünden e-posta şablonu oluşturabilirsiniz.
+                          {t('likertInvite.createEmailTemplate')}
                         </p>
                       </div>
                     </div>
@@ -617,7 +626,7 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
               cursor: 'pointer' 
             }}
           >
-            Vazgeç
+            {t('common.cancel')}
           </button>
           
           {!generatedLink && !isBlocked && likertEnabled && (
@@ -640,7 +649,7 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
               }}
             >
               <Send size={16} />
-              {sending ? 'Oluşturuluyor...' : 'Daveti Gönder'}
+              {sending ? t('common.sending') : t('likertInvite.sendInvite')}
             </button>
           )}
           
@@ -658,7 +667,7 @@ const LikertInviteModal = ({ isOpen, onClose, candidate, application, jobId, onS
                 cursor: 'pointer',
               }}
             >
-              Tamam
+              {t('common.ok')}
             </button>
           )}
         </div>

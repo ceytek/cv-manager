@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useLazyQuery } from '@apollo/client/react';
-import { Video, FileText, Clock, BarChart2, Download, Eye, MapPin, Briefcase, Building2, List, LayoutGrid, Users, Star, Sparkles, FileCheck, ChevronDown, Check, X, Share2, Link2, Copy } from 'lucide-react';
+import { Video, FileText, Clock, BarChart2, Download, Eye, MapPin, Briefcase, Building2, List, LayoutGrid, Users, Star, Sparkles, FileCheck, ChevronDown, Check, X, Share2, Link2, Copy, Columns3, BotMessageSquare } from 'lucide-react';
 import { APPLICATIONS_QUERY } from '../../graphql/applications';
 import { 
   TOGGLE_SHORTLIST, BULK_TOGGLE_SHORTLIST, CREATE_SHORTLIST_SHARE, LIST_TYPES,
@@ -23,10 +23,12 @@ import OfferPreviewModal from '../OfferPreviewModal';
 import ShortlistNoteModal from '../ShortlistNoteModal';
 import ShortlistShareModal from '../ShortlistShareModal';
 import LonglistShareModal from '../LonglistShareModal';
+import PipelineView from './PipelineView';
+import CreateOfferModal from '../CreateOfferModal';
 import { getInitials } from '../../utils/nameUtils';
 
 // Reuse data coming from parent job
-const JobDetails = ({ job, onBack, departments }) => {
+const JobDetails = ({ job, onBack, departments, newlyAnalyzedCandidateIds = [] }) => {
   const { t } = useTranslation();
   const [page, setPage] = useState(1);
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'grid'
@@ -45,11 +47,18 @@ const JobDetails = ({ job, onBack, departments }) => {
   const [showSendRejection, setShowSendRejection] = useState(false);
   const [showLikertInvite, setShowLikertInvite] = useState(false);
   
+  // CV Preview state
+  const [cvPreviewUrl, setCvPreviewUrl] = useState(null);
+  const [cvPreviewName, setCvPreviewName] = useState('');
+
   // Offer related states
   const [offerDropdownOpen, setOfferDropdownOpen] = useState(null); // application id
   const [showOfferPreview, setShowOfferPreview] = useState(false);
   const [selectedOfferData, setSelectedOfferData] = useState(null);
   const offerDropdownRef = useRef(null);
+  
+  // Pipeline → Create Offer modal
+  const [pipelineOfferApp, setPipelineOfferApp] = useState(null); // application object for offer modal
 
   // Shortlist (Long List / Short List) states
   const [listType, setListType] = useState(LIST_TYPES.ALL); // 'all', 'longlist', 'shortlist'
@@ -430,6 +439,90 @@ const JobDetails = ({ job, onBack, departments }) => {
   const isAllPageSelected = pageItems.length > 0 && pageItems.every(app => selectedApplicationIds.includes(app.id));
   const isSomePageSelected = pageItems.some(app => selectedApplicationIds.includes(app.id));
 
+  // ==========================================
+  // Pipeline Drag-and-Drop Handler
+  // ==========================================
+  const handleMoveToStage = async (applicationId, fromStage, toStage) => {
+    try {
+      // Define allowed transitions and execute corresponding mutations
+      // Pool → Long List
+      if (fromStage === 'all' && toStage === 'longlist') {
+        await handleToggleLonglist(applicationId);
+      }
+      // Long List → Short List
+      else if (fromStage === 'longlist' && toStage === 'shortlist') {
+        await handleToggleShortlist(applicationId);
+      }
+      // Long List → Pool (remove from longlist)
+      else if (fromStage === 'longlist' && toStage === 'all') {
+        await handleToggleLonglist(applicationId);
+      }
+      // Short List → Pool (remove from shortlist, which moves to pool)
+      else if (fromStage === 'shortlist' && toStage === 'all') {
+        await handleToggleShortlist(applicationId);
+      }
+      // Short List → Long List (remove from shortlist = back to longlist since isInLonglist stays true)
+      else if (fromStage === 'shortlist' && toStage === 'longlist') {
+        await handleToggleShortlist(applicationId);
+      }
+      // Pool → Short List (need to add to longlist first, then shortlist)
+      else if (fromStage === 'all' && toStage === 'shortlist') {
+        await handleToggleLonglist(applicationId);
+        // Small delay to ensure longlist is set before shortlisting
+        setTimeout(async () => {
+          await handleToggleShortlist(applicationId);
+        }, 300);
+      }
+      // Offer → Hired (manually accept the offer)
+      else if (fromStage === 'offer' && toStage === 'hired') {
+        // Find the offer for this application and set it to accepted
+        const result = await fetchOffer({ variables: { applicationId } });
+        if (result.data?.offerByApplication?.id) {
+          const offerId = result.data.offerByApplication.id;
+          const updateResult = await updateOfferStatus({
+            variables: { offerId, status: 'accepted' }
+          });
+          if (updateResult.data?.updateOfferStatus?.success) {
+            refetch();
+          }
+        }
+      }
+      // Unsupported move
+      else {
+        console.warn(`Unsupported move: ${fromStage} → ${toStage}`);
+      }
+    } catch (error) {
+      console.error('Error moving candidate to stage:', error);
+    }
+  };
+
+  // Pipeline → Open Create Offer modal when dragging to Offer stage
+  const handlePipelineOpenOffer = (applicationId) => {
+    const app = allApplications.find(a => a.id === applicationId);
+    if (app) {
+      setPipelineOfferApp(app);
+    }
+  };
+
+  // Pipeline card click handlers
+  const handlePipelineClickCandidate = (app) => {
+    setSelectedCandidate({
+      ...app,
+      id: app.id,
+      applicationId: app.id,
+      candidateId: app.candidateId,
+      candidateName: app.candidate?.name,
+      score: app.overallScore || 0,
+      analysisData: app.analysisData || {},
+      candidate: app.candidate,
+    });
+  };
+
+  const handlePipelineClickHistory = (app) => {
+    setSelectedApp(app);
+    setShowHistory(true);
+  };
+
   return (
     <div style={{ padding: 24 }}>
       <button onClick={onBack} style={{ padding: '8px 16px', background: 'white', border: '1px solid #E5E7EB', borderRadius: 8, cursor: 'pointer', fontSize: 14, marginBottom: 16 }}>{t('jobDetails.backToJobs')}</button>
@@ -538,8 +631,8 @@ const JobDetails = ({ job, onBack, departments }) => {
           
           {/* Bottom row: Tabs and View Mode */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            {/* List Type Tabs */}
-            <div style={{ display: 'flex', gap: 4, background: '#F3F4F6', borderRadius: 10, padding: 4 }}>
+            {/* List Type Tabs - hidden in pipeline mode */}
+            <div style={{ display: 'flex', gap: 4, background: '#F3F4F6', borderRadius: 10, padding: 4, opacity: viewMode === 'pipeline' ? 0.4 : 1, pointerEvents: viewMode === 'pipeline' ? 'none' : 'auto' }}>
               <button
                 onClick={() => setListType(LIST_TYPES.ALL)}
                 style={{
@@ -687,6 +780,27 @@ const JobDetails = ({ job, onBack, departments }) => {
                 <LayoutGrid size={16} />
                 {t('jobDetails.gridView', 'Kart')}
               </button>
+              <button
+                onClick={() => { setViewMode('pipeline'); }}
+                style={{
+                  padding: '6px 12px',
+                  background: viewMode === 'pipeline' ? 'white' : 'transparent',
+                  border: 'none',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: viewMode === 'pipeline' ? '#111827' : '#6B7280',
+                  boxShadow: viewMode === 'pipeline' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                  transition: 'all 0.15s',
+                }}
+              >
+                <Columns3 size={16} />
+                Pipeline
+              </button>
             </div>
           </div>
         </div>
@@ -814,11 +928,34 @@ const JobDetails = ({ job, onBack, departments }) => {
           </div>
         )}
         
+        {/* ============ PIPELINE VIEW ============ */}
+        {viewMode === 'pipeline' ? (
+          loading ? (
+            <div style={{ padding: 32, textAlign: 'center', color: '#6B7280' }}>{t('common.loading')}</div>
+          ) : error ? (
+            <div style={{ padding: 32, textAlign: 'center', color: '#DC2626' }}>{t('common.error')}: {error.message}</div>
+          ) : (
+            <PipelineView
+              allApplications={allApplications}
+              onMoveToStage={handleMoveToStage}
+              onClickCandidate={handlePipelineClickCandidate}
+              onClickHistory={handlePipelineClickHistory}
+              onPreviewCV={(url, name) => { setCvPreviewUrl(url); setCvPreviewName(name); }}
+              getScoreColor={getScoreColor}
+              getLatestSessionStatus={getLatestSessionStatus}
+              isHired={isHired}
+              hasPendingOfferStatus={hasPendingOfferStatus}
+              hasAnyOfferStatus={hasAnyOfferStatus}
+              onOpenOfferModal={handlePipelineOpenOffer}
+            />
+          )
+        ) : (
+        <>
         {/* Table Header - Only for List View */}
         {viewMode === 'list' && (
           <div style={{ 
             display: 'grid', 
-            gridTemplateColumns: '40px 30px 2.2fr 1fr 1.4fr 0.5fr 1.3fr 120px', 
+            gridTemplateColumns: '40px 30px 2.2fr 1fr 1.4fr 0.5fr 1.3fr 155px', 
             padding: '14px 24px', 
             borderBottom: '1px solid #E5E7EB',
             fontSize: 12, 
@@ -868,13 +1005,14 @@ const JobDetails = ({ job, onBack, departments }) => {
               const avatarColor = avatarColors[index % avatarColors.length];
               const status = getLatestSessionStatus(app);
               const score = app.overallScore || 0;
+              const isNewlyAnalyzedCard = newlyAnalyzedCandidateIds.includes(app.candidate?.id);
               
               return (
                 <div 
                   key={app.id}
                   style={{
-                    background: 'white',
-                    border: '1px solid #E5E7EB',
+                    background: isNewlyAnalyzedCard ? 'linear-gradient(135deg, #FEF3C7 0%, #FFFBEB 50%, white 100%)' : 'white',
+                    border: isNewlyAnalyzedCard ? '2px solid #F59E0B' : '1px solid #E5E7EB',
                     borderRadius: 16,
                     padding: 24,
                     display: 'flex',
@@ -882,16 +1020,37 @@ const JobDetails = ({ job, onBack, departments }) => {
                     alignItems: 'center',
                     transition: 'all 0.2s',
                     cursor: 'pointer',
+                    boxShadow: isNewlyAnalyzedCard ? '0 4px 12px rgba(245, 158, 11, 0.2)' : 'none',
+                    position: 'relative',
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.borderColor = '#3B82F6';
                     e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.15)';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = '#E5E7EB';
-                    e.currentTarget.style.boxShadow = 'none';
+                    e.currentTarget.style.borderColor = isNewlyAnalyzedCard ? '#F59E0B' : '#E5E7EB';
+                    e.currentTarget.style.boxShadow = isNewlyAnalyzedCard ? '0 4px 12px rgba(245, 158, 11, 0.2)' : 'none';
                   }}
                 >
+                  {/* NEW badge for newly analyzed candidates */}
+                  {isNewlyAnalyzedCard && (
+                    <div style={{
+                      position: 'absolute',
+                      top: 8,
+                      left: 8,
+                      background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                      color: 'white',
+                      fontSize: 10,
+                      fontWeight: 700,
+                      padding: '3px 8px',
+                      borderRadius: 6,
+                      letterSpacing: '0.5px',
+                      boxShadow: '0 2px 4px rgba(217, 119, 6, 0.3)',
+                      textTransform: 'uppercase',
+                    }}>
+                      NEW
+                    </div>
+                  )}
                   {/* Avatar */}
                   <div style={{
                     width: 64,
@@ -1047,10 +1206,12 @@ const JobDetails = ({ job, onBack, departments }) => {
                     </button>
                     
                     {app.candidate?.cvFilePath && (
-                      <a
-                        href={`${API_BASE_URL}${app.candidate.cvFilePath.replace('/app', '')}`}
-                        download
-                        onClick={(e) => e.stopPropagation()}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCvPreviewUrl(`${API_BASE_URL}${app.candidate.cvFilePath.replace('/app', '')}`);
+                          setCvPreviewName(app.candidate?.name || 'CV');
+                        }}
                         style={{
                           display: 'flex',
                           flexDirection: 'column',
@@ -1062,14 +1223,13 @@ const JobDetails = ({ job, onBack, departments }) => {
                           padding: 8,
                           borderRadius: 8,
                           transition: 'background 0.15s',
-                          textDecoration: 'none',
                         }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = '#F9FAFB'}
+                        onMouseEnter={(e) => e.currentTarget.style.background = '#FEF3C7'}
                         onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                       >
-                        <FileText size={18} color="#6B7280" />
+                        <Eye size={18} color="#F59E0B" />
                         <span style={{ fontSize: 10, color: '#6B7280' }}>CV</span>
-                      </a>
+                      </button>
                     )}
                     
                     <button
@@ -1119,14 +1279,19 @@ const JobDetails = ({ job, onBack, departments }) => {
             const isSelected = selectedApplicationIds.includes(app.id);
             const isShortlisted = app.isShortlisted;
             const isInLonglist = app.isInLonglist;
+            const isNewlyAnalyzed = newlyAnalyzedCandidateIds.includes(app.candidate?.id);
             
             // Row background based on list status
             const getRowBackground = () => {
+              // Newly analyzed candidates get orange highlight (same as star color)
+              if (isNewlyAnalyzed) return 'linear-gradient(90deg, #FEF3C7 0%, #FFFBEB 50%, white 100%)';
               if (isShortlisted) return 'linear-gradient(90deg, #FFFBEB 0%, white 100%)';
               if (isInLonglist) return 'linear-gradient(90deg, #EFF6FF 0%, white 100%)';
               return 'white';
             };
             const getRowBorderLeft = () => {
+              // Newly analyzed candidates get orange border
+              if (isNewlyAnalyzed) return '3px solid #F59E0B';
               if (isShortlisted) return '3px solid #F59E0B';
               if (isInLonglist) return '3px solid #3B82F6';
               return '3px solid transparent';
@@ -1137,21 +1302,41 @@ const JobDetails = ({ job, onBack, departments }) => {
                 key={app.id} 
                 style={{ 
                   display: 'grid', 
-                  gridTemplateColumns: '40px 30px 2.2fr 1fr 1.4fr 0.5fr 1.3fr 120px', 
+                  gridTemplateColumns: '40px 30px 2.2fr 1fr 1.4fr 0.5fr 1.3fr 155px', 
                   padding: '16px 24px', 
                   borderBottom: '1px solid #F3F4F6', 
                   alignItems: 'center',
                   transition: 'background 0.15s',
                   background: getRowBackground(),
                   borderLeft: getRowBorderLeft(),
+                  position: 'relative',
                 }}
                 onMouseEnter={(e) => {
-                  if (!isShortlisted && !isInLonglist) e.currentTarget.style.background = '#FAFAFA';
+                  if (!isShortlisted && !isInLonglist && !isNewlyAnalyzed) e.currentTarget.style.background = '#FAFAFA';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.background = getRowBackground();
                 }}
               >
+                {/* NEW badge for newly analyzed candidates */}
+                {isNewlyAnalyzed && (
+                  <div style={{
+                    position: 'absolute',
+                    top: 4,
+                    left: 8,
+                    background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                    color: 'white',
+                    fontSize: 9,
+                    fontWeight: 700,
+                    padding: '2px 6px',
+                    borderRadius: 4,
+                    letterSpacing: '0.5px',
+                    boxShadow: '0 1px 3px rgba(217, 119, 6, 0.3)',
+                    textTransform: 'uppercase',
+                  }}>
+                    NEW
+                  </div>
+                )}
                 {/* Checkbox for selection */}
                 <div style={{ display: 'flex', justifyContent: 'center' }}>
                   <input
@@ -1330,7 +1515,7 @@ const JobDetails = ({ job, onBack, departments }) => {
                       }}
                       title={app.interviewSessionStatus === 'completed' ? t('jobDetails.sessionStatus.interviewCompleted') : t('jobDetails.sessionStatus.interviewSent')}
                     >
-                      <Sparkles size={15} />
+                      <BotMessageSquare size={15} />
                     </button>
                   )}
                   {app.hasSecondInterview && (
@@ -1643,6 +1828,55 @@ const JobDetails = ({ job, onBack, departments }) => {
                     <BarChart2 size={16} color="#6366F1" />
                   </button>
                   
+                  {/* Preview CV */}
+                  {app.candidate?.cvFilePath ? (
+                    <button
+                      onClick={() => {
+                        setCvPreviewUrl(`${API_BASE_URL}${app.candidate.cvFilePath.replace('/app', '')}`);
+                        setCvPreviewName(app.candidate?.name || 'CV');
+                      }}
+                      title={t('jobDetails.previewCV', 'CV Görüntüle')}
+                      style={{
+                        padding: 8,
+                        background: 'transparent',
+                        border: '1px solid #E5E7EB',
+                        borderRadius: 8,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 0.2s',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = '#FEF3C7';
+                        e.currentTarget.style.borderColor = '#F59E0B';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'transparent';
+                        e.currentTarget.style.borderColor = '#E5E7EB';
+                      }}
+                    >
+                      <Eye size={16} color="#F59E0B" />
+                    </button>
+                  ) : (
+                    <div
+                      title={t('jobDetails.noCVAvailable', 'CV not available')}
+                      style={{
+                        padding: 8,
+                        background: '#F9FAFB',
+                        border: '1px solid #E5E7EB',
+                        borderRadius: 8,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        opacity: 0.5,
+                        cursor: 'not-allowed',
+                      }}
+                    >
+                      <Eye size={16} color="#9CA3AF" />
+                    </div>
+                  )}
+
                   {/* Download CV */}
                   {app.candidate?.cvFilePath ? (
                     <a
@@ -1706,8 +1940,113 @@ const JobDetails = ({ job, onBack, departments }) => {
             <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} style={{ padding: '8px 12px', border: '1px solid #E5E7EB', borderRadius: 6, background: 'white', cursor: page === totalPages ? 'not-allowed' : 'pointer' }}>{t('jobDetails.next')}</button>
           </div>
         )}
+        </>
+        )}
       </div>
       
+      {/* CV Preview Modal */}
+      {cvPreviewUrl && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 3000,
+            padding: 20,
+          }}
+          onClick={() => { setCvPreviewUrl(null); setCvPreviewName(''); }}
+        >
+          <div
+            style={{
+              background: 'white',
+              borderRadius: 16,
+              width: '100%',
+              maxWidth: 900,
+              height: '90vh',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.4)',
+              overflow: 'hidden',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{
+              padding: '16px 24px',
+              background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexShrink: 0,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: 'white' }}>
+                <FileText size={22} />
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>
+                    {t('jobDetails.cvPreview', 'CV Önizleme')}
+                  </h3>
+                  <p style={{ margin: 0, fontSize: 13, opacity: 0.9 }}>{cvPreviewName}</p>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <a
+                  href={cvPreviewUrl}
+                  download
+                  style={{
+                    padding: '6px 14px',
+                    background: 'rgba(255,255,255,0.2)',
+                    border: 'none',
+                    borderRadius: 6,
+                    color: 'white',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    textDecoration: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    transition: 'background 0.15s',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.3)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
+                >
+                  <Download size={14} />
+                  {t('jobDetails.downloadCV')}
+                </a>
+                <button
+                  onClick={() => { setCvPreviewUrl(null); setCvPreviewName(''); }}
+                  style={{
+                    background: 'rgba(255,255,255,0.2)',
+                    border: 'none',
+                    borderRadius: 8,
+                    padding: 8,
+                    cursor: 'pointer',
+                    display: 'flex',
+                  }}
+                >
+                  <X size={20} color="white" />
+                </button>
+              </div>
+            </div>
+            {/* PDF Content */}
+            <div style={{ flex: 1, background: '#F3F4F6' }}>
+              <iframe
+                src={cvPreviewUrl}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  border: 'none',
+                }}
+                title="CV Preview"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Candidate Detail Modal */}
       {selectedCandidate && (
         <CandidateDetailModal
@@ -1942,6 +2281,23 @@ const JobDetails = ({ job, onBack, departments }) => {
           jobId={job?.id}
           jobTitle={job?.title}
           longlistCount={longlistCount}
+        />
+      )}
+
+      {/* Pipeline → Create Offer Modal */}
+      {pipelineOfferApp && (
+        <CreateOfferModal
+          key={`pipeline-offer-${pipelineOfferApp.id}`}
+          isOpen={!!pipelineOfferApp}
+          onClose={() => setPipelineOfferApp(null)}
+          candidate={pipelineOfferApp.candidate}
+          application={pipelineOfferApp}
+          jobTitle={job?.title}
+          companyName={''}
+          onSuccess={(action) => {
+            setPipelineOfferApp(null);
+            refetch();
+          }}
         />
       )}
     </div>

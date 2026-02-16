@@ -10,6 +10,7 @@ import {
   GET_LIKERT_TEMPLATES,
   GET_LIKERT_TEMPLATE_VARIABLES,
   DELETE_LIKERT_TEMPLATE,
+  UPDATE_LIKERT_TEMPLATE,
 } from '../graphql/likertTemplate';
 import AddEditLikertTemplateModal from './AddEditLikertTemplateModal';
 
@@ -38,6 +39,26 @@ const LikertTemplatesPage = () => {
       setDeleteConfirm(null);
     }
   });
+
+  const [updateTemplate] = useMutation(UPDATE_LIKERT_TEMPLATE, {
+    onCompleted: () => {
+      refetch();
+    },
+    onError: (error) => {
+      alert((isEnglish ? 'Error: ' : 'Hata: ') + error.message);
+    }
+  });
+
+  const handleToggleActive = (template) => {
+    updateTemplate({
+      variables: {
+        id: template.id,
+        input: {
+          isActive: !template.isActive
+        }
+      }
+    });
+  };
 
   const handleEdit = (template) => {
     setEditingTemplate(template);
@@ -219,15 +240,24 @@ const LikertTemplatesPage = () => {
                 </p>
               </div>
 
-              {/* Status */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '6px 12px',
-                background: template.isActive ? '#D1FAE5' : '#FEE2E2',
-                borderRadius: 20,
-              }}>
+              {/* Status - Toggle Button */}
+              <button
+                onClick={() => handleToggleActive(template)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '6px 12px',
+                  background: template.isActive ? '#D1FAE5' : '#FEE2E2',
+                  borderRadius: 20,
+                  border: 'none',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+                title={template.isActive 
+                  ? t('likertEmailTemplates.clickToDeactivate', 'Pasif yapmak için tıklayın')
+                  : t('likertEmailTemplates.clickToActivate', 'Aktif yapmak için tıklayın')}
+              >
                 {template.isActive ? (
                   <ToggleRight size={16} color="#059669" />
                 ) : (
@@ -242,7 +272,7 @@ const LikertTemplatesPage = () => {
                     ? t('common.active', 'Aktif') 
                     : t('common.inactive', 'Pasif')}
                 </span>
-              </div>
+              </button>
 
               {/* Actions */}
               <div style={{ display: 'flex', gap: 8 }}>

@@ -3,6 +3,7 @@
  * 3. resim tasarımına göre düzenlendi
  */
 import React, { useEffect, useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery, useMutation } from '@apollo/client/react';
 import { JOBS_QUERY, DELETE_JOB_MUTATION, DUPLICATE_JOB_MUTATION } from '../graphql/jobs';
 import { Search, MapPin, Users, Calendar, Sparkles, FileText, Eye, Video, ListChecks, Edit2, Trash2, Briefcase, Clock, Building2, X, List, LayoutGrid, Copy, CheckCircle, QrCode, Share2, Link2, Check } from 'lucide-react';
@@ -1227,8 +1228,8 @@ const JobsPage = ({ departments = [], initialCreate = false, onViewApplications 
         </div>
       )}
 
-      {/* Job Form Modal */}
-      {showJobFormModal && (
+      {/* Job Form Modal - Using Portal to prevent DOM reconciliation issues */}
+      {showJobFormModal && createPortal(
         <div style={{
           position: 'fixed',
           top: 0,
@@ -1289,7 +1290,8 @@ const JobsPage = ({ departments = [], initialCreate = false, onViewApplications 
               />
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* AI Job Creator Modal */}
@@ -1591,7 +1593,7 @@ const JobsPage = ({ departments = [], initialCreate = false, onViewApplications 
       )}
 
       {/* QR Code Modal */}
-      {qrCodeJob && (
+      {qrCodeJob && createPortal(
         <div style={{
           position: 'fixed',
           inset: 0,
@@ -1726,11 +1728,12 @@ const JobsPage = ({ departments = [], initialCreate = false, onViewApplications 
               {t('common.close', 'Kapat')}
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Share Modal */}
-      {shareJob && (
+      {shareJob && createPortal(
         <div style={{
           position: 'fixed',
           inset: 0,
@@ -1861,7 +1864,8 @@ const JobsPage = ({ departments = [], initialCreate = false, onViewApplications 
               {t('jobs.showQrCode', 'QR Kod Göster')}
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

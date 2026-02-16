@@ -14,6 +14,7 @@ export const GET_LIKERT_TEMPLATES = gql`
       scaleType
       language
       isActive
+      isAiGenerated
       timeLimit
       questionCount
       createdAt
@@ -32,6 +33,7 @@ export const GET_LIKERT_TEMPLATE = gql`
       scaleLabels
       language
       isActive
+      isAiGenerated
       timeLimit
       questionCount
       questions {

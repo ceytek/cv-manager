@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { JOBS_QUERY } from '../../graphql/jobs';
 import { DEPARTMENTS_QUERY } from '../../graphql/departments';
+import JobPreviewModal from '../JobForm/JobPreviewModal';
 
 // Department icon mapping
 const DEPARTMENT_ICON_MAP = {
@@ -48,6 +49,8 @@ const JobsOverview = ({ onGoToAIEvaluation, onOpenDetails }) => {
   const [selectedDepartment, setSelectedDepartment] = useState('all');
   const [selectedStatuses, setSelectedStatuses] = useState(['active']); // Default: only active jobs
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [previewJob, setPreviewJob] = useState(null);
+  const [noAnalysisWarning, setNoAnalysisWarning] = useState(false);
   
   const { data, loading, error } = useQuery(JOBS_QUERY, {
     variables: { includeInactive: true }, // Get all jobs including drafts, we'll filter client-side
@@ -484,15 +487,22 @@ const JobsOverview = ({ onGoToAIEvaluation, onOpenDetails }) => {
                         <DeptIconGrid size={20} color="white" />
                       </div>
                     )}
-                    <h3 style={{ 
-                      fontSize: 16, 
-                      fontWeight: 600, 
-                      color: '#1F2937', 
-                      margin: 0, 
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}>
+                    <h3
+                      onClick={(e) => { e.stopPropagation(); setPreviewJob(job); }}
+                      style={{ 
+                        fontSize: 16, 
+                        fontWeight: 600, 
+                        color: '#1F2937', 
+                        margin: 0, 
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        cursor: 'pointer',
+                        transition: 'color 0.15s',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.color = '#2563EB'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.color = '#1F2937'; }}
+                    >
                       {job.title}
                     </h3>
                   </div>
@@ -510,7 +520,12 @@ const JobsOverview = ({ onGoToAIEvaluation, onOpenDetails }) => {
                     borderTop: '1px solid #F3F4F6',
                   }}>
                     {applicantCount > 0 ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div
+                        onClick={(e) => { e.stopPropagation(); onOpenDetails && onOpenDetails(job); }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', borderRadius: 8, padding: '4px 8px', margin: '-4px -8px', transition: 'background 0.15s' }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = '#EEF2FF'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                      >
                         <div style={{ display: 'flex' }}>
                           {(job.recentApplicants || []).slice(0, 2).map((initials, i) => (
                             <div
@@ -563,7 +578,13 @@ const JobsOverview = ({ onGoToAIEvaluation, onOpenDetails }) => {
                     )}
                     
                     <button
-                      onClick={() => onOpenDetails && onOpenDetails(job)}
+                      onClick={() => {
+                        if (applicantCount === 0) {
+                          setNoAnalysisWarning(true);
+                        } else {
+                          onOpenDetails && onOpenDetails(job);
+                        }
+                      }}
                       style={{
                         padding: '6px 12px',
                         background: '#3B82F6',
@@ -633,7 +654,14 @@ const JobsOverview = ({ onGoToAIEvaluation, onOpenDetails }) => {
                     <DeptIcon size={16} color="white" />
                   </div>
                 )}
-                <span>{job.title}</span>
+                <span
+                  onClick={(e) => { e.stopPropagation(); setPreviewJob(job); }}
+                  style={{ cursor: 'pointer', transition: 'color 0.15s' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = '#2563EB'; e.currentTarget.style.textDecoration = 'underline'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = '#111827'; e.currentTarget.style.textDecoration = 'none'; }}
+                >
+                  {job.title}
+                </span>
               </div>
               <div style={{ color: '#6B7280', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
                 {job.department && (
@@ -650,7 +678,12 @@ const JobsOverview = ({ onGoToAIEvaluation, onOpenDetails }) => {
               <div style={{ color: '#6B7280' }}>{new Date(job.createdAt).toLocaleDateString(locale)}</div>
               
               {/* Applicants with Avatars */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div
+                style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: (job.analysisCount || 0) > 0 ? 'pointer' : 'default', borderRadius: 8, padding: '4px 6px', margin: '-4px -6px', transition: 'background 0.15s' }}
+                onClick={() => { if ((job.analysisCount || 0) > 0 && onOpenDetails) onOpenDetails(job); }}
+                onMouseEnter={(e) => { if ((job.analysisCount || 0) > 0) e.currentTarget.style.background = '#EEF2FF'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+              >
                 {(job.analysisCount || 0) > 0 ? (
                   <>
                     <div style={{ display: 'flex' }}>
@@ -709,7 +742,13 @@ const JobsOverview = ({ onGoToAIEvaluation, onOpenDetails }) => {
               <div>{getStatusBadge(job.status)}</div>
               <div>
                 <button
-                  onClick={() => onOpenDetails && onOpenDetails(job)}
+                  onClick={() => {
+                    if ((job.analysisCount || 0) === 0) {
+                      setNoAnalysisWarning(true);
+                    } else {
+                      onOpenDetails && onOpenDetails(job);
+                    }
+                  }}
                   style={{
                     padding: '6px 12px',
                     background: 'transparent',
@@ -728,6 +767,95 @@ const JobsOverview = ({ onGoToAIEvaluation, onOpenDetails }) => {
           );
           })}
         </div>
+      )}
+
+      {/* No Analysis Warning Modal */}
+      {noAnalysisWarning && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2000,
+          padding: 20,
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: 16,
+            padding: 0,
+            maxWidth: 420,
+            width: '100%',
+            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+            overflow: 'hidden',
+            animation: 'fadeInUp 0.25s ease-out',
+          }}>
+            {/* Icon header */}
+            <div style={{
+              background: 'linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)',
+              padding: '28px 24px 20px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 12,
+            }}>
+              <div style={{
+                width: 56,
+                height: 56,
+                borderRadius: '50%',
+                background: '#F59E0B',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 4px 14px rgba(245,158,11,0.3)',
+              }}>
+                <FileText size={28} color="white" />
+              </div>
+            </div>
+            {/* Body */}
+            <div style={{ padding: '24px 28px', textAlign: 'center' }}>
+              <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1F2937', margin: '0 0 8px' }}>
+                {t('cvEvaluation.noAnalysisYetTitle', 'Henüz Değerlendirme Yok')}
+              </h3>
+              <p style={{ fontSize: 14, color: '#6B7280', margin: 0, lineHeight: 1.6 }}>
+                {t('cvEvaluation.noAnalysisYetMessage', 'Bu ilan için henüz bir CV değerlendirmesi yapılmamıştır. Değerlendirme başlatmak için CV yükleyin ve analiz edin.')}
+              </p>
+            </div>
+            {/* Footer */}
+            <div style={{ padding: '0 28px 24px', display: 'flex', justifyContent: 'center' }}>
+              <button
+                onClick={() => setNoAnalysisWarning(false)}
+                style={{
+                  padding: '10px 32px',
+                  background: '#F59E0B',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 10,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#D97706'}
+                onMouseLeave={(e) => e.currentTarget.style.background = '#F59E0B'}
+              >
+                {t('common.ok', 'Tamam')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Job Preview Modal */}
+      {previewJob && (
+        <JobPreviewModal
+          isOpen={!!previewJob}
+          onClose={() => setPreviewJob(null)}
+          jobData={previewJob}
+          departments={departments}
+          viewOnly={true}
+        />
       )}
     </div>
   );

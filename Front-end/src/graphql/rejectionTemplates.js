@@ -59,7 +59,7 @@ export const CREATE_REJECTION_TEMPLATE = gql`
 
 // Update rejection template
 export const UPDATE_REJECTION_TEMPLATE = gql`
-  mutation UpdateRejectionTemplate($id: String!, $input: RejectionTemplateInput!) {
+  mutation UpdateRejectionTemplate($id: String!, $input: RejectionTemplateUpdateInput!) {
     updateRejectionTemplate(id: $id, input: $input) {
       success
       message

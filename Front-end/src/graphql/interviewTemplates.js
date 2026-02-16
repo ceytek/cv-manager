@@ -38,6 +38,7 @@ export const GET_INTERVIEW_TEMPLATE = gql`
       totalDuration
       aiAnalysisEnabled
       voiceResponseEnabled
+      isAiGenerated
       isActive
       questionCount
       questions {
@@ -68,6 +69,7 @@ export const CREATE_INTERVIEW_TEMPLATE = gql`
         totalDuration
         aiAnalysisEnabled
         voiceResponseEnabled
+        isAiGenerated
         isActive
         questionCount
       }
@@ -91,6 +93,7 @@ export const UPDATE_INTERVIEW_TEMPLATE = gql`
         totalDuration
         aiAnalysisEnabled
         voiceResponseEnabled
+        isAiGenerated
         isActive
         questionCount
       }

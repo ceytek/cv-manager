@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Building2, Mail, Lock } from 'lucide-react';
 import authService from '../services/authService';
 import './LoginPage.css';
 import ForgotPasswordModal from './ForgotPasswordModal';
@@ -38,7 +38,6 @@ const LoginPage = ({ onLogin }) => {
 
     try {
       await authService.login(companyCodeUpper, email, password);
-      // Başarılı girişte şirket kodunu kaydet
       localStorage.setItem('lastCompanyCode', companyCodeUpper);
       const user = await authService.getCurrentUser();
       onLogin(user);
@@ -51,77 +50,117 @@ const LoginPage = ({ onLogin }) => {
 
   return (
     <div className="login-page">
+      {/* Language Switcher */}
       <div className="login-language-switcher">
         <LanguageSwitcher />
       </div>
-      <div className="login-outer-panel">
-        <div className="login-container">
+
+      {/* Left Panel - Branding */}
+      <div className="login-left-panel">
+        {/* Decorative circles */}
+        <div className="login-circle login-circle-1" />
+        <div className="login-circle login-circle-2" />
+        <div className="login-circle login-circle-3" />
+
+        {/* Logo */}
+        <img
+          src="/images/logohrsmart.png"
+          alt="HRSMART"
+          className="login-brand-logo"
+        />
+
+        {/* Description */}
+        <p className="login-brand-desc">
+          {t('login.brandDescription', 'Yapay zeka destekli İnsan Kaynakları yönetim platformu. CV analizi, mülakat yönetimi, yetenek havuzu ve işe alım süreçlerinizi tek bir yerden akıllıca yönetin.')}
+        </p>
+      </div>
+
+      {/* Right Panel - Form */}
+      <div className="login-right-panel">
+        <div className="login-form-container">
+          {/* Logo in form */}
           <img
-            src="/images/HR_Smart.png"
-            alt="HRSMART Logo"
-            className="logo-image"
+            src="/images/logohrsmart.png"
+            alt="HRSMART"
+            className="login-form-logo"
           />
           <form onSubmit={handleSubmit}>
-            <div className="input-group">
-              <label htmlFor="companyCode">{t('login.companyCode')}</label>
-              <input
-                type="text"
-                id="companyCode"
-                placeholder={t('login.companyCodePlaceholder')}
-                value={companyCode}
-                onChange={(e) => setCompanyCode(e.target.value.toUpperCase())}
-                maxLength={6}
-                style={{ textTransform: 'uppercase' }}
-                autoComplete="off"
-              />
+            {/* Company Code */}
+            <div className="login-field">
+              <label>{t('login.companyCode')}</label>
+              <div className="login-input-wrap">
+                <Building2 size={18} className="login-input-icon" />
+                <input
+                  type="text"
+                  placeholder={t('login.companyCodePlaceholder', 'ör. ABC123')}
+                  value={companyCode}
+                  onChange={(e) => setCompanyCode(e.target.value.toUpperCase())}
+                  maxLength={6}
+                  style={{ textTransform: 'uppercase' }}
+                  autoComplete="off"
+                />
+              </div>
             </div>
-            <div className="input-group">
-              <label htmlFor="email">{t('login.email')}</label>
-              <input
-                type="email"
-                id="email"
-                placeholder={t('login.email')}
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
+
+            {/* Email */}
+            <div className="login-field">
+              <label>{t('login.email')}</label>
+              <div className="login-input-wrap">
+                <Mail size={18} className="login-input-icon" />
+                <input
+                  type="email"
+                  placeholder={t('login.emailPlaceholder', 'admin@sirket.com')}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
             </div>
-            <div className="input-group">
-              <label htmlFor="password">{t('login.password')}</label>
-              <div className="password-input-wrapper">
+
+            {/* Password */}
+            <div className="login-field">
+              <label>{t('login.password')}</label>
+              <div className="login-input-wrap">
+                <Lock size={18} className="login-input-icon" />
                 <input
                   type={showPassword ? 'text' : 'password'}
-                  id="password"
-                  placeholder={t('login.password')}
+                  placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
                 <button
                   type="button"
-                  className="password-toggle"
+                  className="login-password-toggle"
                   onClick={() => setShowPassword(!showPassword)}
                 >
-                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
-            {error && <div className="error-message">{error}</div>}
-            <button type="submit" className="login-button" disabled={loading}>
+
+            {/* Error */}
+            {error && <div className="login-error">{error}</div>}
+
+            {/* Submit */}
+            <button type="submit" className="login-submit-btn" disabled={loading}>
               {loading ? t('login.loggingIn') : t('login.loginButton')}
             </button>
+
+            {/* Forgot Password */}
             <button
               type="button"
-              className="forgot-password"
+              className="login-forgot-btn"
               onClick={() => setShowForgot(true)}
             >
               {t('login.forgotPassword')}
             </button>
           </form>
-          <ForgotPasswordModal
-            isOpen={showForgot}
-            onClose={() => setShowForgot(false)}
-          />
         </div>
       </div>
+
+      <ForgotPasswordModal
+        isOpen={showForgot}
+        onClose={() => setShowForgot(false)}
+      />
     </div>
   );
 };

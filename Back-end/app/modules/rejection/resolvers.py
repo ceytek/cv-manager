@@ -11,6 +11,7 @@ from app.modules.rejection.models import RejectionTemplate
 from app.modules.rejection.types import (
     RejectionTemplateType,
     RejectionTemplateInput,
+    RejectionTemplateUpdateInput,
     RejectionTemplateResponse,
 )
 
@@ -134,7 +135,7 @@ async def create_rejection_template(info: Info, input: RejectionTemplateInput) -
         db.close()
 
 
-async def update_rejection_template(info: Info, id: str, input: RejectionTemplateInput) -> RejectionTemplateResponse:
+async def update_rejection_template(info: Info, id: str, input: RejectionTemplateUpdateInput) -> RejectionTemplateResponse:
     """Update a rejection email template"""
     request = info.context["request"]
     auth_header = request.headers.get("authorization")
@@ -147,10 +148,15 @@ async def update_rejection_template(info: Info, id: str, input: RejectionTemplat
         if not template:
             return RejectionTemplateResponse(success=False, message="Template not found", template=None)
         
-        template.name = input.name
-        template.subject = input.subject
-        template.body = input.body
-        template.language = input.language or template.language
+        # Only update fields that are provided
+        if input.name is not None:
+            template.name = input.name
+        if input.subject is not None:
+            template.subject = input.subject
+        if input.body is not None:
+            template.body = input.body
+        if input.language is not None:
+            template.language = input.language
         if input.is_active is not None:
             template.is_active = input.is_active
         if input.is_default is not None:

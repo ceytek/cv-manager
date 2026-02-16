@@ -110,6 +110,9 @@ const AddEditLikertTestTemplateModal = ({ isOpen, onClose, onSuccess, template }
   const [generateQuestions] = useMutation(GENERATE_LIKERT_QUESTIONS);
   const [regenerateSingleQuestion] = useMutation(REGENERATE_SINGLE_LIKERT_QUESTION);
 
+  // Track original isAiGenerated status for edit mode
+  const [originalIsAiGenerated, setOriginalIsAiGenerated] = useState(false);
+
   useEffect(() => {
     if (templateData?.likertTemplate) {
       const t = templateData.likertTemplate;
@@ -118,6 +121,7 @@ const AddEditLikertTestTemplateModal = ({ isOpen, onClose, onSuccess, template }
       setLanguage(t.language || 'tr');
       setScaleType(t.scaleType || 5);
       setTimeLimit(t.timeLimit || null);
+      setOriginalIsAiGenerated(t.isAiGenerated || false);
       setQuestions(
         (t.questions || []).map((q, idx) => ({
           id: q.id || `q-${idx}`,
@@ -323,7 +327,8 @@ const AddEditLikertTestTemplateModal = ({ isOpen, onClose, onSuccess, template }
         scaleType: scaleType,
         language: language,
         timeLimit: timeLimit,
-        isAiGenerated: activeTab === 'ai',
+        // Preserve AI generated status: keep original if editing, otherwise set based on active tab
+        isAiGenerated: isEdit ? originalIsAiGenerated : (activeTab === 'ai'),
         questions: finalQuestions.map((q, idx) => ({
           questionText: q.text,
           questionOrder: idx + 1,
@@ -618,22 +623,6 @@ const AddEditLikertTestTemplateModal = ({ isOpen, onClose, onSuccess, template }
                 </div>
               ))}
             </div>
-            <button
-              type="button"
-              onClick={() => setScaleLabels(defaultScaleLabels[scaleType]?.[language] || defaultScaleLabels[5]['tr'])}
-              style={{
-                marginTop: 8,
-                padding: '6px 12px',
-                fontSize: 12,
-                color: '#6B7280',
-                background: 'transparent',
-                border: '1px solid #E5E7EB',
-                borderRadius: 6,
-                cursor: 'pointer',
-              }}
-            >
-              {isEnglish ? '↺ Reset to default' : '↺ Varsayılana sıfırla'}
-            </button>
           </div>
 
           {/* Time Limit */}
@@ -735,15 +724,14 @@ const AddEditLikertTestTemplateModal = ({ isOpen, onClose, onSuccess, template }
                 )}
               </button>
 
-              {/* AI Generated Questions */}
-              {aiQuestions.length > 0 ? (
-                <div style={{ marginTop: 20 }}>
-                  <label style={{ display: 'block', marginBottom: 12, fontWeight: 500, fontSize: 14, color: '#5B21B6' }}>
-                    {isEnglish ? 'Generated Questions' : 'Oluşturulan Sorular'} ({aiQuestions.length})
-                    <span style={{ fontWeight: 400, marginLeft: 8, fontSize: 12, color: '#7C3AED' }}>
-                      ({isEnglish ? 'edit as needed' : 'düzenleyebilirsiniz'})
-                    </span>
-                  </label>
+              {/* AI Generated Questions - Always rendered container to prevent DOM issues */}
+              <div style={{ display: aiQuestions.length > 0 ? 'block' : 'none', marginTop: 20 }}>
+                <label style={{ display: 'block', marginBottom: 12, fontWeight: 500, fontSize: 14, color: '#5B21B6' }}>
+                  {isEnglish ? 'Generated Questions' : 'Oluşturulan Sorular'} ({aiQuestions.length})
+                  <span style={{ fontWeight: 400, marginLeft: 8, fontSize: 12, color: '#7C3AED' }}>
+                    ({isEnglish ? 'edit as needed' : 'düzenleyebilirsiniz'})
+                  </span>
+                </label>
                   
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     {aiQuestions.map((q, index) => (
@@ -899,8 +887,7 @@ const AddEditLikertTestTemplateModal = ({ isOpen, onClose, onSuccess, template }
                       </div>
                     ))}
                   </div>
-                </div>
-              ) : null}
+              </div>
             </div>
           )}
 

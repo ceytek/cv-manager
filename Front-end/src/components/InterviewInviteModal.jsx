@@ -229,7 +229,7 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
         <div style={{ padding: '20px 24px', background: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'white' }}>
             <Sparkles size={24} />
-            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '600' }}>AI Görüşmesi Daveti</h2>
+            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '600' }}>{t('interviewInvite.title')}</h2>
           </div>
           <button onClick={onClose} style={{ padding: '8px', background: 'rgba(255,255,255,0.2)', border: 'none', cursor: 'pointer', borderRadius: '8px' }}>
             <X size={20} color="white" />
@@ -279,8 +279,8 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
           {!jobLoading && !likertLoading && !secondInterviewLoading && !isBlocked && !interviewEnabled && (
             <div style={{ textAlign: 'center', padding: '32px' }}>
               <AlertTriangle size={48} color="#F59E0B" style={{ marginBottom: '16px' }} />
-              <h3 style={{ margin: '0 0 8px', color: '#374151' }}>AI Görüşmesi Aktif Değil</h3>
-              <p style={{ color: '#6B7280' }}>Bu iş ilanı için önce AI görüşme ayarlarını yapılandırmanız gerekiyor.</p>
+              <h3 style={{ margin: '0 0 8px', color: '#374151' }}>{t('interviewInvite.notEnabled')}</h3>
+              <p style={{ color: '#6B7280' }}>{t('interviewInvite.configureFirst')}</p>
             </div>
           )}
 
@@ -302,10 +302,10 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
                   <AlertTriangle size={24} color="#D97706" style={{ flexShrink: 0 }} />
                   <div>
                     <h4 style={{ margin: '0 0 4px', fontSize: '15px', fontWeight: '600', color: '#92400E' }}>
-                      Bu adayın tamamlanmamış bir görüşmesi var
+                      {t('interviewInvite.existingSessionTitle')}
                     </h4>
                     <p style={{ margin: 0, fontSize: '14px', color: '#A16207' }}>
-                      {candidate?.name} için daha önce AI görüşme daveti gönderilmiş. Mevcut linki kullanabilirsiniz.
+                      {t('interviewInvite.existingSessionDesc', { name: candidate?.name })}
                     </p>
                   </div>
                 </div>
@@ -325,10 +325,10 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
                   <Check size={24} color="#1D4ED8" style={{ flexShrink: 0 }} />
                   <div>
                     <h4 style={{ margin: '0 0 4px', fontSize: '15px', fontWeight: '600', color: '#1E40AF' }}>
-                      Görüşme Tamamlandı
+                      {t('interviewInvite.interviewCompleted')}
                     </h4>
                     <p style={{ margin: 0, fontSize: '14px', color: '#1E40AF' }}>
-                      {candidate?.name} AI görüşmesini zaten tamamlamış.
+                      {t('interviewInvite.alreadyCompleted', { name: candidate?.name })}
                     </p>
                   </div>
                 </div>
@@ -348,10 +348,10 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
                   <Check size={24} color="#059669" style={{ flexShrink: 0 }} />
                   <div>
                     <h4 style={{ margin: '0 0 4px', fontSize: '15px', fontWeight: '600', color: '#065F46' }}>
-                      Davet Başarıyla Oluşturuldu!
+                      {t('interviewInvite.inviteCreated')}
                     </h4>
                     <p style={{ margin: 0, fontSize: '14px', color: '#047857' }}>
-                      {candidate?.name} için AI görüşme linki hazır. Linki kopyalayıp adaya gönderebilirsiniz.
+                      {t('interviewInvite.linkReady', { name: candidate?.name })}
                     </p>
                   </div>
                 </div>
@@ -362,7 +362,7 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
                 <div style={{ marginBottom: '20px' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: '600', color: '#6B7280', marginBottom: '8px', textTransform: 'uppercase' }}>
                     <Link2 size={14} />
-                    AI Görüşme Linki
+                    {t('interviewInvite.interviewLink')}
                   </label>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <input
@@ -389,7 +389,7 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
                       }}
                     >
                       {copied ? <Check size={16} /> : <Copy size={16} />}
-                      {copied ? 'Kopyalandı!' : 'Kopyala'}
+                      {copied ? t('common.copied') : t('common.copy')}
                     </button>
                   </div>
                 </div>
@@ -402,15 +402,15 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
                   {/* Candidate Info */}
                   <div style={{ background: '#F9FAFB', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
                     <h4 style={{ margin: '0 0 12px', fontSize: '14px', fontWeight: '600', color: '#374151' }}>
-                      Aday Bilgileri
+                      {t('interviewInvite.candidateInfo')}
                     </h4>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'linear-gradient(135deg, #3B82F6, #1D4ED8)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '600', fontSize: '18px' }}>
                         {candidate?.name?.charAt(0) || '?'}
                       </div>
                       <div>
-                        <div style={{ fontWeight: '600', color: '#111827' }}>{candidate?.name || 'Bilinmiyor'}</div>
-                        <div style={{ fontSize: '13px', color: '#6B7280' }}>{candidate?.email || 'E-posta yok'}</div>
+                        <div style={{ fontWeight: '600', color: '#111827' }}>{candidate?.name || t('common.unknown')}</div>
+                        <div style={{ fontSize: '13px', color: '#6B7280' }}>{candidate?.email || t('common.noEmail')}</div>
                       </div>
                     </div>
                   </div>
@@ -420,16 +420,16 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
                     <div style={{ padding: '14px', background: '#EFF6FF', borderRadius: '10px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#3B82F6', marginBottom: '4px' }}>
                         <Hash size={14} />
-                        Soru Sayısı
+                        {t('interviewInvite.questionCount')}
                       </div>
                       <div style={{ fontSize: '20px', fontWeight: '700', color: '#1E40AF' }}>{questionCount}</div>
                     </div>
                     <div style={{ padding: '14px', background: '#EFF6FF', borderRadius: '10px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#3B82F6', marginBottom: '4px' }}>
                         <Clock size={14} />
-                        Geçerlilik
+                        {t('interviewInvite.validity')}
                       </div>
-                      <div style={{ fontSize: '20px', fontWeight: '700', color: '#1E40AF' }}>{deadlineHours} saat</div>
+                      <div style={{ fontSize: '20px', fontWeight: '700', color: '#1E40AF' }}>{deadlineHours} {t('common.hours')}</div>
                     </div>
                   </div>
 
@@ -437,11 +437,11 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
                   {interviewTemplate && (
                     <div style={{ background: '#F9FAFB', borderRadius: '12px', padding: '16px' }}>
                       <h4 style={{ margin: '0 0 8px', fontSize: '14px', fontWeight: '600', color: '#374151' }}>
-                        AI Görüşme Şablonu
+                        {t('interviewInvite.interviewTemplate')}
                       </h4>
                       <div style={{ fontSize: '16px', fontWeight: '600', color: '#1E40AF' }}>{interviewTemplate.name}</div>
                       <div style={{ fontSize: '13px', color: '#6B7280', marginTop: '4px' }}>
-                        Dil: {getLanguageLabel(interviewTemplate.language)}
+                        {t('common.language')}: {getLanguageLabel(interviewTemplate.language)}
                       </div>
                     </div>
                   )}
@@ -453,12 +453,12 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
                   <div style={{ marginBottom: '12px' }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: '600', color: '#6B7280', marginBottom: '8px', textTransform: 'uppercase' }}>
                       <Mail size={14} />
-                      E-posta Şablonu
+                      {t('interviewInvite.emailTemplate')}
                     </label>
                     
                     {emailTemplates.length === 0 ? (
                       <div style={{ padding: '12px', background: '#FEF3C7', borderRadius: '8px', fontSize: '13px', color: '#92400E' }}>
-                        Henüz e-posta şablonu yok. Interview Mesaj → AI Görüşmesi'nden oluşturun.
+                        {t('interviewInvite.noEmailTemplate')}
                       </div>
                     ) : (
                       <div style={{ position: 'relative' }}>
@@ -478,7 +478,7 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
                           }}
                         >
                           <span style={{ color: selectedTemplate ? '#111827' : '#9CA3AF' }}>
-                            {selectedTemplate?.name || 'Şablon seçin...'}
+                            {selectedTemplate?.name || t('interviewInvite.selectTemplate')}
                           </span>
                           <ChevronDown size={16} color="#6B7280" />
                         </button>
@@ -529,11 +529,11 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
                     <div>
                       <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: '600', color: '#6B7280', marginBottom: '8px', textTransform: 'uppercase' }}>
                         <Eye size={14} />
-                        E-posta Önizlemesi
+                        {t('interviewInvite.emailPreview')}
                       </label>
                       <div style={{ border: '1px solid #E5E7EB', borderRadius: '8px', overflow: 'hidden', maxHeight: '250px', overflowY: 'auto' }}>
                         <div style={{ padding: '10px 14px', background: '#F3F4F6', borderBottom: '1px solid #E5E7EB' }}>
-                          <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '2px' }}>Konu:</div>
+                          <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '2px' }}>{t('interviewInvite.subject')}:</div>
                           <div style={{ fontSize: '13px', fontWeight: '500', color: '#1F2937' }}>
                             {getPreviewText(selectedTemplate.subject)}
                           </div>
@@ -550,7 +550,7 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
               {/* Info Box - Show after link created */}
               {generatedLink && (
                 <div style={{ background: '#FEF3C7', borderRadius: '12px', padding: '14px', fontSize: '14px', color: '#92400E', marginTop: '20px' }}>
-                  💡 Bu linki adaya e-posta, WhatsApp veya SMS ile gönderebilirsiniz. Link sadece bir kez kullanılabilir.
+                  💡 {t('interviewInvite.linkInfo')}
                 </div>
               )}
             </>
@@ -574,7 +574,7 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
                   fontSize: '14px',
                 }}
               >
-                Vazgeç
+                {t('common.cancel')}
               </button>
               <button 
                 onClick={handleSendInvitation}
@@ -594,7 +594,7 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
                 }}
               >
                 <Send size={18} />
-                {sending ? 'Gönderiliyor...' : 'Daveti Gönder'}
+                {sending ? t('common.sending') : t('interviewInvite.sendInvite')}
               </button>
             </>
           ) : (
@@ -611,7 +611,7 @@ const InterviewInviteModal = ({ isOpen, onClose, candidate, application, jobId, 
                 fontSize: '14px',
               }}
             >
-              Kapat
+              {t('common.close')}
             </button>
           )}
         </div>

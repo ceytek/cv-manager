@@ -53,6 +53,7 @@ def _build_entry_type(entry: TalentPoolEntry, db) -> TalentPoolEntryType:
             email=entry.candidate.email,
             phone=entry.candidate.phone,
             cv_photo_path=entry.candidate.cv_photo_path,
+            cv_file_path=entry.candidate.cv_file_path,
             location=entry.candidate.location,
             experience_months=entry.candidate.experience_months,
             cv_file_name=entry.candidate.cv_file_name,
@@ -538,7 +539,7 @@ async def update_talent_pool_entry(info: Info, id: str, input: TalentPoolEntryUp
             return TalentPoolEntryResponse(success=False, message="Kayıt bulunamadı", entry=None)
         
         if input.notes is not None:
-            entry.notes = input.notes
+            entry.notes = input.notes if input.notes.strip() else None
         
         # Update tags if provided
         if input.tag_ids is not None:

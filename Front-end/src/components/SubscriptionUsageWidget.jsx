@@ -1,9 +1,11 @@
 import React from 'react';
 import { useQuery } from '@apollo/client/react';
+import { useTranslation } from 'react-i18next';
 import { SUBSCRIPTION_USAGE_QUERY } from '../graphql/multiTenancy';
 import './SubscriptionUsageWidget.css';
 
 const SubscriptionUsageWidget = ({ compact = false }) => {
+  const { t } = useTranslation();
   const { data, loading, error } = useQuery(SUBSCRIPTION_USAGE_QUERY, {
     fetchPolicy: 'cache-and-network',
     pollInterval: 60000,
@@ -22,14 +24,14 @@ const SubscriptionUsageWidget = ({ compact = false }) => {
     if (compact) {
       return (
         <div style={{ ...compactStyle, fontSize: 11, color: '#6B7280' }}>
-          Yükleniyor...
+          {t('common.loading')}...
         </div>
       );
     }
     return (
       <div className="subscription-usage-widget">
         <div className="su-header">
-          <span className="su-plan">Yükleniyor...</span>
+          <span className="su-plan">{t('common.loading')}...</span>
         </div>
       </div>
     );
@@ -41,18 +43,18 @@ const SubscriptionUsageWidget = ({ compact = false }) => {
     if (compact) {
       return (
         <div style={{ ...compactStyle, fontSize: 11, color: '#dc2626' }}>
-          Hata
+          {t('common.error')}
         </div>
       );
     }
     return (
       <div className="subscription-usage-widget">
         <div className="su-header">
-          <span className="su-plan" style={{ color: '#dc2626' }}>Hata: Veri yüklenemedi</span>
+          <span className="su-plan" style={{ color: '#dc2626' }}>{t('subscription.loadError')}</span>
         </div>
         <div className="su-bar-wrapper">
           <div style={{ fontSize: '10px', color: '#6b7280' }}>
-            Console'da detayları görün
+            {t('subscription.checkConsole')}
           </div>
         </div>
       </div>
@@ -63,15 +65,15 @@ const SubscriptionUsageWidget = ({ compact = false }) => {
     if (compact) {
       return (
         <div style={compactStyle}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#374151' }}>Paket Yok</div>
-          <div style={{ fontSize: 10, color: '#10B981' }}>Sınırsız CV</div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: '#374151' }}>{t('subscription.noPackage')}</div>
+          <div style={{ fontSize: 10, color: '#10B981' }}>{t('subscription.unlimitedCV')}</div>
         </div>
       );
     }
     return (
       <div className="subscription-usage-widget">
         <div className="su-header">
-          <span className="su-plan">Paket Yok</span>
+          <span className="su-plan">{t('subscription.noPackage')}</span>
         </div>
         <div className="su-bar-wrapper">
           <div className="su-bar">
@@ -96,10 +98,10 @@ const SubscriptionUsageWidget = ({ compact = false }) => {
     return (
       <div style={compactStyle}>
         <div style={{ fontSize: 11, fontWeight: 600, color: '#374151' }}>
-          {planName || 'Paket Yok'}
+          {planName || t('subscription.noPackage')}
         </div>
         {unlimited ? (
-          <div style={{ fontSize: 10, color: '#10B981' }}>Sınırsız CV</div>
+          <div style={{ fontSize: 10, color: '#10B981' }}>{t('subscription.unlimitedCV')}</div>
         ) : (
           <div style={{ fontSize: 10, color: '#6B7280' }}>
             {usedCvCount}/{cvLimit} CV
@@ -112,11 +114,11 @@ const SubscriptionUsageWidget = ({ compact = false }) => {
   return (
     <div className="subscription-usage-widget">
       <div className="su-header">
-        <span className="su-plan">{planName || 'Paket Yok'}</span>
+        <span className="su-plan">{planName || t('subscription.noPackage')}</span>
       </div>
       <div className="su-bar-wrapper">
         {unlimited ? (
-          <div className="su-unlimited">Sınırsız CV Yükleme</div>
+          <div className="su-unlimited">{t('subscription.unlimitedCVUpload')}</div>
         ) : (
           <>
             <div className="su-bar">

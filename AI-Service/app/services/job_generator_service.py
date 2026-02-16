@@ -4,8 +4,9 @@ Generates professional job postings using OpenAI GPT-4o-mini.
 """
 
 import json
+import re
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 from app.services.openai_client import get_openai_client
 from app.prompts.job_description_generator_prompt import get_job_description_generator_prompt
@@ -71,22 +72,42 @@ class JobGeneratorService:
                 f"in {language}"
             )
             
+            # Build skills context for system message
+            skills_list = required_skills or []
+            skills_context = ", ".join(skills_list) if skills_list else ""
+            
             # Dynamic system message based on language
             if language == "english":
+                skills_msg = ""
+                if skills_context:
+                    skills_msg = (
+                        f"CRITICAL: The user specified these competencies: \"{skills_context}\". "
+                        "These competencies define the DOMAIN/INDUSTRY of the job. "
+                        "ALL content (description, tasks, requirements, keywords) MUST be specific to this domain. "
+                    )
                 system_message = (
-                    "You are an expert HR specialist and job posting writer. "
-                    "Create professional, comprehensive, and engaging job descriptions. "
-                    "IMPORTANT: All output text must be in English. "
-                    "Follow the exact JSON structure provided. "
-                    "Be specific, realistic, and aligned with industry standards."
+                    "You are an expert HR specialist. "
+                    "Create professional job descriptions in English. "
+                    "Follow the exact JSON structure. "
+                    f"Title MUST be exactly \"{position}\". "
+                    f"{skills_msg}"
+                    "The department field is ONLY organizational and must NOT influence job content."
                 )
             else:  # turkish (default)
+                skills_msg = ""
+                if skills_context:
+                    skills_msg = (
+                        f"KRİTİK: Kullanıcı şu yetkinlikleri belirtti: \"{skills_context}\". "
+                        "Bu yetkinlikler ilanın ALANINI/SEKTÖRÜNÜ belirler. "
+                        "TÜM içerik (tanım, görevler, nitelikler, anahtar kelimeler) bu alana ÖZGÜ olmalı. "
+                    )
                 system_message = (
-                    "Sen uzman bir İnsan Kaynakları uzmanı ve iş ilanı yazarısın. "
-                    "Profesyonel, kapsamlı ve çekici iş ilanları oluştur. "
-                    "ÖNEMLİ: Tüm çıktı metinleri Türkçe olmalıdır. "
-                    "Verilen JSON yapısına tam olarak uy. "
-                    "Spesifik, gerçekçi ve sektör standartlarına uygun ol."
+                    "Sen uzman bir İK uzmanısın. "
+                    "Profesyonel iş ilanları oluştur. Tüm çıktı Türkçe olmalı. "
+                    "JSON yapısına tam uy. "
+                    f"title MUTLAKA \"{position}\" olmalı. "
+                    f"{skills_msg}"
+                    "Departman sadece organizasyonel bilgidir, içeriği etkilemez."
                 )
             
             # Call OpenAI API
@@ -102,7 +123,7 @@ class JobGeneratorService:
                         "content": prompt
                     }
                 ],
-                temperature=0.7,  # Balanced between creativity and consistency
+                temperature=0.35,  # Low temperature for strict instruction following
                 max_tokens=2500,
                 response_format={"type": "json_object"}  # Ensure JSON response
             )
@@ -110,6 +131,9 @@ class JobGeneratorService:
             # Extract and parse the response
             job_data_text = response.choices[0].message.content
             job_data = json.loads(job_data_text)
+            
+            # Post-processing: Force title and ensure domain keywords from skills
+            job_data = self._enforce_position_fidelity(job_data, position, required_skills or [])
             
             # Validate the generated data
             self._validate_generated_job(job_data)
@@ -132,6 +156,107 @@ class JobGeneratorService:
         except Exception as e:
             logger.error(f"Error in job description generation: {str(e)}")
             raise Exception(f"Failed to generate job description: {str(e)}")
+    
+    def _enforce_position_fidelity(self, data: Dict[str, Any], position: str, skills: List[str] = None) -> Dict[str, Any]:
+        """
+        Post-processing step to ensure the generated content faithfully
+        reflects the position name AND the skills/competencies domain.
+        
+        Args:
+            data: Generated job data dictionary
+            position: Original position name provided by user
+            skills: List of required skills/competencies that define the domain
+            
+        Returns:
+            Modified job data with enforced fidelity
+        """
+        import re as _re
+        skills = skills or []
+        
+        # 1. Force title to be the exact position name
+        original_title = data.get('title', '')
+        if original_title.strip().lower() != position.strip().lower():
+            logger.warning(
+                f"AI changed title from '{position}' to '{original_title}'. "
+                f"Forcing title back to '{position}'"
+            )
+        data['title'] = position.strip()
+        
+        # 2. Extract significant words from BOTH position and skills
+        stop_words = {
+            've', 'ile', 'için', 'bir', 'bu', 'de', 'da', 'den', 'dan', 'veya',
+            'and', 'for', 'the', 'a', 'an', 'in', 'at', 'of', 'to', 'or'
+        }
+        
+        # Collect all domain words from skills (these define the industry/domain)
+        all_domain_words = set()
+        for skill in skills:
+            for word in skill.strip().split():
+                if len(word) > 2 and word.lower() not in stop_words:
+                    all_domain_words.add(word)
+        
+        # Also add position words
+        for word in position.strip().split():
+            if len(word) > 2 and word.lower() not in stop_words:
+                all_domain_words.add(word)
+        
+        # 3. Ensure keywords contain skill/domain terms
+        keywords = data.get('keywords', [])
+        keywords_lower = ' '.join(keywords).lower()
+        
+        # Add each skill as a keyword if not present
+        for skill in skills:
+            skill_lower = skill.strip().lower()
+            if skill_lower and not any(skill_lower in kw.lower() for kw in keywords):
+                keywords.insert(0, skill.strip())
+                logger.info(f"Added skill '{skill}' to keywords")
+        
+        # Add individual domain words if not in keywords
+        for word in all_domain_words:
+            if word.lower() not in keywords_lower:
+                keywords.append(word)
+        
+        data['keywords'] = keywords
+        
+        # 4. Check if skill domain words appear in description
+        description = data.get('description', '')
+        description_plain = data.get('description_plain', '')
+        desc_lower = (description + description_plain).lower()
+        
+        # Find skill words that are NOT in the description (the domain gap)
+        missing_domain_words = []
+        for skill in skills:
+            skill_words = [w for w in skill.strip().split() if len(w) > 2 and w.lower() not in stop_words]
+            for word in skill_words:
+                if word.lower() not in desc_lower:
+                    missing_domain_words.append(word)
+        
+        if missing_domain_words:
+            logger.warning(
+                f"Domain words from skills {missing_domain_words} not found in description. "
+                f"Attempting to inject domain context."
+            )
+            
+            # For each skill, try to find partial matches and replace
+            for skill in skills:
+                skill_words = [w for w in skill.strip().split() if len(w) > 2 and w.lower() not in stop_words]
+                skill_stripped = skill.strip()
+                
+                # Try to find a subset of the skill in description and expand it
+                for i in range(len(skill_words)):
+                    partial = ' '.join(skill_words[i:])
+                    if len(partial) > 3 and partial.lower() in description.lower():
+                        pattern = _re.compile(_re.escape(partial), _re.IGNORECASE)
+                        data['description'] = pattern.sub(skill_stripped, description, count=0)
+                        if description_plain:
+                            data['description_plain'] = pattern.sub(
+                                skill_stripped, description_plain, count=0
+                            )
+                        logger.info(f"Replaced '{partial}' with '{skill_stripped}' in description")
+                        description = data['description']  # Update for next iteration
+                        break
+        
+        return data
     
     def _validate_generated_job(self, data: Dict[str, Any]) -> None:
         """

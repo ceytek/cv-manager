@@ -1,3 +1,4 @@
+
 """
 Job Matcher Service
 Matches candidate CVs to job requirements using OpenAI.
@@ -270,29 +271,47 @@ class JobMatcherService:
                         # Ensure integer 0-10
                         ls = max(0, min(10, int(loc_score)))
                         b['location_score'] = ls
-                        # Provide a short reasoning if absent
+                        # Provide a short reasoning if absent (language-aware)
                         if not b.get('location_reasoning'):
                             cat = loc_match.get('category')
-                            if cat == 'exact':
-                                b['location_reasoning'] = "Aday ve ilan aynı şehirde (tam eşleşme)."
-                            elif cat == 'near':
-                                b['location_reasoning'] = "Aday şehir ilan şehrine 10–150 km aralığında (yakın)."
-                            else:
-                                b['location_reasoning'] = "Aday şehir ilan şehrine uzak (>150 km)."
+                            if language == "english":
+                                if cat == 'exact':
+                                    b['location_reasoning'] = "Candidate and job are in the same city (exact match)."
+                                elif cat == 'near':
+                                    b['location_reasoning'] = "Candidate city is 10-150 km from job city (nearby)."
+                                else:
+                                    b['location_reasoning'] = "Candidate city is far from job city (>150 km)."
+                            else:  # turkish
+                                if cat == 'exact':
+                                    b['location_reasoning'] = "Aday ve ilan aynı şehirde (tam eşleşme)."
+                                elif cat == 'near':
+                                    b['location_reasoning'] = "Aday şehir ilan şehrine 10–150 km aralığında (yakın)."
+                                else:
+                                    b['location_reasoning'] = "Aday şehir ilan şehrine uzak (>150 km)."
                         analysis_data['breakdown'] = b
 
-                # Append a short Turkish note to the summary to reflect location outcome
+                # Append a short note to the summary to reflect location outcome (language-aware)
                 try:
                     summary = analysis_data.get('summary') or ''
                     cat = loc_match.get('category') if isinstance(loc_match, dict) else None
-                    if cat == 'exact':
-                        note = "Lokasyon: Aday il ile tam eşleşme (10/10)."
-                    elif cat == 'near':
-                        note = "Lokasyon: Aday il ilan iline yakın (10–150 km) (8/10)."
-                    elif cat == 'far':
-                        note = "Lokasyon: Aday il ilan iline uzak (>150 km) (0/10). Çalışma yerinde ikamet edebilir mi sorulmalı."
-                    else:
-                        note = None
+                    if language == "english":
+                        if cat == 'exact':
+                            note = "Location: Exact city match (10/10)."
+                        elif cat == 'near':
+                            note = "Location: Candidate is nearby (10-150 km) (8/10)."
+                        elif cat == 'far':
+                            note = "Location: Candidate is far from job location (>150 km) (0/10). Consider asking if they can relocate."
+                        else:
+                            note = None
+                    else:  # turkish
+                        if cat == 'exact':
+                            note = "Lokasyon: Aday il ile tam eşleşme (10/10)."
+                        elif cat == 'near':
+                            note = "Lokasyon: Aday il ilan iline yakın (10–150 km) (8/10)."
+                        elif cat == 'far':
+                            note = "Lokasyon: Aday il ilan iline uzak (>150 km) (0/10). Çalışma yerinde ikamet edebilir mi sorulmalı."
+                        else:
+                            note = None
                     if note:
                         analysis_data['summary'] = (summary + "\n" + note).strip() if summary else note
                 except Exception:

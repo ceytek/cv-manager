@@ -3,6 +3,7 @@
  * Yapay zeka ile otomatik iş ilanı oluşturma arayüzü
  */
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { X, Sparkles, Briefcase, MapPin, Clock, GraduationCap, Languages, Tag, Plus, Globe, FileText } from 'lucide-react';
@@ -12,6 +13,7 @@ import { JOB_INTRO_TEMPLATES_QUERY } from '../../graphql/jobIntroTemplates';
 import { JOB_OUTRO_TEMPLATES_QUERY } from '../../graphql/jobOutroTemplates';
 import JobCreationProgressModal from '../JobCreationProgressModal';
 import SimpleRichTextEditor from '../SimpleRichTextEditor';
+import ErrorBoundary from '../ErrorBoundary';
 
 const AIJobCreator = ({ isOpen, onClose, onGenerate }) => {
   const { t, i18n } = useTranslation();
@@ -258,6 +260,14 @@ const AIJobCreator = ({ isOpen, onClose, onGenerate }) => {
       return;
     }
 
+    // Auto-add any skill left in the input field before generating
+    let finalSkills = [...formData.requiredSkills];
+    if (currentSkill.trim() && !finalSkills.includes(currentSkill.trim())) {
+      finalSkills.push(currentSkill.trim());
+      setFormData(prev => ({ ...prev, requiredSkills: finalSkills }));
+      setCurrentSkill('');
+    }
+
     setIsGenerating(true);
     setError(null);
     
@@ -275,7 +285,7 @@ const AIJobCreator = ({ isOpen, onClose, onGenerate }) => {
             location: formData.location,
             employmentType: formData.employmentType,
             experienceLevel: formData.experienceLevel || null,
-            requiredSkills: formData.requiredSkills,
+            requiredSkills: finalSkills,
             requiredLanguages: formData.requiredLanguages.map(lang => ({
               name: lang.name,
               level: lang.level
@@ -363,7 +373,8 @@ const AIJobCreator = ({ isOpen, onClose, onGenerate }) => {
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
+    <ErrorBoundary>
     <div style={{
       position: 'fixed',
       top: 0,
@@ -1263,6 +1274,8 @@ const AIJobCreator = ({ isOpen, onClose, onGenerate }) => {
         onClose={() => setShowProgressModal(false)}
       />
     </div>
+    </ErrorBoundary>,
+    document.body
   );
 };
 

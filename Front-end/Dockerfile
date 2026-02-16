@@ -20,7 +20,7 @@ ENV VITE_GRAPHQL_URL=$VITE_GRAPHQL_URL \
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci --only=production=false
+RUN rm -f package-lock.json && npm install
 
 # Copy source code
 COPY . .

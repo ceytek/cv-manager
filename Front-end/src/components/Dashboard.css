@@ -653,7 +653,7 @@
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  min-width: 160px;
+  min-width: 220px;
   background: white;
   border: 1px solid #E5E7EB;
   border-radius: 8px;
@@ -675,6 +675,12 @@
   color: #374151;
   cursor: pointer;
   transition: background 0.15s;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.user-dropdown-item span {
+  flex: 1;
 }
 
 .user-dropdown-item:hover {

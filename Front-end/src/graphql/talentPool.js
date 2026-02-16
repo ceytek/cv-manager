@@ -36,6 +36,7 @@ export const GET_TALENT_POOL_ENTRIES = gql`
         email
         phone
         cvPhotoPath
+        cvFilePath
         location
         experienceMonths
         cvFileName
@@ -72,6 +73,7 @@ export const GET_TALENT_POOL_ENTRY = gql`
         email
         phone
         cvPhotoPath
+        cvFilePath
         location
         experienceMonths
         cvFileName

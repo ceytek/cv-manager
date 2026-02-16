@@ -3,6 +3,7 @@
  * Displays candidates in the talent pool with filtering, sorting, and management options
  */
 import React, { useState, useMemo } from 'react';
+import ReactDOM from 'react-dom';
 import { useQuery, useMutation } from '@apollo/client/react';
 import { useTranslation } from 'react-i18next';
 import { 
@@ -12,8 +13,6 @@ import {
   SortDesc,
   Tag,
   Users,
-  Archive,
-  RotateCcw,
   Trash2,
   Edit2,
   Briefcase,
@@ -29,14 +28,13 @@ import {
   LayoutGrid,
   List,
   Clock,
-  User
+  User,
+  AlertTriangle
 } from 'lucide-react';
 import { 
   GET_TALENT_POOL_ENTRIES, 
   GET_TALENT_POOL_TAGS,
   GET_TALENT_POOL_STATS,
-  ARCHIVE_TALENT_POOL_ENTRY,
-  RESTORE_TALENT_POOL_ENTRY,
   REMOVE_FROM_TALENT_POOL,
   UPDATE_TALENT_POOL_ENTRY
 } from '../graphql/talentPool';
@@ -47,8 +45,10 @@ const EditEntryModal = ({ entry, tags, onClose, onSuccess }) => {
   const { t } = useTranslation();
   const [selectedTags, setSelectedTags] = useState(entry.tags?.map(t => t.id) || []);
   const [notes, setNotes] = useState(entry.notes || '');
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   
   const [updateEntry, { loading }] = useMutation(UPDATE_TALENT_POOL_ENTRY);
+  const [removeFromPool, { loading: removing }] = useMutation(REMOVE_FROM_TALENT_POOL);
 
   // Helper function to get translated tag name for system tags
   const getTagDisplayName = (tag) => {
@@ -59,20 +59,41 @@ const EditEntryModal = ({ entry, tags, onClose, onSuccess }) => {
   };
 
   const toggleTag = (tagId) => {
-    setSelectedTags(prev => 
-      prev.includes(tagId) 
-        ? prev.filter(id => id !== tagId)
-        : [...prev, tagId]
-    );
+    const newTags = selectedTags.includes(tagId)
+      ? selectedTags.filter(id => id !== tagId)
+      : [...selectedTags, tagId];
+
+    // If removing the last tag, show confirmation
+    if (selectedTags.includes(tagId) && newTags.length === 0) {
+      setShowRemoveConfirm(true);
+      return;
+    }
+
+    setSelectedTags(newTags);
+  };
+
+  const handleConfirmRemoveFromPool = async () => {
+    try {
+      await removeFromPool({ variables: { id: entry.id } });
+      onSuccess?.();
+      onClose();
+    } catch (err) {
+      console.error('Remove error:', err);
+    }
   };
 
   const handleSave = async () => {
+    // If no tags selected, show confirmation to remove from pool
+    if (selectedTags.length === 0) {
+      setShowRemoveConfirm(true);
+      return;
+    }
     try {
       await updateEntry({
         variables: {
           id: entry.id,
           input: {
-            notes: notes.trim() || null,
+            notes: notes.trim(),
             tagIds: selectedTags,
           }
         }
@@ -234,6 +255,81 @@ const EditEntryModal = ({ entry, tags, onClose, onSuccess }) => {
           </button>
         </div>
       </div>
+
+      {/* Remove from pool confirmation */}
+      {showRemoveConfirm && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.6)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1100,
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: 16,
+            padding: 28,
+            maxWidth: 420,
+            width: '90%',
+            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.3)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+              <div style={{
+                width: 44,
+                height: 44,
+                borderRadius: 12,
+                background: '#FEF3C7',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <AlertTriangle size={22} color="#D97706" />
+              </div>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#1F2937' }}>
+                {t('talentPool.removeConfirmTitle', 'Remove from Talent Pool')}
+              </h3>
+            </div>
+            <p style={{ margin: '0 0 24px', fontSize: 14, color: '#4B5563', lineHeight: 1.6 }}>
+              {t('talentPool.removeAllTagsWarning', 'You are about to remove all tags from this person. They will be removed from the talent pool. Are you sure?')}
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button
+                onClick={() => setShowRemoveConfirm(false)}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: 8,
+                  border: '1px solid #D1D5DB',
+                  background: 'white',
+                  color: '#374151',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  fontSize: 14,
+                }}
+              >
+                {t('common.cancel', 'Cancel')}
+              </button>
+              <button
+                onClick={handleConfirmRemoveFromPool}
+                disabled={removing}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: 8,
+                  border: 'none',
+                  background: '#DC2626',
+                  color: 'white',
+                  fontWeight: 600,
+                  cursor: removing ? 'wait' : 'pointer',
+                  fontSize: 14,
+                }}
+              >
+                {removing ? '...' : t('talentPool.confirmRemove', 'Remove')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -252,7 +348,6 @@ const TalentPoolPage = () => {
   // State
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTags, setSelectedTags] = useState([]);
-  const [statusFilter, setStatusFilter] = useState('active'); // active, archived, all
   const [sortBy, setSortBy] = useState('addedAt'); // addedAt, candidateName
   const [sortOrder, setSortOrder] = useState('desc');
   const [viewMode, setViewMode] = useState('grid'); // grid, list
@@ -260,6 +355,8 @@ const TalentPoolPage = () => {
   const [editingEntry, setEditingEntry] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [tagsPopup, setTagsPopup] = useState(null); // { entry, position }
+  const [cvPreviewUrl, setCvPreviewUrl] = useState(null);
+  const [cvPreviewName, setCvPreviewName] = useState('');
 
   // Queries
   const { data: entriesData, loading: entriesLoading, refetch } = useQuery(GET_TALENT_POOL_ENTRIES, {
@@ -267,7 +364,7 @@ const TalentPoolPage = () => {
       filter: {
         search: searchTerm || null,
         tagIds: selectedTags.length > 0 ? selectedTags : null,
-        status: statusFilter === 'all' ? null : statusFilter,
+        status: 'active',
         sortBy,
         sortOrder,
       }
@@ -279,8 +376,6 @@ const TalentPoolPage = () => {
   const { data: statsData, refetch: refetchStats } = useQuery(GET_TALENT_POOL_STATS);
 
   // Mutations
-  const [archiveEntry] = useMutation(ARCHIVE_TALENT_POOL_ENTRY);
-  const [restoreEntry] = useMutation(RESTORE_TALENT_POOL_ENTRY);
   const [removeEntry] = useMutation(REMOVE_FROM_TALENT_POOL);
 
   const entries = entriesData?.talentPoolEntries || [];
@@ -288,26 +383,6 @@ const TalentPoolPage = () => {
   const stats = statsData?.talentPoolStats || { totalCandidates: 0, activeCandidates: 0, archivedCandidates: 0 };
 
   // Handlers
-  const handleArchive = async (id) => {
-    try {
-      await archiveEntry({ variables: { id } });
-      refetch();
-      refetchStats();
-    } catch (err) {
-      console.error('Archive error:', err);
-    }
-  };
-
-  const handleRestore = async (id) => {
-    try {
-      await restoreEntry({ variables: { id } });
-      refetch();
-      refetchStats();
-    } catch (err) {
-      console.error('Restore error:', err);
-    }
-  };
-
   const handleRemove = async (id) => {
     try {
       await removeEntry({ variables: { id } });
@@ -378,7 +453,7 @@ const TalentPoolPage = () => {
           </div>
         </div>
 
-        {/* Stats Cards */}
+        {/* Stats Card */}
         <div style={{ display: 'flex', gap: 16, marginTop: 20 }}>
           <div style={{
             padding: '16px 20px',
@@ -401,60 +476,8 @@ const TalentPoolPage = () => {
               <Users size={22} color="#6366F1" />
             </div>
             <div>
-              <div style={{ fontSize: 24, fontWeight: 700, color: '#111827' }}>{stats.totalCandidates}</div>
-              <div style={{ fontSize: 13, color: '#6B7280' }}>{t('talentPool.totalCandidates')}</div>
-            </div>
-          </div>
-          
-          <div style={{
-            padding: '16px 20px',
-            background: 'white',
-            borderRadius: 12,
-            border: '1px solid #E5E7EB',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-          }}>
-            <div style={{
-              width: 44,
-              height: 44,
-              borderRadius: 10,
-              background: '#D1FAE5',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-              <User size={22} color="#10B981" />
-            </div>
-            <div>
               <div style={{ fontSize: 24, fontWeight: 700, color: '#111827' }}>{stats.activeCandidates}</div>
-              <div style={{ fontSize: 13, color: '#6B7280' }}>{t('talentPool.activeCandidates')}</div>
-            </div>
-          </div>
-
-          <div style={{
-            padding: '16px 20px',
-            background: 'white',
-            borderRadius: 12,
-            border: '1px solid #E5E7EB',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-          }}>
-            <div style={{
-              width: 44,
-              height: 44,
-              borderRadius: 10,
-              background: '#FEF3C7',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-              <Archive size={22} color="#F59E0B" />
-            </div>
-            <div>
-              <div style={{ fontSize: 24, fontWeight: 700, color: '#111827' }}>{stats.archivedCandidates}</div>
-              <div style={{ fontSize: 13, color: '#6B7280' }}>{t('talentPool.archivedCandidates')}</div>
+              <div style={{ fontSize: 13, color: '#6B7280' }}>{t('talentPool.totalCandidates')}</div>
             </div>
           </div>
         </div>
@@ -480,29 +503,6 @@ const TalentPoolPage = () => {
               className="text-input"
               style={{ paddingLeft: 40, width: '100%' }}
             />
-          </div>
-
-          {/* Status Filter */}
-          <div style={{ display: 'flex', background: '#F3F4F6', borderRadius: 8, padding: 4 }}>
-            {['active', 'archived', 'all'].map(status => (
-              <button
-                key={status}
-                onClick={() => setStatusFilter(status)}
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: 6,
-                  border: 'none',
-                  background: statusFilter === status ? 'white' : 'transparent',
-                  color: statusFilter === status ? '#111827' : '#6B7280',
-                  fontWeight: 500,
-                  fontSize: 13,
-                  cursor: 'pointer',
-                  boxShadow: statusFilter === status ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                }}
-              >
-                {t(`talentPool.status.${status}`)}
-              </button>
-            ))}
           </div>
 
           {/* Sort */}
@@ -698,7 +698,6 @@ const TalentPoolPage = () => {
                 borderRadius: 12,
                 border: '1px solid #E5E7EB',
                 overflow: 'hidden',
-                opacity: entry.status === 'archived' ? 0.7 : 1,
               }}
             >
               {/* Header */}
@@ -745,18 +744,6 @@ const TalentPoolPage = () => {
                     </div>
                   )}
                 </div>
-                {entry.status === 'archived' && (
-                  <span style={{
-                    padding: '4px 10px',
-                    borderRadius: 12,
-                    background: '#FEF3C7',
-                    color: '#92400E',
-                    fontSize: 11,
-                    fontWeight: 600,
-                  }}>
-                    {t('talentPool.archived')}
-                  </span>
-                )}
               </div>
 
               {/* Body */}
@@ -856,6 +843,25 @@ const TalentPoolPage = () => {
                   {getRelativeTime(entry.addedAt)}
                 </div>
                 <div style={{ display: 'flex', gap: 6 }}>
+                  {entry.candidate?.cvFilePath && (
+                    <button
+                      onClick={() => {
+                        setCvPreviewUrl(`${API_BASE_URL}${entry.candidate.cvFilePath.replace('/app', '')}`);
+                        setCvPreviewName(entry.candidate?.name || 'CV');
+                      }}
+                      title={t('talentPool.previewCV', 'CV Görüntüle')}
+                      style={{
+                        padding: 8,
+                        borderRadius: 8,
+                        border: 'none',
+                        background: '#FEF3C7',
+                        color: '#F59E0B',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <Eye size={14} />
+                    </button>
+                  )}
                   <button
                     onClick={() => setEditingEntry(entry)}
                     title={t('common.edit')}
@@ -870,37 +876,6 @@ const TalentPoolPage = () => {
                   >
                     <Edit2 size={14} />
                   </button>
-                  {entry.status === 'active' ? (
-                    <button
-                      onClick={() => handleArchive(entry.id)}
-                      title={t('talentPool.archive')}
-                      style={{
-                        padding: 8,
-                        borderRadius: 8,
-                        border: 'none',
-                        background: '#FEF3C7',
-                        color: '#92400E',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <Archive size={14} />
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => handleRestore(entry.id)}
-                      title={t('talentPool.restore')}
-                      style={{
-                        padding: 8,
-                        borderRadius: 8,
-                        border: 'none',
-                        background: '#D1FAE5',
-                        color: '#059669',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <RotateCcw size={14} />
-                    </button>
-                  )}
                   <button
                     onClick={() => setDeleteConfirm(entry)}
                     title={t('common.delete')}
@@ -954,7 +929,6 @@ const TalentPoolPage = () => {
                   key={entry.id}
                   style={{
                     borderTop: '1px solid #E5E7EB',
-                    opacity: entry.status === 'archived' ? 0.7 : 1,
                   }}
                 >
                   <td style={{ padding: '16px' }}>
@@ -981,18 +955,6 @@ const TalentPoolPage = () => {
                           {entry.candidate?.email}
                         </div>
                       </div>
-                      {entry.status === 'archived' && (
-                        <span style={{
-                          padding: '2px 8px',
-                          borderRadius: 10,
-                          background: '#FEF3C7',
-                          color: '#92400E',
-                          fontSize: 10,
-                          fontWeight: 600,
-                        }}>
-                          {t('talentPool.archived')}
-                        </span>
-                      )}
                     </div>
                   </td>
                   <td style={{ padding: '16px' }}>
@@ -1046,27 +1008,24 @@ const TalentPoolPage = () => {
                   </td>
                   <td style={{ padding: '16px' }}>
                     <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                      {entry.candidate?.cvFilePath && (
+                        <button
+                          onClick={() => {
+                            setCvPreviewUrl(`${API_BASE_URL}${entry.candidate.cvFilePath.replace('/app', '')}`);
+                            setCvPreviewName(entry.candidate?.name || 'CV');
+                          }}
+                          title={t('talentPool.previewCV', 'CV Görüntüle')}
+                          style={{ padding: 6, borderRadius: 6, border: 'none', background: '#FEF3C7', color: '#F59E0B', cursor: 'pointer' }}
+                        >
+                          <Eye size={14} />
+                        </button>
+                      )}
                       <button
                         onClick={() => setEditingEntry(entry)}
                         style={{ padding: 6, borderRadius: 6, border: 'none', background: '#EEF2FF', color: '#6366F1', cursor: 'pointer' }}
                       >
                         <Edit2 size={14} />
                       </button>
-                      {entry.status === 'active' ? (
-                        <button
-                          onClick={() => handleArchive(entry.id)}
-                          style={{ padding: 6, borderRadius: 6, border: 'none', background: '#FEF3C7', color: '#92400E', cursor: 'pointer' }}
-                        >
-                          <Archive size={14} />
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleRestore(entry.id)}
-                          style={{ padding: 6, borderRadius: 6, border: 'none', background: '#D1FAE5', color: '#059669', cursor: 'pointer' }}
-                        >
-                          <RotateCcw size={14} />
-                        </button>
-                      )}
                       <button
                         onClick={() => setDeleteConfirm(entry)}
                         style={{ padding: 6, borderRadius: 6, border: 'none', background: '#FEE2E2', color: '#DC2626', cursor: 'pointer' }}
@@ -1217,6 +1176,76 @@ const TalentPoolPage = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* CV Preview Modal - rendered via portal */}
+      {cvPreviewUrl && ReactDOM.createPortal(
+        <div
+          style={{
+            position: 'fixed',
+            top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: 20,
+          }}
+          onClick={() => { setCvPreviewUrl(null); setCvPreviewName(''); }}
+        >
+          <div
+            style={{
+              background: 'white',
+              borderRadius: 16,
+              width: '100%',
+              maxWidth: 900,
+              height: '90vh',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.4)',
+              overflow: 'hidden',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{
+              padding: '16px 24px',
+              background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexShrink: 0,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: 'white' }}>
+                <FileText size={22} />
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{t('talentPool.previewCV', 'CV Görüntüle')}</h3>
+                  <p style={{ margin: 0, fontSize: 13, opacity: 0.9 }}>{cvPreviewName}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setCvPreviewUrl(null); setCvPreviewName(''); }}
+                style={{
+                  background: 'rgba(255,255,255,0.2)',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: 8,
+                  cursor: 'pointer',
+                  display: 'flex',
+                }}
+              >
+                <X size={20} color="white" />
+              </button>
+            </div>
+            <div style={{ flex: 1, background: '#F3F4F6' }}>
+              <iframe
+                src={cvPreviewUrl}
+                style={{ width: '100%', height: '100%', border: 'none' }}
+                title="CV Preview"
+              />
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );
