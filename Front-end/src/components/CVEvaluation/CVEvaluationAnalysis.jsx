@@ -73,12 +73,12 @@ const CVEvaluationAnalysis = ({ onBack, onNavigateToJob }) => {
   });
   const jobs = jobsData?.jobs || [];
 
-  // Fetch candidates (only when department is selected)
+  // Fetch candidates (all or filtered by department)
   const { data: candidatesData, loading: candidatesLoading } = useQuery(CANDIDATES_QUERY, {
     variables: {
       departmentId: selectedDepartment || null,
     },
-    skip: !selectedDepartment || sourceType !== 'departments',
+    skip: sourceType !== 'departments',
   });
   const candidates = candidatesData?.candidates || [];
 
@@ -1101,11 +1101,7 @@ const CandidateSelectionPanel = ({
 
       {/* Candidate List */}
       <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
-        {sourceType === 'departments' && !selectedDepartment ? (
-          <div style={{ textAlign: 'center', padding: 40, color: '#9CA3AF' }}>
-            {t('cvEvaluation.selectJob')}
-          </div>
-        ) : loading ? (
+        {loading ? (
           <div style={{ textAlign: 'center', padding: 40, color: '#9CA3AF' }}>{t('common.loading')}</div>
         ) : candidates.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 40, color: '#9CA3AF' }}>
