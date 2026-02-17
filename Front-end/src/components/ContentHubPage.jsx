@@ -43,7 +43,7 @@ const ContentHubPage = ({ onNavigate }) => {
         {
           id: 'jobIntroTemplates',
           icon: FileText,
-          title: t('templates.jobIntroTemplates', 'İlan Tanıtımları'),
+          title: t('templates.jobIntroTemplates', 'İlan Ön Yazıları'),
           description: t('contentHub.jobIntroDesc', 'Şirket tanıtım ve ilan giriş metinleri'),
           color: '#8B5CF6',
           bgColor: '#F5F3FF'
@@ -51,7 +51,7 @@ const ContentHubPage = ({ onNavigate }) => {
         {
           id: 'jobOutroTemplates',
           icon: FileOutput,
-          title: t('templates.jobOutroTemplates', 'İlan Sonuçları'),
+          title: t('templates.jobOutroTemplates', 'İlan Son Yazıları'),
           description: t('contentHub.jobOutroDesc', 'Sunduklarımız ve yan haklar metinleri'),
           color: '#F59E0B',
           bgColor: '#FFFBEB'

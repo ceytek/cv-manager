@@ -157,8 +157,8 @@
     "interviewTemplates": "AI Interview Tests",
     "likertTemplates": "Likert Tests",
     "agreementTemplates": "Agreement Templates",
-    "jobIntroTemplates": "Job Introductions",
-    "jobOutroTemplates": "Job Conclusions",
+    "jobIntroTemplates": "Job Preambles",
+    "jobOutroTemplates": "Job Postscripts",
     "rejectionTemplates": "Rejection Messages",
     "offerTemplates": "Offer Templates",
     "categoryAssessment": "Assessment",
@@ -585,7 +585,7 @@
     "save": "Save"
   },
   "jobIntroTemplates": {
-    "title": "Job Introduction Templates",
+    "title": "Job Preamble Templates",
     "subtitle": "Introduction and preamble texts for job postings",
     "addNew": "Add New Introduction",
     "edit": "Edit Introduction",
@@ -603,7 +603,7 @@
     "fillRequired": "Please fill in all required fields"
   },
   "jobOutroTemplates": {
-    "title": "Job Conclusion Templates",
+    "title": "Job Postscript Templates",
     "subtitle": "What we offer, benefits and closing statements",
     "addNew": "Add New Conclusion",
     "edit": "Edit Conclusion",
