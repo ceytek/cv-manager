@@ -1146,7 +1146,8 @@ const SecondInterviewInviteModal = ({
           )}
         </div>
 
-        {/* Footer */}
+        {/* Footer - Hide when in view mode (body already has Kapat button) */}
+        {!isViewMode && (
         <div style={{ 
           padding: '16px 24px', 
           borderTop: '1px solid #E5E7EB', 
@@ -1212,6 +1213,7 @@ const SecondInterviewInviteModal = ({
             </>
           )}
         </div>
+        )}
       </div>
     </div>,
     document.body
