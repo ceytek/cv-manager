@@ -631,6 +631,10 @@ async def complete_likert_session(token: str) -> GenericResponse:
         answers = db.query(LikertAnswer).filter(LikertAnswer.session_id == session.id).all()
         total_score = sum(a.score for a in answers)
         
+        # Ensure started_at is set (for duration tracking)
+        if not session.started_at:
+            session.started_at = session.created_at or datetime.utcnow()
+        
         session.status = 'completed'
         session.completed_at = datetime.utcnow()
         session.total_score = total_score

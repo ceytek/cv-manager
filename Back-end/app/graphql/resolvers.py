@@ -4581,6 +4581,10 @@ class Mutation(CompanyMutation):
                 db.add(answer)
                 total_score += ans.value
             
+            # Ensure started_at is set (for duration tracking)
+            if not session.started_at:
+                session.started_at = session.created_at or datetime.utcnow()
+            
             session.status = "completed"
             session.completed_at = datetime.utcnow()
             session.total_score = total_score

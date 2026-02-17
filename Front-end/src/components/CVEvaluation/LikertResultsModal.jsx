@@ -30,9 +30,15 @@ const LikertResultsModal = ({ isOpen, onClose, applicationId, candidateName, job
   const totalScore = session?.totalScore || answers.reduce((sum, a) => sum + a.score, 0);
   const avgScore = answers.length > 0 ? (totalScore / answers.length).toFixed(2) : 0;
 
-  // Calculate duration
-  const duration = session?.startedAt && session?.completedAt
-    ? Math.round((new Date(session.completedAt) - new Date(session.startedAt)) / 60000)
+  // Calculate duration (use createdAt as fallback if startedAt is missing)
+  const startTime = session?.startedAt || session?.createdAt;
+  const durationSeconds = startTime && session?.completedAt
+    ? Math.round((new Date(session.completedAt) - new Date(startTime)) / 1000)
+    : null;
+  const durationDisplay = durationSeconds !== null
+    ? durationSeconds >= 60
+      ? `${Math.round(durationSeconds / 60)} ${isEnglish ? 'min' : 'dk'}`
+      : `${durationSeconds} ${isEnglish ? 'sec' : 'sn'}`
     : null;
 
   const formatDate = (isoString) => {
@@ -197,7 +203,7 @@ const LikertResultsModal = ({ isOpen, onClose, applicationId, candidateName, job
                   <Clock size={24} style={{ color: '#F59E0B', marginBottom: 8 }} />
                   <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 4 }}>{isEnglish ? 'Duration' : 'Süre'}</div>
                   <div style={{ fontSize: 16, fontWeight: 700, color: '#1F2937' }}>
-                    {duration ? `${duration} ${isEnglish ? 'min' : 'dk'}` : '-'}
+                    {durationDisplay || '-'}
                   </div>
                 </div>
               </div>
