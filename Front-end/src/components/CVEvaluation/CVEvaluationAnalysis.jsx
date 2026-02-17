@@ -655,13 +655,12 @@ const CandidateSelectionPanel = ({
     selectedCandidates.some(sc => sc.id === c.id)
   );
   
-  // Get selected department name
-  const selectedDeptName = selectedDepartment 
-    ? departments.find(d => d.id === selectedDepartment)?.name 
+  // Get selected department info
+  const selectedDept = selectedDepartment ? departments.find(d => d.id === selectedDepartment) : null;
+  const selectedDeptName = selectedDept 
+    ? `${selectedDept.name} (${selectedDept.candidateCount || 0})`
     : t('cvEvaluation.allDepartments');
-  const selectedDeptColor = selectedDepartment 
-    ? departments.find(d => d.id === selectedDepartment)?.color 
-    : null;
+  const selectedDeptColor = selectedDept?.color || null;
 
   // Get display text for selected tags
   const getSelectedTagsDisplay = () => {
@@ -857,7 +856,10 @@ const CandidateSelectionPanel = ({
                   onMouseLeave={(e) => e.currentTarget.style.background = selectedDepartment === '' ? '#EEF2FF' : 'white'}
                 >
                   {selectedDepartment === '' && <span style={{ color: '#4F46E5' }}>✓</span>}
-                  {t('cvEvaluation.allDepartments')}
+                  <span style={{ flex: 1 }}>{t('cvEvaluation.allDepartments')}</span>
+                  <span style={{ fontSize: 12, color: '#9CA3AF', fontWeight: 500 }}>
+                    ({departments.reduce((sum, d) => sum + (d.candidateCount || 0), 0)})
+                  </span>
                 </button>
                 
                 {departments.map(dept => (
@@ -891,7 +893,12 @@ const CandidateSelectionPanel = ({
                         marginLeft: selectedDepartment === dept.id ? 0 : 18,
                       }} />
                     )}
-                    {dept.name}
+                    <span style={{ flex: 1 }}>{dept.name}</span>
+                    {dept.candidateCount > 0 && (
+                      <span style={{ fontSize: 12, color: '#9CA3AF', fontWeight: 500 }}>
+                        ({dept.candidateCount})
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>

@@ -74,6 +74,7 @@ class DepartmentType:
     created_at: datetime = strawberry.field(name="createdAt")
     updated_at: datetime = strawberry.field(name="updatedAt")
     job_count: int = strawberry.field(name="jobCount", default=0)
+    candidate_count: int = strawberry.field(name="candidateCount", default=0)
 
 
 @strawberry.type

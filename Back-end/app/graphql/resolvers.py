@@ -609,11 +609,20 @@ class Query:
             
             # Get job counts per department
             from app.models.job import Job
+            from app.models.candidate import Candidate
             from sqlalchemy import func
             job_counts = dict(
                 db.query(Job.department_id, func.count(Job.id))
                 .filter(Job.company_id == company_id)
                 .group_by(Job.department_id)
+                .all()
+            )
+            
+            # Get candidate counts per department
+            candidate_counts = dict(
+                db.query(Candidate.department_id, func.count(Candidate.id))
+                .filter(Candidate.company_id == company_id)
+                .group_by(Candidate.department_id)
                 .all()
             )
             
@@ -627,6 +636,7 @@ class Query:
                     created_at=d.created_at,
                     updated_at=d.updated_at,
                     job_count=job_counts.get(d.id, 0),
+                    candidate_count=candidate_counts.get(d.id, 0),
                 )
                 for d in departments
             ]

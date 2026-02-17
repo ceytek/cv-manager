@@ -18,6 +18,7 @@ export const DEPARTMENTS_QUERY = gql`
       createdAt
       updatedAt
       jobCount
+      candidateCount
     }
   }
 `;
