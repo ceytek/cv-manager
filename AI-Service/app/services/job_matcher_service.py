@@ -238,6 +238,64 @@ class JobMatcherService:
                 # Do not fail the whole analysis if normalization fails
                 pass
 
+            # ============================================================
+            # HARD RULE: Disability (Engelli) Position Check
+            # If the job is marked as disabled-friendly (engelli kadrosu),
+            # the candidate MUST have disability mentioned in their CV.
+            # This is a legal requirement in Turkey - no exceptions.
+            # ============================================================
+            try:
+                is_disabled_job = job_data.get('is_disabled_friendly', False)
+                if is_disabled_job:
+                    # Check if candidate's CV mentions disability
+                    disability_found = self._check_disability_in_cv(candidate_data)
+                    
+                    if not disability_found:
+                        # Override entire analysis to 0
+                        logger.info(
+                            f"Disability position check FAILED for candidate "
+                            f"{candidate_data.get('name', 'Unknown')} - "
+                            f"CV does not mention disability status. Score forced to 0."
+                        )
+                        
+                        disability_msg_tr = (
+                            "Bu ilan engelli kadrosu için açılmıştır. "
+                            "Adayın CV'sinde engellilik durumu belirtilmediği için "
+                            "bu pozisyon için değerlendirilemez. "
+                            "Engelli kadroları yasal zorunluluk olup koşulları kesindir."
+                        )
+                        disability_msg_en = (
+                            "This position is designated for disabled candidates. "
+                            "The candidate's CV does not indicate any disability status, "
+                            "therefore they cannot be evaluated for this position. "
+                            "Disabled positions are a legal requirement with strict conditions."
+                        )
+                        
+                        summary_msg = disability_msg_tr if language != "english" else disability_msg_en
+                        weakness_msg = disability_msg_tr if language != "english" else disability_msg_en
+                        
+                        analysis_data['overall_score'] = 0
+                        analysis_data['recommendation'] = 'not_recommended'
+                        analysis_data['summary'] = summary_msg
+                        analysis_data['weaknesses'] = [weakness_msg]
+                        analysis_data['strengths'] = []
+                        analysis_data['breakdown'] = {
+                            'experience_score': 0,
+                            'experience_reasoning': summary_msg,
+                            'education_score': 0,
+                            'education_reasoning': summary_msg,
+                            'skills_score': 0,
+                            'skills_reasoning': summary_msg,
+                            'language_score': 0,
+                            'language_reasoning': summary_msg,
+                            'fit_score': 0,
+                            'fit_reasoning': summary_msg,
+                        }
+                        # Add a flag for frontend to display
+                        analysis_data['disability_check_failed'] = True
+            except Exception as e:
+                logger.warning(f"Disability check error (non-fatal): {e}")
+
             # Compute/normalize location match from DB-backed candidate location
             try:
                 # Extract locations
@@ -340,6 +398,137 @@ class JobMatcherService:
             logger.error(f"Error in CV-to-Job matching: {str(e)}")
             raise Exception(f"Failed to analyze candidate: {str(e)}")
     
+    def _check_disability_in_cv(self, candidate_data: Dict[str, Any]) -> bool:
+        """
+        Check if the candidate's CV mentions disability status.
+        
+        Searches through:
+        - Parsed data (personal info, summary, experience descriptions)
+        - Raw CV text if available
+        - Name/title fields
+        
+        Returns True if disability-related keywords are found.
+        """
+        import re
+        
+        # Disability-related keywords in Turkish and English
+        disability_keywords = [
+            # Turkish
+            'engelli', 'engellilik', 'engel durumu', 'engelli raporu',
+            'engelli sağlık kurulu', 'engelli kimlik', 'engelli kartı',
+            'bedensel engel', 'görme engel', 'işitme engel', 'ortopedik engel',
+            'zihinsel engel', 'süreğen hastalık', 'kronik hastalık',
+            'engelli oranı', 'engel oranı', '% engel',
+            'engelli personel', 'engelli çalışan', 'engelli aday',
+            'sağlık kurulu raporu', 'özürlü', 'özürlülük',
+            # English
+            'disabled', 'disability', 'handicap', 'impairment',
+            'disability report', 'disability certificate', 'disability card',
+            'physical disability', 'visual impairment', 'hearing impairment',
+            'orthopedic disability', 'chronic illness', 'chronic disease',
+            'disability rate', 'disability percentage',
+            'special needs', 'differently abled',
+        ]
+        
+        # Build a single regex pattern for efficiency
+        pattern = re.compile(
+            '|'.join(re.escape(kw) for kw in disability_keywords),
+            re.IGNORECASE
+        )
+        
+        # Collect all text from candidate data
+        text_parts = []
+        
+        # Name (might include "Engelli" designation)
+        if candidate_data.get('name'):
+            text_parts.append(str(candidate_data['name']))
+        
+        # Raw CV text
+        if candidate_data.get('cv_text'):
+            text_parts.append(str(candidate_data['cv_text']))
+        
+        # Parsed data
+        parsed = candidate_data.get('parsed_data') or {}
+        if isinstance(parsed, dict):
+            # Personal info
+            personal = parsed.get('personal') or {}
+            if isinstance(personal, dict):
+                for key, val in personal.items():
+                    if val:
+                        text_parts.append(str(val))
+            
+            # Summary
+            if parsed.get('summary'):
+                text_parts.append(str(parsed['summary']))
+            
+            # Experience descriptions
+            experiences = parsed.get('experience') or []
+            if isinstance(experiences, list):
+                for exp in experiences:
+                    if isinstance(exp, dict):
+                        for key in ['title', 'description', 'company']:
+                            if exp.get(key):
+                                text_parts.append(str(exp[key]))
+                    else:
+                        text_parts.append(str(exp))
+            
+            # Education
+            educations = parsed.get('education') or []
+            if isinstance(educations, list):
+                for edu in educations:
+                    if isinstance(edu, dict):
+                        for key, val in edu.items():
+                            if val:
+                                text_parts.append(str(val))
+                    else:
+                        text_parts.append(str(edu))
+            
+            # Skills (might mention disability-related skills)
+            skills = parsed.get('skills') or {}
+            if isinstance(skills, dict):
+                for key, val in skills.items():
+                    if isinstance(val, list):
+                        text_parts.extend(str(s) for s in val)
+                    elif val:
+                        text_parts.append(str(val))
+            
+            # Certifications (disability report could be listed)
+            certs = parsed.get('certifications') or []
+            if isinstance(certs, list):
+                for cert in certs:
+                    if isinstance(cert, dict):
+                        for key, val in cert.items():
+                            if val:
+                                text_parts.append(str(val))
+                    else:
+                        text_parts.append(str(cert))
+            
+            # Additional/other sections
+            for key in ['additional', 'other', 'notes', 'references', 'hobbies']:
+                if parsed.get(key):
+                    val = parsed[key]
+                    if isinstance(val, list):
+                        text_parts.extend(str(s) for s in val)
+                    elif isinstance(val, dict):
+                        for k, v in val.items():
+                            if v:
+                                text_parts.append(str(v))
+                    else:
+                        text_parts.append(str(val))
+        
+        # Search through all collected text
+        combined_text = ' '.join(text_parts)
+        
+        if pattern.search(combined_text):
+            return True
+        
+        # Also check for percentage patterns like "40% engelli" or "%40 engelli"
+        percent_pattern = re.compile(r'(%\s*\d+|\d+\s*%)\s*(engel|disability|handicap)', re.IGNORECASE)
+        if percent_pattern.search(combined_text):
+            return True
+        
+        return False
+
     def _validate_analysis_data(self, data: Dict[str, Any]) -> None:
         """
         Validate that the analysis data has all required fields.

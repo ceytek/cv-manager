@@ -45,6 +45,7 @@ Experience Level Required: {job_data.get('experience_level', 'N/A')}
 Required Education: {job_data.get('required_education', 'N/A')}
 Preferred Majors: {', '.join(job_data.get('preferred_majors', [])) if isinstance(job_data.get('preferred_majors'), list) else (job_data.get('preferred_majors') if job_data.get('preferred_majors') else 'N/A')}
 Required Languages: {', '.join([f"{lang}: {level}" for lang, level in job_data.get('required_languages', {}).items()]) if isinstance(job_data.get('required_languages'), dict) else (job_data.get('required_languages') if job_data.get('required_languages') else 'N/A')}
+Disabled Position (Engelli Kadrosu): {'YES - This position is specifically for disabled candidates (legal requirement)' if job_data.get('is_disabled_friendly') else 'No'}
 
 **Job Description:**
 {job_data.get('description_plain', job_data.get('description', 'N/A'))}
@@ -168,6 +169,7 @@ Respond with a valid JSON object with the following structure:
 - Ensure all scores add up to the overall_score
 - The overall_score should equal the sum of: experience_score + education_score + skills_score + language_score + fit_score (location_score is auxiliary and should not increase the total beyond 100)
 - **TURKISH LANGUAGE RULE**: ONLY if "CV Language: TR" appears above, assume candidate is a native Turkish speaker. If CV Language is NOT "TR" (e.g., DE, EN, FR), check the Languages section - if Turkish is not listed there, mark it as "missing".
+- **DISABILITY POSITION RULE (CRITICAL)**: If "Disabled Position: YES" is indicated above, this is a legally mandated position for disabled candidates in Turkey. If the candidate's CV does NOT explicitly mention any disability status (engelli, engellilik, engelli raporu, disability certificate, etc.), the overall_score MUST be 0 and recommendation MUST be "not_recommended". Disability positions have strict legal requirements - no exceptions.
 - Return ONLY the JSON object, no additional text"""
 
     return prompt

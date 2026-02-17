@@ -4051,7 +4051,8 @@ class Mutation(CompanyMutation):
                 "experience_level": job.experience_level,
                 "required_education": job.required_education,
                 "preferred_majors": job.preferred_majors if isinstance(job.preferred_majors, list) else ([job.preferred_majors] if job.preferred_majors else []),
-                "required_languages": job.required_languages if isinstance(job.required_languages, dict) else {}
+                "required_languages": job.required_languages if isinstance(job.required_languages, dict) else {},
+                "is_disabled_friendly": job.is_disabled_friendly or False
             }
             
             success_count = 0

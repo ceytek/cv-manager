@@ -192,7 +192,8 @@ class ApplicationService:
                 "experience_level": job.experience_level,
                 "required_education": job.required_education,
                 "preferred_majors": job.preferred_majors,
-                "required_languages": job.required_languages or {}
+                "required_languages": job.required_languages or {},
+                "is_disabled_friendly": job.is_disabled_friendly or False
             }
 
             # Prepare candidate data for AI (IMPORTANT: wrap parsed_cv under 'parsed_data')
