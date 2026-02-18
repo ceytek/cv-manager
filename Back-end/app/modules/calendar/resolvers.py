@@ -5,8 +5,22 @@ from datetime import datetime, date, timedelta
 from typing import Optional, List
 from strawberry.types import Info
 
-from app.core.database import get_db_session
+from app.modules.common import get_db_session
+from app.api.dependencies import get_company_id_from_token
 from app.modules.calendar.types import CalendarEventType, CalendarEventsResponse
+
+
+def _get_auth_info(info: Info):
+    """Helper to extract auth token from request"""
+    request = info.context["request"]
+    auth_header = request.headers.get("authorization")
+    if not auth_header:
+        raise Exception("Not authenticated")
+    try:
+        _, token = auth_header.split()
+    except ValueError:
+        raise Exception("Invalid authorization header")
+    return token
 
 
 def get_calendar_events(
@@ -25,13 +39,11 @@ def get_calendar_events(
     from app.models.candidate import Candidate
     from app.models.job import Job
     from app.models.department import Department
+    from app.models.application import Application
     
     # Auth
-    user = info.context.get("user")
-    if not user:
-        return CalendarEventsResponse(events=[], total_count=0)
-    
-    company_id = user.get("company_id")
+    token = _get_auth_info(info)
+    company_id = get_company_id_from_token(token)
     if not company_id:
         return CalendarEventsResponse(events=[], total_count=0)
     
@@ -53,11 +65,8 @@ def get_calendar_events(
         # 1. Second Interviews (Yüzyüze/Online Mülakat)
         # ============================================
         if 'second_interview' in filter_types:
-            from app.models.application import Application
-            
             interviews = (
                 db.query(SecondInterview)
-                .join(Application, Application.id == SecondInterview.application_id)
                 .filter(
                     SecondInterview.company_id == company_id,
                     SecondInterview.scheduled_date >= start,
@@ -73,10 +82,15 @@ def get_calendar_events(
                 dept = db.query(Department).filter(Department.id == job.department_id).first() if job and job.department_id else None
                 
                 # Determine color based on interview type
-                color = '#8B5CF6' if str(iv.interview_type) == 'SecondInterviewType.ONLINE' or iv.interview_type == 'online' else '#F59E0B'
+                iv_type_str = str(iv.interview_type).lower()
+                is_online = 'online' in iv_type_str
+                color = '#8B5CF6' if is_online else '#F59E0B'
                 
                 # Map status
-                status_str = str(iv.status).replace('SecondInterviewStatus.', '').lower() if iv.status else 'invited'
+                status_str = str(iv.status).split('.')[-1].lower() if iv.status else 'invited'
+                
+                # Platform
+                platform_str = str(iv.platform).split('.')[-1].lower() if iv.platform else None
                 
                 events.append(CalendarEventType(
                     id=f"si-{iv.id}",
@@ -90,8 +104,8 @@ def get_calendar_events(
                     candidate_photo=candidate.cv_photo_path if candidate else None,
                     job_title=job.title if job else None,
                     department_name=dept.name if dept else None,
-                    interview_mode='online' if (str(iv.interview_type) == 'SecondInterviewType.ONLINE' or iv.interview_type == 'online') else 'in_person',
-                    platform=str(iv.platform).replace('SecondInterviewPlatform.', '').lower() if iv.platform else None,
+                    interview_mode='online' if is_online else 'in_person',
+                    platform=platform_str,
                     meeting_link=iv.meeting_link,
                     location_address=iv.location_address,
                     status=status_str,
@@ -104,8 +118,6 @@ def get_calendar_events(
         # 2. AI Interview Sessions
         # ============================================
         if 'ai_interview' in filter_types:
-            from app.models.application import Application
-            
             ai_sessions = (
                 db.query(InterviewSession)
                 .filter(
@@ -121,15 +133,17 @@ def get_calendar_events(
                 job = db.query(Job).filter(Job.id == sess.job_id).first()
                 dept = db.query(Department).filter(Department.id == job.department_id).first() if job and job.department_id else None
                 
-                # Use expires_at as the deadline date
-                sched_date = sess.expires_at.date() if sess.expires_at else (sess.created_at.date() if sess.created_at else date.today())
+                # Use invitation_sent_at or created_at for the schedule date
+                sched_dt = sess.invitation_sent_at or sess.created_at
+                sched_date = sched_dt.date() if sched_dt else date.today()
+                sched_time = sched_dt.strftime('%H:%M') if sched_dt else None
                 
                 events.append(CalendarEventType(
                     id=f"ai-{sess.id}",
                     title=f"{candidate.name if candidate else 'Aday'} - AI Mülakat",
                     event_type="ai_interview",
                     scheduled_date=str(sched_date),
-                    scheduled_time=sess.expires_at.strftime('%H:%M') if sess.expires_at else None,
+                    scheduled_time=sched_time,
                     end_time=None,
                     candidate_name=candidate.name if candidate else None,
                     candidate_email=candidate.email if candidate else None,
@@ -165,14 +179,16 @@ def get_calendar_events(
                 job = db.query(Job).filter(Job.id == sess.job_id).first()
                 dept = db.query(Department).filter(Department.id == job.department_id).first() if job and job.department_id else None
                 
-                sched_date = sess.expires_at.date() if sess.expires_at else (sess.created_at.date() if sess.created_at else date.today())
+                sched_dt = sess.created_at
+                sched_date = sched_dt.date() if sched_dt else date.today()
+                sched_time = sched_dt.strftime('%H:%M') if sched_dt else None
                 
                 events.append(CalendarEventType(
-                    id=f"lt-{sess.id}",
+                    id=f"lt-{str(sess.id)}",
                     title=f"{candidate.name if candidate else 'Aday'} - Likert Test",
                     event_type="likert_test",
                     scheduled_date=str(sched_date),
-                    scheduled_time=sess.expires_at.strftime('%H:%M') if sess.expires_at else None,
+                    scheduled_time=sched_time,
                     end_time=None,
                     candidate_name=candidate.name if candidate else None,
                     candidate_email=candidate.email if candidate else None,
