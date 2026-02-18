@@ -167,6 +167,8 @@ from app.graphql.types import (
     SecondInterviewInviteInput,
     SecondInterviewFeedbackInput,
     SecondInterviewResponse,
+    # Calendar types
+    CalendarEventsResponse,
     # Company Address types
     CompanyAddressGQLType,
     CompanyAddressInput,
@@ -2305,6 +2307,19 @@ class Query:
         """Check if there's an active interview (not completed and date not passed)"""
         from app.modules.second_interview.resolvers import check_active_interview
         return check_active_interview(info, application_id)
+
+    # ============ Calendar Queries ============
+    @strawberry.field
+    def calendar_events(
+        self,
+        info: Info,
+        start_date: str = strawberry.argument(name="startDate"),
+        end_date: str = strawberry.argument(name="endDate"),
+        event_types: Optional[List[str]] = None,
+    ) -> "CalendarEventsResponse":
+        """Get calendar events within a date range"""
+        from app.modules.calendar.resolvers import get_calendar_events
+        return get_calendar_events(info, start_date, end_date, event_types)
 
     # ============================================
     # Second Interview Template Queries

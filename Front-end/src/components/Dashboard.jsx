@@ -33,7 +33,8 @@ import {
   Sparkles,
   MapPin,
   MessageSquare,
-  Gift
+  Gift,
+  Calendar
 } from 'lucide-react';
 import { useQuery, useMutation, useSubscription } from '@apollo/client/react';
 import { USERS_QUERY, DEACTIVATE_USER_MUTATION } from '../graphql/auth';
@@ -70,6 +71,7 @@ import CompanyAddressesPage from './CompanyAddressesPage';
 import BenefitsManagement from './BenefitsManagement';
 import MessageTemplatesPage from './MessageTemplatesPage';
 import ContentHubPage from './ContentHubPage';
+import CalendarPage from './CalendarPage';
 
 const Dashboard = ({ currentUser, onLogout }) => {
   const { t, i18n } = useTranslation();
@@ -465,6 +467,41 @@ const Dashboard = ({ currentUser, onLogout }) => {
           <div className="topbar-right">
             <LanguageSwitcher />
             
+            {/* Calendar Button */}
+            <button 
+              className="header-icon-btn" 
+              onClick={() => setActiveMenu('calendar')} 
+              title={t('sidebar.calendar', 'Takvim')}
+              style={{
+                width: 42,
+                height: 42,
+                borderRadius: 12,
+                border: activeMenu === 'calendar' ? '2px solid #C4B5FD' : '1px solid #E5E7EB',
+                background: activeMenu === 'calendar' ? '#F5F3FF' : '#FAFAFA',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                boxShadow: activeMenu === 'calendar' ? '0 2px 8px rgba(139, 92, 246, 0.2)' : 'none',
+                position: 'relative',
+              }}
+              onMouseEnter={(e) => {
+                if (activeMenu !== 'calendar') {
+                  e.currentTarget.style.background = '#F3F4F6';
+                  e.currentTarget.style.borderColor = '#DDD6FE';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (activeMenu !== 'calendar') {
+                  e.currentTarget.style.background = '#FAFAFA';
+                  e.currentTarget.style.borderColor = '#E5E7EB';
+                }
+              }}
+            >
+              <Calendar size={20} color={activeMenu === 'calendar' ? '#7C3AED' : '#6B7280'} />
+            </button>
+
             {/* Talent Pool Button */}
             <button 
               className="header-icon-btn" 
@@ -654,6 +691,11 @@ const Dashboard = ({ currentUser, onLogout }) => {
           <TalentPoolPage />
         )}
 
+        {/* Calendar */}
+        {activeMenu === 'calendar' && (
+          <CalendarPage />
+        )}
+
         {/* Usage History */}
         {activeMenu === 'usage-history' && (
           <UsageHistoryPage />
@@ -744,7 +786,7 @@ const Dashboard = ({ currentUser, onLogout }) => {
         )}
 
         {/* Show dashboard widgets unless a settings page is open or other pages are active */}
-  {!(activeMenu === 'settings' && settingsMenu) && activeMenu !== 'departments' && activeMenu !== 'jobs' && activeMenu !== 'cvs' && activeMenu !== 'cv-evaluation' && activeMenu !== 'talent-pool' && activeMenu !== 'usage-history' && activeMenu !== 'templates' && activeMenu !== 'interview-messages' && (
+  {!(activeMenu === 'settings' && settingsMenu) && activeMenu !== 'departments' && activeMenu !== 'jobs' && activeMenu !== 'cvs' && activeMenu !== 'cv-evaluation' && activeMenu !== 'talent-pool' && activeMenu !== 'calendar' && activeMenu !== 'usage-history' && activeMenu !== 'templates' && activeMenu !== 'interview-messages' && (
         <div className="stats-grid-kaggle">
           {stats.map((stat, index) => {
             const IconComponent = stat.icon;

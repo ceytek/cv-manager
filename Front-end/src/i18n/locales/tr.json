@@ -120,7 +120,8 @@
     "userRole": "İK Uzmanı",
     "departmentTooltip": "Başlamak için önce bir departman oluşturun",
     "showAllDepartments": "+{{count}} daha fazla",
-    "talentPool": "Yetenek Havuzu"
+    "talentPool": "Yetenek Havuzu",
+    "calendar": "Takvim"
   },
   "interviewMessages": {
     "firstInterview": "AI Görüşmesi",

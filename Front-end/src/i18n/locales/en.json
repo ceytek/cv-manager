@@ -120,7 +120,8 @@
     "userRole": "HR Specialist",
     "departmentTooltip": "Create a department first to get started",
     "showAllDepartments": "+{{count}} more",
-    "talentPool": "Talent Pool"
+    "talentPool": "Talent Pool",
+    "calendar": "Calendar"
   },
   "interviewMessages": {
     "firstInterview": "AI Interview",

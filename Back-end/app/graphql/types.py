@@ -1345,3 +1345,8 @@ from app.modules.shortlist.types import (
     PublicShortlistType,
     PublicShortlistCandidateType,
 )
+
+from app.modules.calendar.types import (
+    CalendarEventType,
+    CalendarEventsResponse,
+)
