@@ -207,6 +207,19 @@ const CreateOfferModal = ({
     return Object.keys(newErrors).length === 0;
   };
 
+  // Replace only known context placeholders for preview (candidate, position, company)
+  const previewReplacePlaceholders = (text) => {
+    if (!text) return '';
+    const cName = candidate?.name || candidate?.candidateName || '';
+    return text
+      .replace(/\{\{aday_adi\}\}/g, cName)
+      .replace(/\{\{candidate_name\}\}/g, cName)
+      .replace(/\{\{pozisyon\}\}/g, jobTitle || '')
+      .replace(/\{\{position\}\}/g, jobTitle || '')
+      .replace(/\{\{sirket\}\}/g, companyName || '')
+      .replace(/\{\{company\}\}/g, companyName || '');
+  };
+
   // Replace placeholders in text
   const replacePlaceholders = (text) => {
     if (!text) return '';
@@ -541,7 +554,7 @@ const CreateOfferModal = ({
                           color: '#374151',
                           whiteSpace: 'pre-wrap',
                         }}>
-                          {replacePlaceholders(selectedTemplate.introText)}
+                          {previewReplacePlaceholders(selectedTemplate.introText)}
                         </div>
                       </div>
                     )}
@@ -562,7 +575,7 @@ const CreateOfferModal = ({
                           color: '#374151',
                           whiteSpace: 'pre-wrap',
                         }}>
-                          {replacePlaceholders(selectedTemplate.outroText)}
+                          {previewReplacePlaceholders(selectedTemplate.outroText)}
                         </div>
                       </div>
                     )}
