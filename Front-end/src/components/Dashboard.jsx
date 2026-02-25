@@ -785,6 +785,10 @@ const Dashboard = ({ currentUser, onLogout }) => {
           <LikertTemplatesPage onBack={() => setInterviewMessagesMenu(null)} />
         )}
 
+        {activeMenu === 'interview-messages' && interviewMessagesMenu === 'offer' && (
+          <OfferTemplatesPage onBack={() => setInterviewMessagesMenu(null)} />
+        )}
+
         {/* Show dashboard widgets unless a settings page is open or other pages are active */}
   {!(activeMenu === 'settings' && settingsMenu) && activeMenu !== 'departments' && activeMenu !== 'jobs' && activeMenu !== 'cvs' && activeMenu !== 'cv-evaluation' && activeMenu !== 'talent-pool' && activeMenu !== 'calendar' && activeMenu !== 'usage-history' && activeMenu !== 'templates' && activeMenu !== 'interview-messages' && (
         <div className="stats-grid-kaggle">

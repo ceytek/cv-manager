@@ -53,7 +53,6 @@ const MessageTemplatesPage = ({ onNavigate }) => {
       description: t('messageTemplates.offerDesc', 'İş teklif mektupları ve onay süreçleri'),
       color: '#F59E0B',
       bgColor: '#FFFBEB',
-      disabled: true
     },
     {
       id: 'confirmation',
