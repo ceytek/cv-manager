@@ -541,7 +541,7 @@ const CreateOfferModal = ({
                           color: '#374151',
                           whiteSpace: 'pre-wrap',
                         }}>
-                          {selectedTemplate.introText}
+                          {replacePlaceholders(selectedTemplate.introText)}
                         </div>
                       </div>
                     )}
@@ -562,7 +562,7 @@ const CreateOfferModal = ({
                           color: '#374151',
                           whiteSpace: 'pre-wrap',
                         }}>
-                          {selectedTemplate.outroText}
+                          {replacePlaceholders(selectedTemplate.outroText)}
                         </div>
                       </div>
                     )}
