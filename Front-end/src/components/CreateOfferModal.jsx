@@ -483,6 +483,125 @@ const CreateOfferModal = ({
                 </option>
               ))}
             </select>
+
+            {/* Template Preview */}
+            {selectedTemplateId && (() => {
+              const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
+              if (!selectedTemplate) return null;
+              return (
+                <div style={{
+                  marginTop: 12,
+                  border: '1px solid #D1FAE5',
+                  borderRadius: 12,
+                  overflow: 'hidden',
+                  background: '#F0FDF4',
+                }}>
+                  {/* Preview Header */}
+                  <div style={{
+                    padding: '10px 16px',
+                    background: 'linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%)',
+                    borderBottom: '1px solid #A7F3D0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Eye size={15} color="#059669" />
+                      <span style={{ fontSize: 13, fontWeight: 600, color: '#065F46' }}>
+                        {t('createOffer.templatePreview', 'Şablon Önizleme')}
+                      </span>
+                    </div>
+                    <span style={{
+                      padding: '2px 8px',
+                      background: '#A7F3D0',
+                      borderRadius: 6,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      color: '#065F46',
+                    }}>
+                      {selectedTemplate.name}
+                    </span>
+                  </div>
+
+                  {/* Preview Content */}
+                  <div style={{ padding: 16 }}>
+                    {/* Intro Text */}
+                    {selectedTemplate.introText && (
+                      <div style={{ marginBottom: selectedTemplate.outroText ? 14 : 0 }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: '#059669', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                          {t('createOffer.introSection', 'Giriş Metni')}
+                        </div>
+                        <div style={{
+                          padding: 12,
+                          background: 'white',
+                          borderRadius: 8,
+                          border: '1px solid #D1FAE5',
+                          fontSize: 13,
+                          lineHeight: 1.6,
+                          color: '#374151',
+                          whiteSpace: 'pre-wrap',
+                        }}>
+                          {selectedTemplate.introText}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Outro Text */}
+                    {selectedTemplate.outroText && (
+                      <div>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: '#059669', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                          {t('createOffer.outroSection', 'Kapanış Metni')}
+                        </div>
+                        <div style={{
+                          padding: 12,
+                          background: 'white',
+                          borderRadius: 8,
+                          border: '1px solid #D1FAE5',
+                          fontSize: 13,
+                          lineHeight: 1.6,
+                          color: '#374151',
+                          whiteSpace: 'pre-wrap',
+                        }}>
+                          {selectedTemplate.outroText}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Template Info */}
+                    <div style={{
+                      display: 'flex',
+                      gap: 16,
+                      marginTop: 12,
+                      paddingTop: 12,
+                      borderTop: '1px solid #D1FAE5',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#6B7280' }}>
+                        <Calendar size={13} color="#059669" />
+                        <span>{t('createOffer.validity', 'Geçerlilik')}: <strong>{selectedTemplate.defaultValidityDays} {t('common.days', 'gün')}</strong></span>
+                      </div>
+                      {selectedTemplate.defaultBenefits?.length > 0 && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#6B7280' }}>
+                          <Gift size={13} color="#059669" />
+                          <span>{selectedTemplate.defaultBenefits.length} {t('createOffer.benefitsIncluded', 'yan hak dahil')}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* No content message */}
+                    {!selectedTemplate.introText && !selectedTemplate.outroText && (
+                      <div style={{
+                        padding: 16,
+                        textAlign: 'center',
+                        color: '#6B7280',
+                        fontSize: 13,
+                      }}>
+                        {t('createOffer.templateNoContent', 'Bu şablonda metin içeriği bulunmuyor.')}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Salary Section */}
