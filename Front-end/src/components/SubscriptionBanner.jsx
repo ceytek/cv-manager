@@ -6,10 +6,10 @@ import './SubscriptionBanner.css';
 
 const SubscriptionBanner = () => {
   const { data, loading } = useQuery(SUBSCRIPTION_STATUS_QUERY, {
-    pollInterval: 60000,
+    fetchPolicy: 'cache-first',
   });
 
-  if (loading) return null;
+  if (loading && !data) return null;
   if (!data?.subscriptionStatus) return null;
 
   const status = data.subscriptionStatus;

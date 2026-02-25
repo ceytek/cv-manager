@@ -7,8 +7,7 @@ import './SubscriptionUsageWidget.css';
 const SubscriptionUsageWidget = ({ compact = false }) => {
   const { t } = useTranslation();
   const { data, loading, error } = useQuery(SUBSCRIPTION_USAGE_QUERY, {
-    fetchPolicy: 'cache-and-network',
-    pollInterval: 60000,
+    fetchPolicy: 'cache-first',
   });
 
   // Compact style for header placement
@@ -19,8 +18,8 @@ const SubscriptionUsageWidget = ({ compact = false }) => {
     border: '1px solid #E5E7EB',
   } : {};
 
-  // Show loading state
-  if (loading) {
+  // Show loading state only on first load (no cached data yet)
+  if (loading && !data) {
     if (compact) {
       return (
         <div style={{ ...compactStyle, fontSize: 11, color: '#6B7280' }}>

@@ -5,10 +5,10 @@ import './UsageIndicator.css';
 
 const UsageIndicator = () => {
   const { data, loading, error } = useQuery(USAGE_STATS_QUERY, {
-    pollInterval: 30000, // Her 30 saniyede bir güncelle
+    fetchPolicy: 'cache-first',
   });
 
-  if (loading) return null;
+  if (loading && !data) return null;
   if (error) return null;
   if (!data?.usageStats) return null;
 
