@@ -9,7 +9,7 @@ import { useTranslation } from 'react-i18next';
 import { 
   X, FileText, Gift, Calendar, DollarSign, Send, Save, 
   Loader2, Check, AlertCircle, Eye, User, Briefcase,
-  Calculator, Building2, MapPin, Phone, Mail
+  Building2, MapPin, Phone, Mail
 } from 'lucide-react';
 import { 
   GET_OFFER_TEMPLATES, 
@@ -22,18 +22,6 @@ import { GET_BENEFITS } from '../graphql/benefits';
 import { ME_QUERY } from '../graphql/auth';
 import { GET_COMPANY_ADDRESSES } from '../graphql/companyAddress';
 import { API_BASE_URL } from '../config/api';
-
-// Turkey tax calculation (simplified - 2024 rates)
-const calculateNetFromGross = (grossSalary) => {
-  if (!grossSalary || grossSalary <= 0) return 0;
-  const sgk = grossSalary * 0.14;
-  const unemployment = grossSalary * 0.01;
-  const taxBase = grossSalary - sgk - unemployment;
-  const incomeTax = taxBase * 0.15;
-  const stampTax = grossSalary * 0.00759;
-  const netSalary = grossSalary - sgk - unemployment - incomeTax - stampTax;
-  return Math.round(netSalary);
-};
 
 // Benefit category icons
 const CATEGORY_ICONS = {
@@ -59,9 +47,7 @@ const CreateOfferModal = ({
 
   // Form state
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
-  const [salaryGross, setSalaryGross] = useState('');
   const [salaryNet, setSalaryNet] = useState('');
-  const [autoCalculateNet, setAutoCalculateNet] = useState(true);
   const [currency, setCurrency] = useState('TRY');
   const [startDate, setStartDate] = useState('');
   const [validityDays, setValidityDays] = useState(7);
@@ -112,12 +98,10 @@ const CreateOfferModal = ({
   useEffect(() => {
     const isDraft = existingOffer?.status?.toUpperCase() === 'DRAFT';
     if (existingOffer && isDraft) {
-      setSalaryGross(existingOffer.salaryGross?.toString() || '');
       setSalaryNet(existingOffer.salaryNet?.toString() || '');
       setCurrency(existingOffer.currency || 'TRY');
       setStartDate(existingOffer.startDate ? existingOffer.startDate.split('T')[0] : '');
       setCustomNotes(existingOffer.customNotes || '');
-      setAutoCalculateNet(false);
       if (existingOffer.templateId) {
         setSelectedTemplateId(existingOffer.templateId);
       }
@@ -128,16 +112,6 @@ const CreateOfferModal = ({
   const companyName = propCompanyName || meData?.me?.companyName || '';
   const companyLogo = meData?.me?.companyLogo;
   const primaryAddress = addressesData?.companyAddresses?.[0];
-
-  // Auto-calculate net salary
-  useEffect(() => {
-    if (autoCalculateNet && salaryGross && currency === 'TRY') {
-      const gross = parseFloat(salaryGross);
-      if (!isNaN(gross)) {
-        setSalaryNet(calculateNetFromGross(gross).toString());
-      }
-    }
-  }, [salaryGross, autoCalculateNet, currency]);
 
   // Load template data when selected
   useEffect(() => {
@@ -197,8 +171,8 @@ const CreateOfferModal = ({
   // Validation
   const validate = () => {
     const newErrors = {};
-    if (!salaryGross || parseFloat(salaryGross) <= 0) {
-      newErrors.salaryGross = t('createOffer.errors.salaryRequired', 'Brüt maaş zorunludur');
+    if (!salaryNet || parseFloat(salaryNet) <= 0) {
+      newErrors.salaryNet = t('createOffer.errors.salaryRequired', 'Net maaş zorunludur');
     }
     if (!startDate) {
       newErrors.startDate = t('createOffer.errors.startDateRequired', 'Başlangıç tarihi zorunludur');
@@ -233,8 +207,8 @@ const CreateOfferModal = ({
       .replace(/\{\{company\}\}/g, companyName || '')
       .replace(/\{\{baslangic_tarihi\}\}/g, startDate ? new Date(startDate).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US') : '')
       .replace(/\{\{start_date\}\}/g, startDate ? new Date(startDate).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US') : '')
-      .replace(/\{\{brut_maas\}\}/g, salaryGross ? `${parseInt(salaryGross).toLocaleString()} ${currency}` : '')
-      .replace(/\{\{gross_salary\}\}/g, salaryGross ? `${parseInt(salaryGross).toLocaleString()} ${currency}` : '')
+      .replace(/\{\{brut_maas\}\}/g, salaryNet ? `${parseInt(salaryNet).toLocaleString()} ${currency}` : '')
+      .replace(/\{\{gross_salary\}\}/g, salaryNet ? `${parseInt(salaryNet).toLocaleString()} ${currency}` : '')
       .replace(/\{\{net_maas\}\}/g, salaryNet ? `${parseInt(salaryNet).toLocaleString()} ${currency}` : '')
       .replace(/\{\{net_salary\}\}/g, salaryNet ? `${parseInt(salaryNet).toLocaleString()} ${currency}` : '')
       .replace(/\{\{son_kabul_tarihi\}\}/g, new Date(validUntilDate).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US'))
@@ -273,7 +247,7 @@ const CreateOfferModal = ({
             input: {
               applicationId: application.id,
               templateId: selectedTemplateId || null,
-              salaryGross: parseFloat(salaryGross),
+              salaryGross: null,
               salaryNet: salaryNet ? parseFloat(salaryNet) : null,
               currency,
               startDate: startDate ? new Date(startDate).toISOString() : null,
@@ -629,47 +603,25 @@ const CreateOfferModal = ({
               </span>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 120px', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px', gap: 16 }}>
               <div>
                 <label style={{ display: 'block', fontSize: 13, color: '#374151', marginBottom: 6 }}>
-                  {t('createOffer.salaryGross', 'Brüt Maaş')} *
-                </label>
-                <input
-                  type="number"
-                  value={salaryGross}
-                  onChange={(e) => setSalaryGross(e.target.value)}
-                  placeholder="0"
-                  style={{
-                    width: '100%', padding: '10px 12px',
-                    border: `1px solid ${errors.salaryGross ? '#EF4444' : '#D1D5DB'}`,
-                    borderRadius: 8, fontSize: 14, outline: 'none', boxSizing: 'border-box',
-                  }}
-                />
-                {errors.salaryGross && (
-                  <div style={{ color: '#EF4444', fontSize: 11, marginTop: 4 }}>{errors.salaryGross}</div>
-                )}
-              </div>
-
-              <div>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#374151', marginBottom: 6 }}>
-                  {t('createOffer.salaryNet', 'Net Maaş')}
-                  {autoCalculateNet && currency === 'TRY' && (
-                    <span style={{ fontSize: 10, color: '#6B7280', display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <Calculator size={12} /> {t('createOffer.autoCalculated', 'Otomatik')}
-                    </span>
-                  )}
+                  {t('createOffer.salaryNet', 'Net Maaş')} *
                 </label>
                 <input
                   type="number"
                   value={salaryNet}
-                  onChange={(e) => { setSalaryNet(e.target.value); setAutoCalculateNet(false); }}
+                  onChange={(e) => setSalaryNet(e.target.value)}
                   placeholder="0"
                   style={{
-                    width: '100%', padding: '10px 12px', border: '1px solid #D1D5DB',
+                    width: '100%', padding: '10px 12px',
+                    border: `1px solid ${errors.salaryNet ? '#EF4444' : '#D1D5DB'}`,
                     borderRadius: 8, fontSize: 14, outline: 'none', boxSizing: 'border-box',
-                    background: autoCalculateNet ? '#F9FAFB' : 'white',
                   }}
                 />
+                {errors.salaryNet && (
+                  <div style={{ color: '#EF4444', fontSize: 11, marginTop: 4 }}>{errors.salaryNet}</div>
+                )}
               </div>
 
               <div>
@@ -875,7 +827,6 @@ const CreateOfferModal = ({
             companyInfo={companyInfo}
             introText={replacePlaceholders(introText)}
             outroText={replacePlaceholders(outroText)}
-            salaryGross={salaryGross}
             salaryNet={salaryNet}
             currency={currency}
             startDate={startDate}
@@ -903,7 +854,7 @@ const CreateOfferModal = ({
 // A4 Preview Component - Full Page
 const OfferPreviewA4 = ({
   candidateName, jobTitle, companyInfo, introText, outroText,
-  salaryGross, salaryNet, currency, startDate, validUntilDate,
+  salaryNet, currency, startDate, validUntilDate,
   benefits, customNotes, lang, onClose, t
 }) => {
   const currencySymbols = { TRY: '₺', USD: '$', EUR: '€', GBP: '£' };
@@ -1073,21 +1024,13 @@ const OfferPreviewA4 = ({
                   <tbody>
                     <tr style={{ background: '#F9FAFB' }}>
                       <td style={{ padding: '14px 16px', borderBottom: '1px solid #E5E7EB', fontWeight: 500 }}>
-                        {t('createOffer.salaryGross', 'Brüt Maaş')}
-                      </td>
-                      <td style={{ padding: '14px 16px', borderBottom: '1px solid #E5E7EB', textAlign: 'right', fontWeight: 700, fontSize: 16, color: '#10B981' }}>
-                        {formatCurrency(salaryGross)}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td style={{ padding: '14px 16px', borderBottom: '1px solid #E5E7EB', fontWeight: 500 }}>
                         {t('createOffer.salaryNet', 'Net Maaş')}
                       </td>
-                      <td style={{ padding: '14px 16px', borderBottom: '1px solid #E5E7EB', textAlign: 'right', fontWeight: 600 }}>
+                      <td style={{ padding: '14px 16px', borderBottom: '1px solid #E5E7EB', textAlign: 'right', fontWeight: 700, fontSize: 16, color: '#10B981' }}>
                         {formatCurrency(salaryNet)}
                       </td>
                     </tr>
-                    <tr style={{ background: '#F9FAFB' }}>
+                    <tr>
                       <td style={{ padding: '14px 16px', fontWeight: 500 }}>
                         {t('createOffer.startDate', 'İşe Başlangıç Tarihi')}
                       </td>
