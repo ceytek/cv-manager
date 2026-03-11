@@ -187,6 +187,7 @@ export const LIST_TYPES = {
   SHORT_LIST: 'shortlist',
   OFFER: 'offer',
   HIRED: 'hired',
+  REJECTED: 'rejected',
 };
 
 export const LIST_TYPE_LABELS = {
@@ -196,6 +197,7 @@ export const LIST_TYPE_LABELS = {
     shortlist: 'Short List',
     offer: 'Teklif Verilenler',
     hired: 'İşe Alınanlar',
+    rejected: 'Reddedilenler',
   },
   en: {
     all: 'All',
@@ -203,5 +205,6 @@ export const LIST_TYPE_LABELS = {
     shortlist: 'Short List',
     offer: 'Offer',
     hired: 'Hired',
+    rejected: 'Rejected',
   },
 };

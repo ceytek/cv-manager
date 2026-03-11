@@ -141,6 +141,14 @@ const PIPELINE_STAGES = [
     textColor: '#0E7490',
     arrowColor: '#06B6D4',
   },
+  {
+    id: 'rejected',
+    gradient: 'linear-gradient(135deg, #EF4444, #DC2626)',
+    lightBg: '#FEF2F2',
+    borderColor: '#FECACA',
+    textColor: '#991B1B',
+    arrowColor: '#EF4444',
+  },
 ];
 
 // ============================================
@@ -590,13 +598,20 @@ const PipelineView = ({
     })
   );
 
+  // Helper to check if app is rejected
+  const isAppRejected = (app) => {
+    const status = app.status?.toUpperCase();
+    return status === 'REJECTED' || !!app.rejectedAt;
+  };
+
   // Group applications into pipeline stages
   const stageApps = useMemo(() => {
-    const pool = allApplications.filter(app => !app.isInLonglist && !app.isShortlisted && !hasAnyOfferStatus(app));
-    const longlist = allApplications.filter(app => app.isInLonglist && !app.isShortlisted && !hasAnyOfferStatus(app));
-    const shortlist = allApplications.filter(app => app.isShortlisted && !hasAnyOfferStatus(app));
+    const pool = allApplications.filter(app => !app.isInLonglist && !app.isShortlisted && !hasAnyOfferStatus(app) && !isAppRejected(app));
+    const longlist = allApplications.filter(app => app.isInLonglist && !app.isShortlisted && !hasAnyOfferStatus(app) && !isAppRejected(app));
+    const shortlist = allApplications.filter(app => app.isShortlisted && !hasAnyOfferStatus(app) && !isAppRejected(app));
     const offer = allApplications.filter(app => hasPendingOfferStatus(app));
     const hired = allApplications.filter(app => isHired(app));
+    const rejected = allApplications.filter(app => isAppRejected(app) && !hasAnyOfferStatus(app) && !isHired(app));
 
     return {
       all: pool,
@@ -604,6 +619,7 @@ const PipelineView = ({
       shortlist,
       offer,
       hired,
+      rejected,
     };
   }, [allApplications, isHired, hasPendingOfferStatus, hasAnyOfferStatus]);
 
@@ -613,6 +629,7 @@ const PipelineView = ({
     shortlist: 'Short List',
     offer: t('offer.tab', 'Teklif'),
     hired: t('hired.tab', 'İşe Alınan'),
+    rejected: t('rejected.tab', 'Reddedilenler'),
   };
 
   // Find which stage an application belongs to
@@ -658,6 +675,19 @@ const PipelineView = ({
       } else {
         showToast(t('pipeline.hiredNotDraggable', 'Cannot drag to Hired stage. An offer must be created and accepted first.'), 'warning');
       }
+      return;
+    }
+
+    // Rejected stage → open rejection reason modal via parent
+    if (toStage === 'rejected') {
+      if (fromStage === 'rejected') return; // already rejected
+      onMoveToStage(active.id, fromStage, toStage);
+      return;
+    }
+
+    // Cannot move from rejected to other stages
+    if (fromStage === 'rejected') {
+      showToast(t('pipeline.rejectedNotDraggable', 'Reddedilen adaylar taşınamaz.'), 'warning');
       return;
     }
 

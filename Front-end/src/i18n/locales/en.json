@@ -823,6 +823,12 @@
   "hired": {
     "tab": "Hired"
   },
+  "rejected": {
+    "tab": "Rejected",
+    "rejectCandidate": "Reject Candidate",
+    "rejectionReason": "Rejection Reason",
+    "noReason": "No reason specified"
+  },
   "offer": {
     "tab": "Offer",
     "actions": "Offer Actions",
@@ -1821,6 +1827,7 @@
     "noCandidate": "No candidates",
     "offerHiredNotDraggable": "Cannot drag to Offer or Hired stages. Please use candidate details to process.",
     "hiredNotDraggable": "Cannot drag to Hired stage. An offer must be created first.",
+    "rejectedNotDraggable": "Rejected candidates cannot be moved to other stages.",
     "invalidMove": "This move is not supported."
   }
 }

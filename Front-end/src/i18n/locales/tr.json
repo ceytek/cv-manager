@@ -823,6 +823,12 @@
   "hired": {
     "tab": "İşe Alınanlar"
   },
+  "rejected": {
+    "tab": "Reddedilenler",
+    "rejectCandidate": "Adayı Reddet",
+    "rejectionReason": "Red Sebebi",
+    "noReason": "Sebep belirtilmemiş"
+  },
   "offer": {
     "tab": "Teklif Verilenler",
     "actions": "Teklif İşlemleri",
@@ -1821,6 +1827,7 @@
     "noCandidate": "Aday yok",
     "offerHiredNotDraggable": "Teklif ve İşe Alınan aşamalarına sürükle-bırak ile taşınamaz. Aday detayından işlem yapınız.",
     "hiredNotDraggable": "İşe Alınan aşamasına sürükleyemezsiniz. Önce teklif oluşturulmalıdır.",
+    "rejectedNotDraggable": "Reddedilen adaylar başka aşamalara taşınamaz.",
     "invalidMove": "Bu taşıma işlemi desteklenmiyor."
   }
 }

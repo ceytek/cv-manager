@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useLazyQuery } from '@apollo/client/react';
-import { Video, FileText, Clock, BarChart2, Download, Eye, MapPin, Briefcase, Building2, List, LayoutGrid, Users, Star, Sparkles, FileCheck, ChevronDown, Check, X, Share2, Link2, Copy, Columns3, BotMessageSquare } from 'lucide-react';
+import { Video, FileText, Clock, BarChart2, Download, Eye, MapPin, Briefcase, Building2, List, LayoutGrid, Users, Star, Sparkles, FileCheck, ChevronDown, Check, X, Share2, Link2, Copy, Columns3, BotMessageSquare, UserX } from 'lucide-react';
 import { APPLICATIONS_QUERY } from '../../graphql/applications';
 import { 
   TOGGLE_SHORTLIST, BULK_TOGGLE_SHORTLIST, CREATE_SHORTLIST_SHARE, LIST_TYPES,
@@ -25,6 +25,7 @@ import ShortlistShareModal from '../ShortlistShareModal';
 import LonglistShareModal from '../LonglistShareModal';
 import PipelineView from './PipelineView';
 import CreateOfferModal from '../CreateOfferModal';
+import RejectionReasonModal from './RejectionReasonModal';
 import { getInitials } from '../../utils/nameUtils';
 
 // Reuse data coming from parent job
@@ -67,6 +68,10 @@ const JobDetails = ({ job, onBack, departments, newlyAnalyzedCandidateIds = [] }
   const [shortlistNoteTarget, setShortlistNoteTarget] = useState(null); // application for note
   const [showShareModal, setShowShareModal] = useState(false);
   const [showLonglistShareModal, setShowLonglistShareModal] = useState(false);
+  
+  // Rejection reason modal state
+  const [showRejectionReason, setShowRejectionReason] = useState(false);
+  const [rejectionReasonTarget, setRejectionReasonTarget] = useState(null);
 
   // Offer queries and mutations
   const [fetchOffer] = useLazyQuery(GET_OFFER_BY_APPLICATION, { fetchPolicy: 'network-only' });
@@ -118,14 +123,21 @@ const JobDetails = ({ job, onBack, departments, newlyAnalyzedCandidateIds = [] }
     return status === 'OFFER_SENT' || status === 'OFFER_ACCEPTED' || status === 'OFFER_REJECTED';
   };
 
+  // Helper to check if app is rejected (not offer-rejected, but candidate-rejected)
+  const isAppRejected = (app) => {
+    const status = app.status?.toUpperCase();
+    return status === 'REJECTED' || !!app.rejectedAt;
+  };
+
   // Filter applications based on list type
   // A candidate can only be in ONE tab at a time
-  // Priority: Hired > Offer > Short List > Long List > Pool
+  // Priority: Hired > Offer > Rejected > Short List > Long List > Pool
   // - İşe Alınanlar: OFFER_ACCEPTED (highest priority)
   // - Teklif Verilenler: OFFER_SENT or OFFER_REJECTED
-  // - Short List: in shortlist AND no offer
-  // - Long List: in longlist AND not in shortlist AND no offer
-  // - Tümü (Pool): not in longlist AND not in shortlist AND no offer
+  // - Reddedilenler: REJECTED status
+  // - Short List: in shortlist AND no offer AND not rejected
+  // - Long List: in longlist AND not in shortlist AND no offer AND not rejected
+  // - Tümü (Pool): not in longlist AND not in shortlist AND no offer AND not rejected
   const applications = useMemo(() => {
     if (listType === LIST_TYPES.HIRED) {
       return allApplications.filter(app => isHired(app));
@@ -133,21 +145,25 @@ const JobDetails = ({ job, onBack, departments, newlyAnalyzedCandidateIds = [] }
     if (listType === LIST_TYPES.OFFER) {
       return allApplications.filter(app => hasPendingOfferStatus(app));
     }
-    if (listType === LIST_TYPES.SHORT_LIST) {
-      return allApplications.filter(app => app.isShortlisted && !hasAnyOfferStatus(app));
-    } else if (listType === LIST_TYPES.LONG_LIST) {
-      return allApplications.filter(app => app.isInLonglist && !app.isShortlisted && !hasAnyOfferStatus(app));
+    if (listType === LIST_TYPES.REJECTED) {
+      return allApplications.filter(app => isAppRejected(app) && !hasAnyOfferStatus(app) && !isHired(app));
     }
-    // Tümü (Pool): not in longlist AND not in shortlist AND no offer
-    return allApplications.filter(app => !app.isInLonglist && !app.isShortlisted && !hasAnyOfferStatus(app));
+    if (listType === LIST_TYPES.SHORT_LIST) {
+      return allApplications.filter(app => app.isShortlisted && !hasAnyOfferStatus(app) && !isAppRejected(app));
+    } else if (listType === LIST_TYPES.LONG_LIST) {
+      return allApplications.filter(app => app.isInLonglist && !app.isShortlisted && !hasAnyOfferStatus(app) && !isAppRejected(app));
+    }
+    // Tümü (Pool): not in longlist AND not in shortlist AND no offer AND not rejected
+    return allApplications.filter(app => !app.isInLonglist && !app.isShortlisted && !hasAnyOfferStatus(app) && !isAppRejected(app));
   }, [allApplications, listType]);
   
   // Count for tabs - each candidate only counted in ONE tab
   const hiredCount = allApplications.filter(app => isHired(app)).length;
   const offerCount = allApplications.filter(app => hasPendingOfferStatus(app)).length;
-  const shortlistCount = allApplications.filter(app => app.isShortlisted && !hasAnyOfferStatus(app)).length;
-  const longlistCount = allApplications.filter(app => app.isInLonglist && !app.isShortlisted && !hasAnyOfferStatus(app)).length;
-  const poolCount = allApplications.filter(app => !app.isInLonglist && !app.isShortlisted && !hasAnyOfferStatus(app)).length;
+  const rejectedCount = allApplications.filter(app => isAppRejected(app) && !hasAnyOfferStatus(app) && !isHired(app)).length;
+  const shortlistCount = allApplications.filter(app => app.isShortlisted && !hasAnyOfferStatus(app) && !isAppRejected(app)).length;
+  const longlistCount = allApplications.filter(app => app.isInLonglist && !app.isShortlisted && !hasAnyOfferStatus(app) && !isAppRejected(app)).length;
+  const poolCount = allApplications.filter(app => !app.isInLonglist && !app.isShortlisted && !hasAnyOfferStatus(app) && !isAppRejected(app)).length;
   
   const totalPages = Math.max(1, Math.ceil(applications.length / pageSize));
   const pageItems = useMemo(() => applications.slice((page - 1) * pageSize, page * pageSize), [applications, page, pageSize]);
@@ -487,6 +503,15 @@ const JobDetails = ({ job, onBack, departments, newlyAnalyzedCandidateIds = [] }
           }
         }
       }
+      // Any → Rejected (open rejection reason modal)
+      else if (toStage === 'rejected') {
+        const app = allApplications.find(a => a.id === applicationId);
+        if (app) {
+          setRejectionReasonTarget(app);
+          setShowRejectionReason(true);
+        }
+        return; // Don't refetch yet - modal will handle it
+      }
       // Unsupported move
       else {
         console.warn(`Unsupported move: ${fromStage} → ${toStage}`);
@@ -733,6 +758,27 @@ const JobDetails = ({ job, onBack, departments, newlyAnalyzedCandidateIds = [] }
               >
                 <Users size={14} color={listType === LIST_TYPES.HIRED ? '#3B82F6' : '#6B7280'} />
                 {t('hired.tab', 'İşe Alınanlar')} ({hiredCount})
+              </button>
+              <button
+                onClick={() => setListType(LIST_TYPES.REJECTED)}
+                style={{
+                  padding: '8px 16px',
+                  background: listType === LIST_TYPES.REJECTED ? 'linear-gradient(135deg, #FEE2E2, #FECACA)' : 'transparent',
+                  border: listType === LIST_TYPES.REJECTED ? '1px solid #EF4444' : 'none',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  fontWeight: listType === LIST_TYPES.REJECTED ? 600 : 500,
+                  color: listType === LIST_TYPES.REJECTED ? '#991B1B' : '#6B7280',
+                  boxShadow: listType === LIST_TYPES.REJECTED ? '0 1px 3px rgba(239, 68, 68, 0.2)' : 'none',
+                  transition: 'all 0.15s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                <UserX size={14} color={listType === LIST_TYPES.REJECTED ? '#EF4444' : '#6B7280'} />
+                {t('rejected.tab', 'Reddedilenler')} ({rejectedCount})
               </button>
             </div>
             
@@ -1924,6 +1970,38 @@ const JobDetails = ({ job, onBack, departments, newlyAnalyzedCandidateIds = [] }
                       <Download size={16} color="#9CA3AF" />
                     </div>
                   )}
+
+                  {/* Reject button - only show if not already rejected and not in offer/hired */}
+                  {!isAppRejected(app) && !hasAnyOfferStatus(app) && !isHired(app) && (
+                    <button
+                      onClick={() => {
+                        setRejectionReasonTarget(app);
+                        setShowRejectionReason(true);
+                      }}
+                      title={t('rejected.rejectCandidate', 'Adayı Reddet')}
+                      style={{
+                        padding: 8,
+                        background: 'transparent',
+                        border: '1px solid #E5E7EB',
+                        borderRadius: 8,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 0.2s',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = '#FEE2E2';
+                        e.currentTarget.style.borderColor = '#EF4444';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'transparent';
+                        e.currentTarget.style.borderColor = '#E5E7EB';
+                      }}
+                    >
+                      <UserX size={16} color="#EF4444" />
+                    </button>
+                  )}
               </div>
             </div>
             );
@@ -2297,6 +2375,24 @@ const JobDetails = ({ job, onBack, departments, newlyAnalyzedCandidateIds = [] }
           onSuccess={(action) => {
             setPipelineOfferApp(null);
             refetch();
+          }}
+        />
+      )}
+
+      {/* Rejection Reason Modal (for stage move to rejected) */}
+      {showRejectionReason && rejectionReasonTarget && (
+        <RejectionReasonModal
+          isOpen={showRejectionReason}
+          onClose={() => {
+            setShowRejectionReason(false);
+            setRejectionReasonTarget(null);
+          }}
+          application={rejectionReasonTarget}
+          onSuccess={() => {
+            refetch();
+            setShowRejectionReason(false);
+            setRejectionReasonTarget(null);
+            setListType(LIST_TYPES.REJECTED);
           }}
         />
       )}
