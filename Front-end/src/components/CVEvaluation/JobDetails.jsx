@@ -654,10 +654,79 @@ const JobDetails = ({ job, onBack, departments, newlyAnalyzedCandidateIds = [] }
             </div>
           </div>
           
-          {/* Bottom row: Tabs and View Mode */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          {/* View Mode Toggle - above stage tabs */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+            <div style={{ display: 'flex', gap: 4, background: '#F3F4F6', borderRadius: 8, padding: 4 }}>
+              <button
+                onClick={() => { setViewMode('list'); setPage(1); }}
+                style={{
+                  padding: '6px 12px',
+                  background: viewMode === 'list' ? 'white' : 'transparent',
+                  border: 'none',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: viewMode === 'list' ? '#111827' : '#6B7280',
+                  boxShadow: viewMode === 'list' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                  transition: 'all 0.15s',
+                }}
+              >
+                <List size={16} />
+                {t('jobDetails.listView', 'Liste')}
+              </button>
+              <button
+                onClick={() => { setViewMode('grid'); setPage(1); }}
+                style={{
+                  padding: '6px 12px',
+                  background: viewMode === 'grid' ? 'white' : 'transparent',
+                  border: 'none',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: viewMode === 'grid' ? '#111827' : '#6B7280',
+                  boxShadow: viewMode === 'grid' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                  transition: 'all 0.15s',
+                }}
+              >
+                <LayoutGrid size={16} />
+                {t('jobDetails.gridView', 'Kart')}
+              </button>
+              <button
+                onClick={() => { setViewMode('pipeline'); }}
+                style={{
+                  padding: '6px 12px',
+                  background: viewMode === 'pipeline' ? 'white' : 'transparent',
+                  border: 'none',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: viewMode === 'pipeline' ? '#111827' : '#6B7280',
+                  boxShadow: viewMode === 'pipeline' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                  transition: 'all 0.15s',
+                }}
+              >
+                <Columns3 size={16} />
+                Pipeline
+              </button>
+            </div>
+          </div>
+
+          {/* Stage Tabs row */}
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
             {/* List Type Tabs - hidden in pipeline mode */}
-            <div style={{ display: 'flex', gap: 4, background: '#F3F4F6', borderRadius: 10, padding: 4, opacity: viewMode === 'pipeline' ? 0.4 : 1, pointerEvents: viewMode === 'pipeline' ? 'none' : 'auto' }}>
+            <div style={{ display: 'flex', gap: 4, background: '#F3F4F6', borderRadius: 10, padding: 4, flexWrap: 'wrap', opacity: viewMode === 'pipeline' ? 0.4 : 1, pointerEvents: viewMode === 'pipeline' ? 'none' : 'auto' }}>
               <button
                 onClick={() => setListType(LIST_TYPES.ALL)}
                 style={{
@@ -779,73 +848,6 @@ const JobDetails = ({ job, onBack, departments, newlyAnalyzedCandidateIds = [] }
               >
                 <UserX size={14} color={listType === LIST_TYPES.REJECTED ? '#EF4444' : '#6B7280'} />
                 {t('rejected.tab', 'Reddedilenler')} ({rejectedCount})
-              </button>
-            </div>
-            
-            {/* View Mode Toggle */}
-            <div style={{ display: 'flex', gap: 4, background: '#F3F4F6', borderRadius: 8, padding: 4 }}>
-              <button
-                onClick={() => { setViewMode('list'); setPage(1); }}
-                style={{
-                  padding: '6px 12px',
-                  background: viewMode === 'list' ? 'white' : 'transparent',
-                  border: 'none',
-                  borderRadius: 6,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  fontSize: 13,
-                  fontWeight: 500,
-                  color: viewMode === 'list' ? '#111827' : '#6B7280',
-                  boxShadow: viewMode === 'list' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
-                  transition: 'all 0.15s',
-                }}
-              >
-                <List size={16} />
-                {t('jobDetails.listView', 'Liste')}
-              </button>
-              <button
-                onClick={() => { setViewMode('grid'); setPage(1); }}
-                style={{
-                  padding: '6px 12px',
-                  background: viewMode === 'grid' ? 'white' : 'transparent',
-                  border: 'none',
-                  borderRadius: 6,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  fontSize: 13,
-                  fontWeight: 500,
-                  color: viewMode === 'grid' ? '#111827' : '#6B7280',
-                  boxShadow: viewMode === 'grid' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
-                  transition: 'all 0.15s',
-                }}
-              >
-                <LayoutGrid size={16} />
-                {t('jobDetails.gridView', 'Kart')}
-              </button>
-              <button
-                onClick={() => { setViewMode('pipeline'); }}
-                style={{
-                  padding: '6px 12px',
-                  background: viewMode === 'pipeline' ? 'white' : 'transparent',
-                  border: 'none',
-                  borderRadius: 6,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  fontSize: 13,
-                  fontWeight: 500,
-                  color: viewMode === 'pipeline' ? '#111827' : '#6B7280',
-                  boxShadow: viewMode === 'pipeline' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
-                  transition: 'all 0.15s',
-                }}
-              >
-                <Columns3 size={16} />
-                Pipeline
               </button>
             </div>
           </div>
