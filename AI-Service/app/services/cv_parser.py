@@ -132,10 +132,14 @@ class CVParserService:
                 }
             )
             
-            # ── Step 3: Restore real PII in output ─────────────────
-            if pii_mapping:
-                parsed_data = CVAnonymizer.deanonymize_parsed(parsed_data, pii_mapping)
-                logger.info(f"KVKK Anonymizer: Restored {masked_count} PII items in parsed output")
+            # ── Step 3: Inject locally-extracted PII into output ──────
+            # This OVERRIDES AI personal fields with our local regex values
+            # Guarantees: no placeholder leaks + correct PII always
+            parsed_data = anonymizer.inject_pii_into_parsed(parsed_data)
+            logger.info(
+                f"KVKK Anonymizer: Injected local PII into parsed output "
+                f"(name={anonymizer.extracted_pii.get('name', 'N/A')})"
+            )
             
             return parsed_data
             
