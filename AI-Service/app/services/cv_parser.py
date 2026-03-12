@@ -1,18 +1,26 @@
 """
 CV Parser Service
-Extracts text from PDF/DOCX and parses with OpenAI
+Extracts text from PDF/DOCX and parses with AI.
+KVKK Compliant: PII is anonymized before sending to external AI.
 """
 import PyPDF2
 import docx
+import logging
 from io import BytesIO
 from typing import Dict, Any, Optional
 from app.services.openai_client import openai_client
+from app.services.anonymizer import CVAnonymizer
 from app.prompts.cv_parsing_prompt import SYSTEM_PROMPT, get_user_prompt
+
+logger = logging.getLogger(__name__)
 
 
 class CVParserService:
-    """Service for parsing CV files"""
-    
+    """Service for parsing CV files with KVKK-compliant anonymization."""
+
+    def __init__(self):
+        self.anonymizer = CVAnonymizer()
+
     @staticmethod
     def extract_text_from_pdf(file_content: bytes) -> str:
         """
@@ -80,39 +88,63 @@ class CVParserService:
         else:
             raise Exception(f"Unsupported file format: {extension}")
     
-    @staticmethod
-    async def parse_cv(cv_text: str) -> Dict[str, Any]:
+    async def parse_cv(self, cv_text: str) -> Dict[str, Any]:
         """
-        Parse CV text using OpenAI
+        Parse CV text using AI with KVKK-compliant anonymization.
+        
+        Pipeline:
+          1. Anonymize PII in text (local regex)
+          2. Send anonymized text to AI
+          3. Restore real PII in parsed output
         
         Args:
             cv_text: Extracted CV text
             
         Returns:
-            Structured CV data as JSON
+            Structured CV data as JSON (with real PII restored)
         """
         try:
-            # Generate prompts
-            system_prompt = SYSTEM_PROMPT
-            user_prompt = get_user_prompt(cv_text)
+            # ── Step 1: Anonymize PII ──────────────────────────────
+            anonymizer = CVAnonymizer()
+            anonymized_text, pii_mapping = anonymizer.anonymize(cv_text)
             
-            # Call OpenAI with LangFuse tracing
+            masked_count = len(pii_mapping)
+            if masked_count > 0:
+                logger.info(
+                    f"KVKK Anonymizer: Masked {masked_count} PII items "
+                    f"({', '.join(k.split('_')[0].strip('[') for k in pii_mapping.keys())})"
+                )
+            else:
+                logger.info("KVKK Anonymizer: No PII detected in CV text")
+
+            # ── Step 2: Send anonymized text to AI ─────────────────
+            system_prompt = SYSTEM_PROMPT
+            user_prompt = get_user_prompt(anonymized_text)
+            
             parsed_data = await openai_client.get_structured_response(
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
                 trace_name="cv_parsing",
-                trace_metadata={"text_length": len(cv_text)}
+                trace_metadata={
+                    "text_length": len(cv_text),
+                    "anonymized_text_length": len(anonymized_text),
+                    "pii_items_masked": masked_count,
+                }
             )
+            
+            # ── Step 3: Restore real PII in output ─────────────────
+            if pii_mapping:
+                parsed_data = CVAnonymizer.deanonymize_parsed(parsed_data, pii_mapping)
+                logger.info(f"KVKK Anonymizer: Restored {masked_count} PII items in parsed output")
             
             return parsed_data
             
         except Exception as e:
             raise Exception(f"CV parsing failed: {str(e)}")
     
-    @staticmethod
-    async def parse_cv_file(file_content: bytes, filename: str) -> Dict[str, Any]:
+    async def parse_cv_file(self, file_content: bytes, filename: str) -> Dict[str, Any]:
         """
-        Complete CV parsing pipeline: extract text + parse with AI
+        Complete CV parsing pipeline: extract text + anonymize + parse with AI + restore PII
         
         Args:
             file_content: CV file bytes
@@ -121,20 +153,21 @@ class CVParserService:
         Returns:
             Structured CV data
         """
-        # Step 1: Extract text
+        # Step 1: Extract text (local, no PII risk)
         cv_text = CVParserService.extract_text(file_content, filename)
         
         if not cv_text or len(cv_text) < 50:
             raise Exception("Extracted text is too short or empty")
         
-        # Step 2: Parse with AI
-        parsed_data = await CVParserService.parse_cv(cv_text)
+        # Step 2: Parse with AI (anonymized)
+        parsed_data = await self.parse_cv(cv_text)
         
         # Add metadata
         parsed_data['_metadata'] = {
             'filename': filename,
             'text_length': len(cv_text),
-            'extracted_text': cv_text[:500]  # First 500 chars for reference
+            'extracted_text': cv_text[:500],  # First 500 chars for reference
+            'kvkk_anonymized': True,
         }
         
         return parsed_data
